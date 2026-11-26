@@ -82,9 +82,9 @@ pub use versions::color_text;
 pub use views::{
     AxisChoice, CameraSpot, CastUse, CastingRow, CharacterRow, Chip, ElementRow, Elsewhere, Hint,
     LibraryEntry, LinkKind, LocationRow, LookElement, LookRow, Marker, NotShot, Overview,
-    PersonRow, PlaceRow, PlanRow, SceneCard, SceneRef, SceneRow, SceneUse, ScriptLine, Segment,
-    SetupOption, SheetCategory, SheetElement, SheetFigure, SheetLookElement, SheetView, ShotRow,
-    Suggestion, SunTexts, TemplateEntry, Track, TrackKind, ViewRow,
+    PersonRow, PlaceRow, PlanRow, SceneCard, SceneRef, SceneRow, SceneUse, ScriptLine, ScriptRow,
+    Segment, SetupOption, SheetCategory, SheetElement, SheetFigure, SheetLookElement, SheetView,
+    ShotRow, Suggestion, SunTexts, TemplateEntry, Track, TrackKind, ViewRow,
 };
 
 // What surfaces draw and print, handed through so they need no lower crate.

@@ -70,7 +70,7 @@ RowLayout {
     readonly property var scene: project.scenes.find(s => s.id === controller.sceneId) || null
     property alias commandPalette: palette
     /// The actions of the menus and buttons, in the order of the palette.
-    readonly property var entries: [actNew, actOpen, actProject, actBook, actSave, actClose, actBackground, actBackgroundRemove, actScriptImport, actTitlePage,
+    readonly property var entries: [actNew, actOpen, actProject, actBook, actSave, actClose, actBackground, actBackgroundRemove, actScriptImport, actTitlePage, actScriptPdf,
                                     actFree, actWallCut, actThrough, actHeights,
                                     actScript, actShot, actTimeline,
                                     actUndo, actRedo].concat(moduleCommands.actions, exportCommands.actions, shotViews.actions, zoom.actions,
@@ -202,6 +202,8 @@ RowLayout {
         KanteMenuItem { objectName: "reportCast"; action: reportCommands.cast; iconRoom: true }
         KanteMenuItem { objectName: "reportExtract"; action: reportCommands.extract; iconRoom: true }
         KanteMenuItem { objectName: "reportContacts"; action: reportCommands.contacts; iconRoom: true }
+        KanteMenuSection { text: header.texts.t("script.title") }
+        KanteMenuItem { objectName: "scriptPdf"; action: actScriptPdf; iconRoom: true }
     }
     HeaderMenu {
         id: viewMenu
@@ -367,6 +369,25 @@ RowLayout {
         text: header.texts.t("titlepage.open")
         enabled: header.controller.loaded && !header.locked
         onTriggered: header.titlePageRequested()
+    }
+
+    // DB-70: the screenplay as PDF; asks how, then where.
+    CommandAction {
+        id: actScriptPdf
+        cmd: "export.scriptpdf"
+        group: "export"
+        text: header.texts.t("script.pdf")
+        enabled: header.controller.loaded
+        onTriggered: scriptPdfDialog.request()
+    }
+    ScriptPdfDialog {
+        id: scriptPdfDialog
+        objectName: "scriptPdfDialog"
+        texts: header.texts
+        controller: header.controller
+        papers: (header.project.papers || []).filter(p => (header.project.script_papers || []).includes(p.id))
+        projectPaper: header.project.script ? header.project.script.paper : ""
+        versions: header.project.script_versions || 0
     }
 
     ExportDialog {

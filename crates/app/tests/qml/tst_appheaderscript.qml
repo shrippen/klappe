@@ -108,4 +108,35 @@ TestCase {
         compare(flushSpy.count, 1)
         compare(fake.calls, [["save"]])
     }
+
+    // DB-70: the output menu has a section for the screenplay; its entry asks how first.
+    function test_the_export_menu_outputs_the_screenplay() {
+        const header = make()
+
+        const item = entry(header, "exportMenu", "scriptPdf")
+        compare(item.text, "Drehbuch als PDF …")
+        pick(header, "exportMenu", "scriptPdf")
+
+        const dialog = findChild(header, "scriptPdfDialog")
+        tryCompare(dialog, "opened", true)
+        // Starts from the project's paper.
+        compare(dialog.paper, "letter")
+        compare(fake.calls, [])
+        dialog.close()
+    }
+
+    function test_the_screenplay_pdf_is_in_the_palette() {
+        const header = make()
+
+        const found = header.commands.find(c => c.id === "export.scriptpdf")
+        verify(found)
+        compare(found.text, "Drehbuch als PDF …")
+        verify(found.enabled)
+    }
+
+    function test_the_screenplay_pdf_is_english_too() {
+        const header = createTemporaryObject(headerComponent, tc, { texts: en })
+
+        compare(entry(header, "exportMenu", "scriptPdf").text, "Screenplay as PDF …")
+    }
 }

@@ -6,10 +6,10 @@ use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
 use klappe_services::{
-    enter_step, error_text, set_title_fields, tab_step, text_kinds, title_fields, typed_caps,
-    Align, EnterStep, Gap, HeaderLine, ImportReport, Laid, PrintFace, Revisions, SceneNumbers,
-    ScriptPages, ScriptPrint, SheetPage, Slot, TextKind, SCRIPT_ASCENT_PT, SCRIPT_FONT_PT,
-    TEXT_COLUMNS,
+    enter_step, error_text, set_title_fields, tab_step, text_kinds, title_fields, typed_caps, Align, EnterStep, Gap, HeaderLine,
+    ImportReport, Laid, PrintFace, Revisions, SceneNumbering, SceneNumbers, ScriptLanguage,
+    ScriptPages, ScriptPaper, ScriptPrint, ScriptSetup, ScriptWords, SheetPage, Slot, TextKind,
+    SCRIPT_ASCENT_PT, SCRIPT_FONT_PT, TEXT_COLUMNS,
 };
 use serde_json::{json, Map, Value};
 
@@ -274,6 +274,34 @@ impl qobject::Controller {
             return;
         }
         self.refresh();
+    }
+
+    pub(super) fn set_script_setup(
+        mut self: Pin<&mut Self>,
+        language: &QString,
+        words: &QString,
+        paper: &QString,
+        contd: &QString,
+        numbering: &QString,
+        first: i32,
+    ) -> bool {
+        let Some(s) = self.as_mut().session() else {
+            return false;
+        };
+
+        // A first number that is no number stays as it was, as in the terminal.
+        let current = s.project().script;
+        let setup = ScriptSetup {
+            language: ScriptLanguage::from_name(&language.to_string()),
+            words: ScriptWords::from(words.to_string()),
+            paper: ScriptPaper::from(paper.to_string()),
+            contd_after_action: contd.to_string() == "on",
+            scene_numbering: SceneNumbering::from(numbering.to_string()),
+            first_scene: u32::try_from(first).unwrap_or(current.first_scene),
+        };
+        let result = s.choose_script_setup(setup);
+
+        self.report(Some(result))
     }
 
     pub(super) fn import_script(mut self: Pin<&mut Self>, path: &QString) -> bool {

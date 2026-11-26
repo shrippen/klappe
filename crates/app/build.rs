@@ -52,6 +52,7 @@ const PAGES: &[&str] = &[
     "qml/CommandAction.qml",
     "qml/AppHeader.qml",
     "qml/ExportDialog.qml",
+    "qml/ScriptPdfDialog.qml",
     "qml/LayerPopover.qml",
     "qml/PlanForm.qml",
     "qml/TemplateForm.qml",
@@ -101,6 +102,7 @@ const PAGES: &[&str] = &[
     "qml/NotFigures.qml",
     "qml/ManageList.qml",
     "qml/ProjectDialog.qml",
+    "qml/ScriptSetupForm.qml",
     "qml/StartPage.qml",
 ];
 
