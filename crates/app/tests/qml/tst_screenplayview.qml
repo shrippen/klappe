@@ -427,6 +427,18 @@ TestCase {
         compare(view.area.text, book)
     }
 
+    // Review of PR 349: a section row of the scene list shows the page of the first scene in the
+    // section, else of the next scene after it; a heading after the last scene shows none.
+    function test_a_section_shows_the_page_of_its_next_scene() {
+        const view = make()
+
+        compare(view.pageOfLine(2), 1)
+        compare(view.pageOfLine(1), 1)
+        compare(view.pageOfLine(4), 2)
+        compare(view.pageOfLine(6), 2)
+        compare(view.pageOfLine(7), 0)
+    }
+
     // "Neu schreiben" in the print view goes to the text it writes in.
     function test_writing_shows_the_text() {
         fake.scriptText = ""

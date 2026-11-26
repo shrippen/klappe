@@ -142,6 +142,13 @@ RowLayout {
         }
     }
 
+    /// The page of the first scene at or after text line `line` (a scene's own heading, or a
+    /// section's first scene); 0 when no scene follows.
+    function pageOfLine(line) {
+        const found = pageMap.scenes.find(s => s.line >= line)
+        return found ? found.page : 0
+    }
+
     /// The cursor at the heading of `scene`, a row of the scene list: its `line` is the heading's
     /// text line, null when the book does not hold the scene, which leaves the cursor where it is.
     function goToScene(scene) {
@@ -150,9 +157,9 @@ RowLayout {
         }
         // The print view stays: it scrolls to the page the heading stands on.
         if (layout === "print") {
-            const found = pageMap.scenes.find(s => s.line === scene.line)
-            if (found) {
-                printView.goToPage(found.page, pageMap.pages)
+            const page = pageOfLine(scene.line)
+            if (page > 0) {
+                printView.goToPage(page, pageMap.pages)
             }
             return
         }
