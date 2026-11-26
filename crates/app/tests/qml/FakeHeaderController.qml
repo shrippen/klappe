@@ -54,7 +54,12 @@ QtObject {
     ]
     // The files a report can be written as (services/views.rs `Overview.report_formats`).
     readonly property var reportFormats: ["pdf", "csv", "ods", "xlsx"]
-    property string projectJson: JSON.stringify({ scenes: scenes, plans: plans, plan: plan, formats: formats, report_formats: reportFormats })
+    // What the project view says of the screenplay's setup (services/views.rs `ScriptRow`).
+    readonly property var papers: [{ id: "a4", label: "A4" }, { id: "a3", label: "A3" }, { id: "letter", label: "Letter" }]
+    readonly property var script: ({ language: "de", words: "local", paper: "letter", contd_after_action: false,
+                                     scene_numbering: "locked", first_scene: 1 })
+    property string projectJson: JSON.stringify({ scenes: scenes, plans: plans, plan: plan, formats: formats, report_formats: reportFormats,
+                                                  papers: papers, script_papers: ["a4", "letter"], script: script, script_versions: 1 })
 
     function call(name, args) {
         calls.push([name].concat(args))
@@ -65,6 +70,8 @@ QtObject {
     function save() { return call("save", []) }
     function removeBackground() { call("removeBackground", []) }
     function exportFile(extension) { return "file:///work/Wartburg." + extension }
+    function scriptFile() { return "file:///work/Wartburg.pdf" }
+    function exportScript(paper, numbers, header, revisions, path) { return call("exportScript", [paper, numbers, header, revisions, path]) }
     function reportFile(report) { return "file:///work/" + report + ".pdf" }
     function exportReport(report, format, path) { return call("exportReport", [report, format, path]) }
     function exportTo(kind, order, paper, path) { return call("exportTo", [kind, order, paper, path]) }

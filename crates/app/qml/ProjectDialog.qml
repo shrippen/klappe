@@ -29,6 +29,10 @@ Item {
 
     readonly property var places: project.places || []
 
+    // The setup shown while no project is open.
+    readonly property var noScript: ({ language: "", words: "local", paper: "a4", contd_after_action: false,
+                                       scene_numbering: "locked", first_scene: 1 })
+
     readonly property var project: controller.projectJson
         ? JSON.parse(controller.projectJson)
         : { scenes: [], places: [], locations: [], characters: [], numberings: [], numbering: "" }
@@ -313,6 +317,16 @@ Item {
                     color: KanteStyle.mutedTextColor
                     text: root.texts.t("project.numberingHint")
                 }
+            }
+
+            // How the screenplay is paged and numbered (DN-05, DB-31, DB-33).
+            ScriptSetupForm {
+                objectName: "scriptSetup"
+                Layout.fillWidth: true
+                texts: root.texts
+                controller: root.controller
+                script: root.project.script || root.noScript
+                papers: (root.project.papers || []).filter(p => (root.project.script_papers || []).includes(p.id))
             }
         }
     }
