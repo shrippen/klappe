@@ -57,8 +57,8 @@ pub use report::{
     tables_pdf, tables_xlsx, ExtractBox, ExtractPage, ReportTable,
 };
 pub use script::{
-    Face, Placed, Revised, SceneNumbers, ScriptLine, ScriptPage, ScriptSheet, SheetPage, TitlePage,
-    ASCENT_PT as SCRIPT_ASCENT_PT, FONT_PT as SCRIPT_FONT_PT,
+    Face, Placed, Revised, SceneNumbers, ScriptLine, ScriptPage, ScriptRun, ScriptSheet, SheetPage,
+    TitlePage, Underline, ASCENT_PT as SCRIPT_ASCENT_PT, FONT_PT as SCRIPT_FONT_PT,
 };
 pub use video::{video_program_found, VideoSpec, VideoWriter, FFMPEG};
 

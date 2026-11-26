@@ -234,6 +234,36 @@ pub(crate) fn visible_runs(line: &str) -> Vec<(Marks, String)> {
         .collect()
 }
 
+/// A character a reader sees: where it stands in the line (a byte) and what applies to it.
+pub(crate) struct Seen {
+    pub ch: char,
+    pub at: usize,
+    pub marks: Marks,
+}
+
+/// The characters of a line as a reader sees them, like `visible_runs` but one by one. A note
+/// (and a `/*` that the parser left) stays as typed, marks and backslashes included.
+pub(crate) fn seen_chars(line: &str) -> Vec<Seen> {
+    let chars: Vec<(usize, char)> = line.char_indices().collect();
+    let scan = scan(line, false);
+    let plain: Vec<char> = chars.iter().map(|(_, c)| *c).collect();
+    let escapes = escape_marks(&plain);
+
+    chars
+        .iter()
+        .enumerate()
+        .filter_map(|(i, &(at, ch))| {
+            let marks = scan.marks[i];
+            let typed = marks.note || marks.boneyard;
+            if !typed && (scan.toggles[i] || escapes[i]) {
+                return None;
+            }
+
+            Some(Seen { ch, at, marks })
+        })
+        .collect()
+}
+
 /// Which characters are a backslash that protects what follows (a mark, a bracket or another
 /// backslash). The protected character is text, so `\\*` is a backslash and
 /// then a mark.
@@ -261,7 +291,7 @@ fn is_mark(c: char) -> bool {
 }
 
 /// Joins neighbours with the same marks; plain text gets runs too, so they cover the line.
-fn runs(marks: &[Marks]) -> Vec<Run> {
+pub(crate) fn runs(marks: &[Marks]) -> Vec<Run> {
     let mut out: Vec<Run> = Vec::new();
 
     for (i, m) in marks.iter().enumerate() {

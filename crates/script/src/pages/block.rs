@@ -1,8 +1,10 @@
 //! The elements as blocks of rows, and where a block may be cut.
 
+use super::shown::Shown;
 use super::wrap::wrap;
 use super::{Align, ContdAfterAction, Line, Margin, PageKind, PageOptions, Words, TEXT_COLUMNS};
 use crate::Element;
+use std::ops::Range;
 
 /// A block cut in two keeps at least this many rows (not counting the name) on each page.
 pub(super) const MIN_SPLIT_ROWS: usize = 2;
@@ -93,8 +95,10 @@ struct Part {
     x: usize,
     width: usize,
     align: Align,
-    text: String,
-    /// Where `text` starts in the element's text.
+    /// The text as a reader sees it, which is what wraps and cuts.
+    shown: Shown,
+    /// The byte of the element's text where the part starts; a locked page start before it
+    /// is not in the part.
     base: usize,
     cut: Cut,
     number: Option<String>,
@@ -111,7 +115,7 @@ impl Part {
             x: margin.x,
             width: margin.width,
             align: margin.align,
-            text,
+            shown: Shown::of(&text),
             base: 0,
             cut: Cut::Whole,
             number: None,
@@ -129,10 +133,10 @@ impl Part {
         let mut rows = Vec::new();
         let mut start = 0;
 
-        for hard in self.text.split('\n') {
+        for hard in self.shown.text.split('\n') {
             for range in wrap(hard, self.width) {
-                let text = hard[range.clone()].to_string();
-                rows.push(vec![self.line(text, start + range.start)]);
+                let range = start + range.start..start + range.end;
+                rows.push(vec![self.line(range)]);
             }
             start += hard.len() + 1;
         }
@@ -144,7 +148,9 @@ impl Part {
         rows
     }
 
-    fn line(&self, text: String, offset: usize) -> Line {
+    /// The row of the bytes `range` of the visible text.
+    fn line(&self, range: Range<usize>) -> Line {
+        let text = self.shown.text[range.clone()].to_string();
         let room = self.width.saturating_sub(text.chars().count());
         let shift = match self.align {
             Align::Left => 0,
@@ -156,9 +162,10 @@ impl Part {
             row: 0,
             x: self.x + shift,
             kind: self.kind,
+            runs: self.shown.runs(range.clone()),
             text,
             element: self.element,
-            offset: self.base + offset,
+            offset: self.shown.raw[range.start],
             number: None,
             added: self.added,
         }
@@ -166,15 +173,21 @@ impl Part {
 
     /// The sentences before `at`, and the ones from `at` on.
     fn halves(&self, at: usize) -> (Part, Part) {
-        let tail = &self.text[at..];
+        let text = &self.shown.text;
+        let tail = &text[at..];
         let skipped = tail.len() - tail.trim_start().len();
         let first = Part {
-            text: self.text[..at].trim_end().to_string(),
+            shown: self.shown.slice(0..text[..at].trim_end().len()),
             ..self.clone()
         };
         let rest = Part {
-            text: tail[skipped..].to_string(),
-            base: self.base + at + skipped,
+            shown: self.shown.slice(at + skipped..text.len()),
+            base: self
+                .shown
+                .raw
+                .get(at + skipped)
+                .copied()
+                .unwrap_or(self.base),
             number: None,
             ..self.clone()
         };
@@ -328,9 +341,11 @@ impl Block {
         let Some(i) = found else {
             return Hit::Nowhere;
         };
-        let Some(at) = offset.checked_sub(parts[i].base) else {
+        if offset < parts[i].base {
             return Hit::Nowhere;
-        };
+        }
+        // The first visible byte from the typed `offset` on; a mark before it is skipped.
+        let at = parts[i].shown.raw.partition_point(|r| *r < offset);
 
         // Between parts; a name stays with the words after it.
         if at == 0 {
@@ -341,7 +356,7 @@ impl Block {
             return self.cut_spot(parts, i, 0, words);
         }
 
-        let text = &parts[i].text;
+        let text = &parts[i].shown.text;
         if !text.is_char_boundary(at) || text.get(at..).is_none_or(|t| t.trim().is_empty()) {
             return Hit::Nowhere;
         }
@@ -488,12 +503,15 @@ pub(super) fn with_contd(name: &str, contd: &str) -> String {
 
 /// The name part of the next page's dialogue: the name with `(CONT'D)`.
 fn continued(cue: &Part, words: Words) -> Part {
-    Part {
-        text: with_contd(&cue.text, words.contd),
+    let mut part = Part {
         number: None,
         added: true,
         ..cue.clone()
-    }
+    };
+    part.shown
+        .extend_to(with_contd(&cue.shown.text, words.contd));
+
+    part
 }
 
 /// Rows side by side; the shorter column leaves the rest of the rows to the longer.
@@ -525,7 +543,11 @@ fn cuts(parts: &[Part]) -> Vec<(usize, usize)> {
             out.push((i, 0));
         }
         if part.cut == Cut::BetweenSentences {
-            out.extend(sentence_starts(&part.text).into_iter().map(|at| (i, at)));
+            out.extend(
+                sentence_starts(&part.shown.text)
+                    .into_iter()
+                    .map(|at| (i, at)),
+            );
         }
     }
 

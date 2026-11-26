@@ -11,6 +11,7 @@
 mod block;
 mod flow;
 mod locked;
+mod shown;
 mod wrap;
 
 #[cfg(test)]
@@ -20,7 +21,7 @@ mod locked_tests;
 #[cfg(test)]
 mod tests;
 
-use crate::Element;
+use crate::{Element, Run};
 use klappe_model::PageStart;
 
 pub use locked::{carry, compare_labels, lines_text, page_label_after, page_starts};
@@ -144,7 +145,11 @@ pub struct Line {
     /// Columns from the left edge of the text area.
     pub x: usize,
     pub kind: PageKind,
+    /// What a reader sees: the marks of emphasis are gone, `\*` is `*`.
     pub text: String,
+    /// The emphasis in `text`, by character; the runs cover the text. Notes and boneyards are
+    /// never marked here.
+    pub runs: Vec<Run>,
     /// The index of the element in the script this comes from.
     pub element: usize,
     /// Byte offset in the element's text where the line starts; 0 for added text.
