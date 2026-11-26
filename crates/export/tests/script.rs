@@ -2,8 +2,8 @@
 #![allow(clippy::unwrap_used)]
 
 use klappe_export::{
-    script_pdf, script_sheet_pages, Face, Paper, SceneNumbers, ScriptLine, ScriptPage, ScriptSheet,
-    TitlePage,
+    script_pdf, script_sheet_pages, Face, Paper, Revised, SceneNumbers, ScriptLine, ScriptPage,
+    ScriptSheet, TitlePage,
 };
 
 fn line(row: usize, col: usize, text: &str) -> ScriptLine {
@@ -13,6 +13,7 @@ fn line(row: usize, col: usize, text: &str) -> ScriptLine {
         text: text.into(),
         face: Face::Regular,
         scene_number: None,
+        revised: Revised::No,
     }
 }
 
@@ -37,6 +38,7 @@ fn sheet() -> ScriptSheet {
         ],
         scene_numbers: SceneNumbers::Hidden,
         header: None,
+        revision: None,
     }
 }
 
@@ -165,4 +167,80 @@ fn the_pages_place_each_text_as_the_pdf_does() {
 
 fn pdf_has(sheet: &ScriptSheet, ops: &str) -> bool {
     text(&script_pdf(sheet)).contains(ops)
+}
+
+#[test]
+fn a_revised_line_has_a_mark_in_the_right_margin_and_the_page_a_revision_line() {
+    let mut s = sheet();
+    s.pages[1].lines[0].revised = Revised::Yes;
+    s.revision = Some("Revision Blau · 2026-11-25".into());
+    let pages = script_sheet_pages(&s);
+
+    let marks = |page: usize| {
+        pages[page]
+            .texts
+            .iter()
+            .filter(|t| t.text == "*")
+            .collect::<Vec<_>>()
+    };
+    assert!(marks(0).is_empty());
+    let [mark] = marks(1)[..] else {
+        panic!("one mark expected");
+    };
+    // Right of the text area (108 pt + 60 columns), on the row of the line.
+    assert!(mark.x_pt > 108.0 + 60.0 * 7.2);
+    let hello = pages[1]
+        .texts
+        .iter()
+        .find(|t| t.text.starts_with("Hello"))
+        .unwrap();
+    assert_eq!(mark.baseline_pt, hello.baseline_pt);
+
+    // The revision line is on both pages, above the page number's line.
+    for page in &pages {
+        let revision = page
+            .texts
+            .iter()
+            .find(|t| t.text.starts_with("Revision"))
+            .unwrap();
+        assert!(revision.baseline_pt < 46.0);
+    }
+}
+
+/// DB-41: the mark ends 10 mm before the paper's edge (a printer does not reach it) and never
+/// lies on a scene number.
+#[test]
+fn the_revision_mark_stays_on_the_paper_and_off_the_numbers() {
+    const MM_PT: f64 = 72.0 / 25.4;
+    const CHAR_PT: f64 = 7.2;
+
+    for paper in [Paper::A4, Paper::Letter] {
+        let mut s = sheet();
+        s.paper = paper;
+        s.scene_numbers = SceneNumbers::Shown;
+        s.pages[0].lines[0].revised = Revised::Yes;
+        s.pages[0].lines[0].scene_number = Some("12A".into());
+        s.pages[0].lines[1].revised = Revised::Yes;
+        let pages = script_sheet_pages(&s);
+        let page = &pages[0];
+
+        let marks: Vec<_> = page.texts.iter().filter(|t| t.text == "*").collect();
+        assert_eq!(marks.len(), 2, "{paper:?}");
+        for mark in marks {
+            assert!(
+                mark.x_pt + CHAR_PT <= page.width_pt - 10.0 * MM_PT,
+                "{paper:?}: ends at {}",
+                mark.x_pt + CHAR_PT
+            );
+            let numbers = page
+                .texts
+                .iter()
+                .filter(|t| t.text == "12A" && t.baseline_pt == mark.baseline_pt);
+            for number in numbers {
+                let apart =
+                    mark.x_pt + CHAR_PT <= number.x_pt || mark.x_pt >= number.x_pt + 3.0 * CHAR_PT;
+                assert!(apart, "{paper:?}: mark at {} on number", mark.x_pt);
+            }
+        }
+    }
 }

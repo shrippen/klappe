@@ -13,7 +13,7 @@ impl Session {
     /// Sets who numbers the scenes and the first number (DB-33) and writes `projekt.toml` at
     /// once, nothing else: where the book is edited without the plans (TUI) the setting is
     /// kept as an answer about the book is. The numbers in the text change with the next
-    /// save. Locking a version (DB-40) will lock them together with the pages.
+    /// save. Locking a version (DB-40) locks them together with the pages.
     pub fn set_scene_numbering(
         &mut self,
         numbering: SceneNumbering,

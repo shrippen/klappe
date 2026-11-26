@@ -7,9 +7,9 @@ use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
 use klappe_services::{
     enter_step, error_text, parse_located, suggest, tab_step, text_kinds, typed_caps, Align,
-    Context, EnterStep, Gap, HeaderLine, ImportReport, Laid, PrintFace, SceneNumbers, ScriptPages,
-    ScriptPrint, SheetPage, Slot, Stage, TextKind, Vocabulary, SCRIPT_ASCENT_PT, SCRIPT_FONT_PT,
-    TEXT_COLUMNS,
+    Context, EnterStep, Gap, HeaderLine, ImportReport, Laid, PrintFace, Revisions, SceneNumbers,
+    ScriptPages, ScriptPrint, SheetPage, Slot, Stage, TextKind, Vocabulary, SCRIPT_ASCENT_PT,
+    SCRIPT_FONT_PT, TEXT_COLUMNS,
 };
 use serde_json::{json, Map, Value};
 
@@ -213,6 +213,7 @@ impl qobject::Controller {
             scene_numbers: SceneNumbers::Shown,
             header: HeaderLine::Off,
             language: self.rust().language,
+            revisions: Revisions::Off,
         };
         let Some(s) = self.as_mut().session() else {
             return q(&print_json(&[]));
