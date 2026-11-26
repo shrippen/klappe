@@ -135,6 +135,8 @@ TestCase {
         fake.prints = 0
         fake.enters = 0
         fake.layouts = 0
+        fake.pages = { pages: 2, breaks: [{ page: 2, line: 6 }],
+                       scenes: [{ line: 2, page: 1 }, { line: 6, page: 2 }] }
         fake.printLine = "INT. SAAL - TAG"
     }
 
@@ -796,5 +798,17 @@ TestCase {
         verify(fake.layouts > before)
         verify(!note.visible)
         compare(findChild(view.area, "pageBreak.2").opacity, 1)
+    }
+
+    // Another project with the same text, or another paper: the breaks are read anew.
+    function test_a_project_change_reads_the_breaks_again() {
+        const view = make()
+        compare(view.pageMap.pages, 2)
+
+        fake.pages = { pages: 3, breaks: [{ page: 2, line: 4 }, { page: 3, line: 6 }], scenes: [] }
+        fake.projectJson = JSON.stringify({ scenes: tc.scenes, paper: "letter" })
+
+        compare(view.pageMap.pages, 3)
+        verify(!view.stale)
     }
 }
