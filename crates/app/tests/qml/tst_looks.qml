@@ -372,7 +372,7 @@ TestCase {
         compare(field.model, ["Schramme"])
         field.activated(0)
 
-        compare(fake.calls, [["addLookElement", "l2", "e5"]])
+        compare(fake.calls, [["addElementToLook", "l2", "makeup", "Schramme"]])
     }
 
     // A costume the look lacks is offered; the typed name of a new one is one step.
@@ -388,14 +388,14 @@ TestCase {
         compare(fake.calls, [["addElementToLook", "l2", "costume", "Hut"]])
     }
 
-    function test_a_typed_name_of_an_existing_element_does_not_make_another() {
+    function test_a_typed_name_of_an_existing_element_goes_to_the_session_trimmed() {
         const v = view()
         showLooks(v)
 
         look(v, "l2").clicked()
         findChild(findChild(v, "lookForm"), "add.costume").newEntered(" ballkleid ")
 
-        compare(fake.calls, [["addLookElement", "l2", "e3"]])
+        compare(fake.calls, [["addElementToLook", "l2", "costume", "ballkleid"]])
     }
 
     // The name decides nothing in the form: the same name, another case and a new one all go
@@ -410,7 +410,8 @@ TestCase {
         field.newEntered("BALLKLEID")
         field.newEntered("Hut")
 
-        compare(fake.calls.map(c => c[0]).filter(n => n.startsWith("add")), ["addLookElement", "addLookElement", "addElementToLook"])
+        compare(fake.calls, [["addElementToLook", "l2", "costume", "Ballkleid"],
+            ["addElementToLook", "l2", "costume", "BALLKLEID"], ["addElementToLook", "l2", "costume", "Hut"]])
     }
 
     function test_the_scenes_of_a_look_show_the_scene() {
