@@ -3,7 +3,7 @@
 
 use crate::parse::{BONEYARD_CLOSE, BONEYARD_OPEN, ESCAPE, NOTE_CLOSE, NOTE_OPEN, STAR};
 
-const UNDERLINE: char = '_';
+pub(crate) const UNDERLINE: char = '_';
 /// Longest run of stars that means emphasis: `***bold italic***`.
 const MAX_STARS: usize = 3;
 
@@ -239,6 +239,8 @@ pub(crate) struct Seen {
     pub ch: char,
     pub at: usize,
     pub marks: Marks,
+    /// A backslash stood before it in the line: `\*` is the text `*`.
+    pub escaped: bool,
 }
 
 /// The characters of a line as a reader sees them, like `visible_runs` but one by one. A note
@@ -259,7 +261,14 @@ pub(crate) fn seen_chars(line: &str) -> Vec<Seen> {
                 return None;
             }
 
-            Some(Seen { ch, at, marks })
+            let escaped = i > 0 && escapes[i - 1];
+
+            Some(Seen {
+                ch,
+                at,
+                marks,
+                escaped,
+            })
         })
         .collect()
 }
@@ -284,7 +293,7 @@ fn escape_marks(chars: &[char]) -> Vec<bool> {
 }
 
 /// The character a note opens with.
-const NOTE_BRACKET: char = '[';
+pub(crate) const NOTE_BRACKET: char = '[';
 
 fn is_mark(c: char) -> bool {
     c == STAR || c == UNDERLINE
