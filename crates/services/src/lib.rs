@@ -73,10 +73,10 @@ pub use script_refs::{ChangeKind, ScriptChange};
 pub use session::fdx_loss_text;
 pub use session::video_frame_count;
 pub use session::{
-    Answer, AnswerLine, Answered, Autosave, BackupState, BookQuestion, Draft, ExportOptions, Fade,
-    FigureAnswer, Grab, Laid, Layer, Lock, Looping, OnOutside, Outside, OutsideFile, Pages,
-    PlaceAnswer, Playing, QuestionKey, Revisions, Saved, Session, Size, Speech, SpokenLine, Step,
-    Tick, TimeSnap, VideoJob, View, ViewStep, Visibility,
+    Answer, AnswerLine, Answered, Autosave, BackupState, BookQuestion, DialogueFigure, Draft,
+    ExportOptions, Fade, FigureAnswer, Grab, Laid, Layer, Lock, Looping, OnOutside, Outside,
+    OutsideFile, Pages, PlaceAnswer, Playing, QuestionKey, Revisions, Saved, Session, Size, Speech,
+    SpokenLine, Step, Tick, TimeSnap, VideoJob, View, ViewStep, Visibility,
 };
 pub use start::{project_card, CardState, ProjectCard};
 pub use sun_input::{read_site, read_sun_time};

@@ -199,8 +199,48 @@ impl qobject::Controller {
     }
 
     pub(super) fn export_report(
+        self: Pin<&mut Self>,
+        report: &QString,
+        format: &QString,
+        path: &QString,
+    ) -> bool {
+        self.write_report(report, "", format, path)
+    }
+
+    /// The dialogue report (DB-52) of the character `figure`, as `export_report`.
+    pub(super) fn export_dialogue(
+        self: Pin<&mut Self>,
+        figure: &QString,
+        format: &QString,
+        path: &QString,
+    ) -> bool {
+        let report = QString::from(Report::Dialogue.name());
+
+        self.write_report(&report, &figure.to_string(), format, path)
+    }
+
+    /// The characters with a reply in the book, most replies first, as
+    /// `[{ id, name, replies }]`; the choice before the dialogue report. A book without one
+    /// says so on the status line.
+    pub(super) fn dialogue_figures(mut self: Pin<&mut Self>) -> QString {
+        let figures = self
+            .rust()
+            .session
+            .as_ref()
+            .map(Session::dialogue_figures)
+            .unwrap_or_default();
+        if figures.is_empty() {
+            let message = self.rust().language.text("error.noReplies");
+            self.as_mut().say(message);
+        }
+
+        QString::from(serde_json::json!(figures).to_string())
+    }
+
+    fn write_report(
         mut self: Pin<&mut Self>,
         report: &QString,
+        figure: &str,
         format: &QString,
         path: &QString,
     ) -> bool {
@@ -227,7 +267,10 @@ impl qobject::Controller {
 
         // The report lays the text out if need be; the scene list then shows its lengths.
         let laid = s.paginate_if_changed(language);
-        let result = s.export_report(kind, format, &path, language);
+        let result = match kind {
+            Report::Dialogue => s.export_dialogue(figure, format, &path, language),
+            _ => s.export_report(kind, format, &path, language),
+        };
         let ok = result.is_ok();
         let message = match result {
             Ok(()) => language

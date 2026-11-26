@@ -126,7 +126,7 @@ impl Session {
 }
 
 /// The text after the last dash of the heading; empty without a dash.
-fn time_of(heading: &str) -> String {
+pub(super) fn time_of(heading: &str) -> String {
     TIME_SEPARATORS
         .iter()
         .filter_map(|sep| heading.rsplit_once(sep))
