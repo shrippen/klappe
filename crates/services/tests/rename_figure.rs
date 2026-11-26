@@ -65,18 +65,17 @@ fn copy_dir(from: &Path, to: &Path) {
 }
 
 #[test]
-fn every_cue_of_the_figure_is_renamed_and_nothing_else() {
+fn every_cue_of_the_name_is_renamed_and_nothing_else() {
     let mut s = Session::open(&make("rename-fig-cues")).unwrap();
 
     let count = s.rename_figure("Anna", "Eva").unwrap();
 
-    assert_eq!(count, 4);
+    // The rule of `EditCharacter`: the cues of the name, not those of the other names.
+    assert_eq!(count, 2);
     assert_eq!(
         s.script_text(),
         BOOK.replace("ANNA (V.O.)", "EVA (V.O.)")
             .replace("ANNA\nHallo", "EVA\nHallo")
-            .replace("ANNI\nLange", "EVA\nLange")
-            .replace("@Anni ^", "@Eva ^")
     );
     assert!(s.script_text().contains("Ich bin nicht Anna."));
 }

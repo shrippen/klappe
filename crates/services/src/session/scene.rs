@@ -150,11 +150,9 @@ impl Session {
     }
 
     /// Renames the character called `from` (by name or other name) to `to` in the whole book
-    /// (DB-04): every cue it answers to, so the cues of its other names too, with extension,
-    /// dual mark and force mark kept. Id, short code, colour and other names stay. One undo
-    /// step for text and character; returns how many cues changed. Refused: no such character,
-    /// an empty name, the name it has, a name another character answers to or the user marked
-    /// as no character.
+    /// (DB-04): `edit_project` of `EditCharacter`, so its cues change as they do there, with
+    /// one undo step. Id, short code, colour and other names stay. Returns how many cues
+    /// changed. Refused: no such character, the name it has, and what `EditCharacter` refuses.
     pub fn rename_figure(&mut self, from: &str, to: &str) -> Result<usize, ServiceError> {
         let Some(c) = self.project.characters.iter().find(|c| c.is_called(from)) else {
             return Err(ServiceError::NoCharacter(from.trim().to_owned()));
@@ -163,8 +161,9 @@ impl Session {
             return Err(ServiceError::NameUnchanged(c.name.clone()));
         }
 
+        let id = c.id.clone();
         let edit = ProjectEdit::EditCharacter {
-            id: c.id.clone(),
+            id: id.clone(),
             name: to.to_owned(),
             short: c.short.clone(),
             color: c.color,
@@ -172,17 +171,10 @@ impl Session {
             size_m: c.size_m,
             aliases: None,
         };
-        let mut next = self.project.clone();
-        project_edit::apply(&mut next, &edit)?;
+        let changes = script_refs::character_changes(&self.project, self.script_text(), &id, to);
+        self.edit_project(edit)?;
 
-        let (text, count) =
-            klappe_script::rename_cues(self.script_text(), |cue| c.is_called(cue), to);
-        let on_view = self.scene().map(|s| s.id.clone());
-        let plan_on_view = self.plan().map(|p| p.id.clone());
-        self.commit_script(next, &text, &project_step(&edit));
-        self.follow_scene(on_view, plan_on_view);
-
-        Ok(count)
+        Ok(changes.iter().map(|change| change.count).sum())
     }
 
     /// Adds the element and returns its id; undoable. Refused like `AddElement`.
