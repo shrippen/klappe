@@ -109,6 +109,16 @@ pub enum ServiceError {
     /// The project has no screenplay to page or print (DB-70).
     #[error("the project has no screenplay")]
     NoScript,
+    #[error("no version {0}")]
+    NoVersion(String),
+    /// No version is locked yet, so there is nothing to compare the book with (DB-41).
+    #[error("no version is locked")]
+    NoVersions,
+    #[error("a version needs a name")]
+    EmptyVersionName,
+    /// Version names are unique, so the versions can be told apart.
+    #[error("version name {0} is taken")]
+    VersionNameTaken(String),
     /// A report has no scene to list: none is in the book.
     #[error("no scenes in the book")]
     NoBookScenes,
