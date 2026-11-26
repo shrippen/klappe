@@ -258,3 +258,35 @@ fn each_removed_line_stands_above_its_replacement() {
         ]
     );
 }
+
+/// The groups of a scene's changes, as `(change, text)` per group number.
+fn groups(c: &Comparison) -> Vec<(usize, Edit, String)> {
+    c.scenes[0]
+        .lines
+        .iter()
+        .map(|l| (l.group, l.change, l.text.clone()))
+        .collect()
+}
+
+/// A change is a gap between common lines: old `a b c d`, new `a c Y` is the removal of `b`
+/// and, apart from it, `d` replaced by `Y`.
+#[test]
+fn changes_apart_get_their_own_group() {
+    let head = "INT. SAAL – TAG #1#\n\n";
+    let old = format!(
+        "{head}Anna sitzt am Tisch.\n\nB\n\nEr wartet auf den Zug.\n\nD\n\nSie geht nach Hause.\n"
+    );
+    let new = format!(
+        "{head}Anna sitzt am Tisch.\n\nEr wartet auf den Zug.\n\nY\n\nSie geht nach Hause.\n"
+    );
+    let c = compare(&old, &new);
+
+    assert_eq!(
+        groups(&c),
+        vec![
+            (0, Edit::Removed, "B".to_string()),
+            (1, Edit::Removed, "D".to_string()),
+            (1, Edit::Added, "Y".to_string()),
+        ]
+    );
+}
