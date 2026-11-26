@@ -3,6 +3,9 @@
 # Everything the CI's core job runs; run before every commit (agent.md).
 check: fmt structure lint test qml deny commits
 
+# Tests run offscreen even when the caller forgets it (owner 26.11.2026); `run` keeps its window.
+test qml perf: export QT_QPA_PLATFORM = offscreen
+
 fmt:
 	cargo fmt --all --check
 
