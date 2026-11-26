@@ -24,6 +24,7 @@ Stand: 2026-11-18.
 | Szenenkopf | scene heading (slugline) | TUI, Szenenformular, Drehbuch-PDF | Innen/Außen, Ort, Tageszeit; `INT.`/`INNEN` usw. |
 | Drehbuch, kurz „Buch“ | script | Bereich, TUI, Szenenabgleich | „Buch“ nur in den Texten zum Abgleich der Szenen; englisch nie „book“ oder „screenplay“ |
 | Fassung | draft | TUI-Titelseite („Fassung vom“ / Draft date) | |
+| gesperrte Fassung | locked version | Fassungen, Revisionen, CLI, Fehlertexte | Ein Stand des Buchs mit Namen, Farbe und festen Seiten (DB-40). Deutsch „Fassung“, englisch in Code und Oberfläche „version“ (`versions`, `error.noVersions`), nicht „draft“; „draft“ gilt nur für das Datum der Titelseite. Das Wort „version“ steht auch für die Shot-Variante (`shot.version`, 12.3A; deutsch „Version“): dort ist es der englische und der deutsche Begriff zugleich, aus dem Zusammenhang unterschieden. Nicht umbenannt. |
 | Spielort | scripted location | Szenenabgleich, `orte.toml` | Ort im Buch (F-01) |
 | Drehort | location | Projektliste, Szenenformular | realer Raum mit Set (F-01); auch in Verlaufstexten („Drehort anlegen“), nie nur „Ort“ |
 | Set | set | Ebene, Drehort | |
