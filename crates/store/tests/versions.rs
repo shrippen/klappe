@@ -4,7 +4,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use klappe_model::{RevisionColor, Version};
+use klappe_model::{PageStart, RevisionColor, Version};
 use klappe_store::{
     load_version_text, load_versions, remove_version_text, save_version_text, save_versions,
     StoreError,
@@ -24,6 +24,7 @@ fn version(id: &str, name: &str, date: &str, color: RevisionColor) -> Version {
         name: name.into(),
         date: date.into(),
         color,
+        pages: Vec::new(),
     }
 }
 
@@ -58,6 +59,54 @@ fn the_list_keeps_its_order() {
     let text = fs::read_to_string(dir.join("drehbuch/fassungen.toml")).unwrap();
     assert!(text.contains("farbe = \"blue\""), "{text}");
     assert_eq!(load_versions(&dir).unwrap(), list);
+}
+
+#[test]
+fn the_pages_of_a_version_come_back() {
+    let dir = test_dir("versions-pages");
+    let page = |label: &str, line, offset| PageStart {
+        label: label.into(),
+        line,
+        offset,
+    };
+    let mut locked = version("aaaaaaaa", "Dreh", "2026-11-25", RevisionColor::White);
+    locked.pages = vec![page("1", 0, 0), page("2", 58, 17), page("2A", 90, 0)];
+    let old = version("bbbbbbbb", "Alt", "2026-11-26", RevisionColor::Blue);
+
+    save_versions(&dir, &[locked.clone(), old.clone()]).unwrap();
+
+    // The column is only written when a page starts within a line.
+    let text = fs::read_to_string(dir.join("drehbuch/fassungen.toml")).unwrap();
+    assert!(text.contains("nummer = \"2A\""), "{text}");
+    assert_eq!(text.matches("spalte").count(), 1, "{text}");
+    assert_eq!(load_versions(&dir).unwrap(), vec![locked, old]);
+}
+
+#[test]
+fn a_version_without_pages_locks_none() {
+    let dir = test_dir("versions-no-pages");
+    write_list(
+        &dir,
+        "[[fassung]]\nid = \"a\"\nname = \"N\"\ndatum = \"2026-11-25\"\nfarbe = \"blue\"\n",
+    );
+
+    let versions = load_versions(&dir).unwrap();
+
+    assert!(versions[0].pages.is_empty());
+}
+
+#[test]
+fn a_page_without_its_line_is_refused() {
+    let dir = test_dir("versions-bad-page");
+    write_list(
+        &dir,
+        "[[fassung]]\nid = \"a\"\nname = \"N\"\ndatum = \"2026-11-25\"\nfarbe = \"blue\"\n\
+         [[fassung.seiten]]\nnummer = \"1\"\n",
+    );
+
+    let error = load_versions(&dir).unwrap_err();
+
+    assert!(matches!(error, StoreError::Parse { .. }), "{error}");
 }
 
 #[test]
