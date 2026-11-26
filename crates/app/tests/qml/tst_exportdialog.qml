@@ -261,4 +261,27 @@ TestCase {
         verify(!dialog.opened)
         verify(!findChild(dialog, "files").visible)
     }
+
+    // Choosing a paper and cancelling: the next opening shows the project's again.
+    function test_the_display_follows_the_projects_paper_after_a_choice() {
+        const dialog = make()
+        dialog.projectSize = "a4"
+        dialog.projectOrientation = "landscape"
+        dialog.request("pdf")
+        tryCompare(dialog, "opened", true)
+        const paper = findChild(dialog.contentItem, "paper")
+        const orientation = findChild(dialog.contentItem, "orientation")
+
+        paper.select(2)
+        orientation.select(0)
+        compare(dialog.size, "letter")
+        dialog.close()
+        tryCompare(dialog, "opened", false)
+
+        dialog.request("pdf")
+        tryCompare(dialog, "opened", true)
+        compare(dialog.size, "a4")
+        compare(paper.currentIndex, 0)
+        compare(orientation.currentIndex, 1)
+    }
 }

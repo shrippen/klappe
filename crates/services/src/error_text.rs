@@ -35,6 +35,8 @@ fn missing(error: &ServiceError) -> Option<(&'static str, String)> {
         ServiceError::NoCharacter(id) => ("error.noCharacter", id),
         ServiceError::NoElement(id) => ("error.noElement", id),
         ServiceError::NoPerson(id) => ("error.noPerson", id),
+        ServiceError::NoVersion(id) => ("error.noVersion", id),
+        ServiceError::NoDialogue(name) => ("error.noDialogue", name),
         ServiceError::NoLook(id) => ("error.noLook", id),
         ServiceError::NotLookElement(id) => ("error.notLookElement", id),
         _ => return None,
@@ -43,8 +45,29 @@ fn missing(error: &ServiceError) -> Option<(&'static str, String)> {
     Some((found.0, found.1.clone()))
 }
 
-/// A number already in use: a shot's (e.g. "12.3") or a role's cast number.
+/// The text key and name of a refused character name (e.g. one the book still asks about).
+fn refused_name(error: &ServiceError) -> Option<(&'static str, String)> {
+    let found = match error {
+        ServiceError::NameUnchanged(name) => ("error.nameUnchanged", name),
+        ServiceError::NameAsked(name) => ("error.nameAsked", name),
+        ServiceError::NameIsOwnAlias(name) => ("error.nameIsOwnAlias", name),
+        ServiceError::NameNotCue(name) => ("error.nameNotCue", name),
+        _ => return None,
+    };
+
+    Some((found.0, found.1.clone()))
+}
+
+/// A number already in use: a shot's (e.g. "12.3") or a role's cast number; a version's name.
 fn taken_text(language: Language, error: &ServiceError) -> Option<String> {
+    if let ServiceError::VersionNameTaken(name) = error {
+        return Some(
+            language
+                .text("error.versionNameTaken")
+                .replace("{name}", name),
+        );
+    }
+
     let (key, number) = match error {
         ServiceError::CastNumberTaken(number) => ("error.castNumberTaken", number.to_string()),
         ServiceError::NumberTaken(number) => ("error.numberTaken", number.clone()),
@@ -55,7 +78,7 @@ fn taken_text(language: Language, error: &ServiceError) -> Option<String> {
 }
 
 fn own_text(language: Language, error: &ServiceError) -> String {
-    if let Some((key, id)) = missing(error) {
+    if let Some((key, id)) = missing(error).or_else(|| refused_name(error)) {
         return language.text(key).replace("{detail}", &id);
     }
     if let Some(text) = taken_text(language, error) {
@@ -197,11 +220,15 @@ fn plain_key(error: &ServiceError) -> Option<&'static str> {
         | ServiceError::Cancelled
         | ServiceError::NoPicture
         | ServiceError::NoScript
+        | ServiceError::NoChangedPages
+        | ServiceError::NoLockedPages
         | ServiceError::NoBookScenes
         | ServiceError::NoPages => nothing_key(error),
         ServiceError::LastPlan(_) => Some("error.lastPlan"),
         ServiceError::FewPoints => Some("error.fewPoints"),
         ServiceError::NotCopyable => Some("error.notCopyable"),
+        ServiceError::NoVersions => Some("error.noVersions"),
+        ServiceError::EmptyVersionName => Some("error.versionNameEmpty"),
         ServiceError::VersionCamera(_) => Some("error.versionCamera"),
         // Listed so a new variant must be placed: `error_text` words these itself.
         ServiceError::NoScene(_)
@@ -211,8 +238,15 @@ fn plain_key(error: &ServiceError) -> Option<&'static str> {
         | ServiceError::NoShot(_)
         | ServiceError::NoLocation(_)
         | ServiceError::NoCharacter(_)
+        | ServiceError::NameUnchanged(_)
+        | ServiceError::NameAsked(_)
+        | ServiceError::NameIsOwnAlias(_)
+        | ServiceError::NameNotCue(_)
         | ServiceError::NoElement(_)
         | ServiceError::NoPerson(_)
+        | ServiceError::NoVersion(_)
+        | ServiceError::NoDialogue(_)
+        | ServiceError::VersionNameTaken(_)
         | ServiceError::CastNumberTaken(_)
         | ServiceError::NoLook(_)
         | ServiceError::NotLookElement(_)
@@ -241,6 +275,8 @@ fn nothing_key(error: &ServiceError) -> Option<&'static str> {
         ServiceError::Cancelled => Some("error.cancelled"),
         ServiceError::NoPicture => Some("error.noPicture"),
         ServiceError::NoScript => Some("error.noScript"),
+        ServiceError::NoChangedPages => Some("error.noChangedPages"),
+        ServiceError::NoLockedPages => Some("error.noLockedPages"),
         ServiceError::NoBookScenes => Some("error.noBookScenes"),
         ServiceError::NoPages => Some("error.noPages"),
         _ => None,
@@ -653,6 +689,10 @@ mod tests {
             ServiceError::EmptyTemplate,
             ServiceError::Locked(Layer::Set),
             ServiceError::NoCharacter("c".to_owned()),
+            ServiceError::NameUnchanged("c".to_owned()),
+            ServiceError::NameAsked("c".to_owned()),
+            ServiceError::NameIsOwnAlias("c".to_owned()),
+            ServiceError::NameNotCue("c".to_owned()),
             ServiceError::NoElement("e".to_owned()),
             ServiceError::NoLook("l".to_owned()),
             ServiceError::NotLookElement("e".to_owned()),
@@ -674,6 +714,9 @@ mod tests {
             ServiceError::NoMarks,
             ServiceError::NoPicture,
             ServiceError::NoScript,
+            ServiceError::NoChangedPages,
+            ServiceError::NoLockedPages,
+            ServiceError::NoDialogue("d".to_owned()),
             ServiceError::NoBookScenes,
             ServiceError::NoDuration,
             ServiceError::Cancelled,

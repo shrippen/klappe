@@ -40,9 +40,11 @@ mod script_refs;
 mod session;
 mod sheet_time;
 mod shot_edit;
+mod sides;
 mod start;
 mod sun_input;
 mod templates;
+mod versions;
 mod views;
 
 pub use book::{BookReport, Candidate, Choice, ImportReport, PendingScene};
@@ -70,19 +72,20 @@ pub use script_pages::{HeaderLine, PageBreak, SceneNumbers, SceneSpan, ScriptPag
 pub use script_refs::{ChangeKind, ScriptChange};
 pub use session::video_frame_count;
 pub use session::{
-    Answer, AnswerLine, Answered, Autosave, BackupState, BookQuestion, DialogueFigure,
+    Answer, AnswerLine, Answered, Autosave, BackupState, BookQuestion, DialogueFigure, Draft,
     ExportOptions, Fade, FigureAnswer, Grab, Laid, Layer, Lock, Looping, OnOutside, Outside,
-    OutsideFile, Pages, PlaceAnswer, Playing, QuestionKey, Saved, Session, Size, Speech,
+    OutsideFile, Pages, PlaceAnswer, Playing, QuestionKey, Revisions, Saved, Session, Size, Speech,
     SpokenLine, Step, Tick, TimeSnap, VideoJob, View, ViewStep, Visibility,
 };
 pub use start::{project_card, CardState, ProjectCard};
 pub use sun_input::{read_site, read_sun_time};
+pub use versions::color_text;
 pub use views::{
     AxisChoice, CameraSpot, CastUse, CastingRow, CharacterRow, Chip, ElementRow, Elsewhere, Hint,
     LibraryEntry, LinkKind, LocationRow, LookElement, LookRow, Marker, NotShot, Overview,
-    PersonRow, PlaceRow, PlanRow, SceneCard, SceneRef, SceneRow, SceneUse, ScriptLine, Segment,
-    SetupOption, SheetCategory, SheetElement, SheetFigure, SheetLookElement, SheetView, ShotRow,
-    Suggestion, SunTexts, TemplateEntry, Track, TrackKind, ViewRow,
+    PersonRow, PlaceRow, PlanRow, SceneCard, SceneRef, SceneRow, SceneUse, ScriptLine, ScriptRow,
+    Segment, SetupOption, SheetCategory, SheetElement, SheetFigure, SheetLookElement, SheetView,
+    ShotRow, Suggestion, SunTexts, TemplateEntry, Track, TrackKind, ViewRow,
 };
 
 // What surfaces draw and print, handed through so they need no lower crate.
@@ -106,6 +109,9 @@ pub use klappe_stellprobe::{
 // Fountain, so the TUI editor can style and list what it types without the script crate;
 // `parse` for its tests.
 pub use klappe_script::{parse, parse_located, Element, Located};
+// What `compare_drafts` and `revision` return (DB-41, DB-42, DB-44).
+pub use klappe_model::{RevisionColor, Version};
+pub use klappe_script::{Comparison, Edit, LineChange, SceneDiff, ScenePlace, SceneStatus};
 
 // The writing aids of `script/` (completion, Enter and Tab flow, search, title page, inline
 // marks), for the screenplay editors of the surfaces.

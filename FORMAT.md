@@ -21,6 +21,8 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
 ├── bilder/<name>.png    Bilder für Hintergründe (PNG, JPEG), vom Nutzer hinzugefügt
 ├── drehbuch.fountain    Drehbuch als Text (optional)
 ├── nummern.toml         Sperrstand der Szenennummern (optional, DB-33)
+├── drehbuch/fassungen.toml  gesperrte Fassungen des Drehbuchs, je ein [[fassung]] (optional, DB-40)
+├── drehbuch/fassungen/<id>.fountain  der Buchtext der Fassung <id>, wie er beim Sperren stand
 ├── .sicherung/          Sicherung ungespeicherter Änderungen (optional, siehe unten)
 └── .abgleich/           kurzlebige Kopie beim Übernehmen einer Änderung von außen (siehe unten)
 ```
@@ -560,6 +562,25 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   keine Person oder Figur nennt (Besetzung einer gelöschten Figur, Vorschlag einer fehlenden
   Person), lädt und bleibt beim Speichern; angeboten wird sie nicht. `breakdown/elemente.toml` kennt je
   Element `responsible`, die Id der verantwortlichen Person (nur geschrieben, wenn gesetzt).
+- **Fassungen (DB-40, DB-41):** `drehbuch/fassungen.toml` hat je gesperrter Fassung ein
+  `[[fassung]]` in der Reihenfolge des Sperrens, mit `id` (zufällig wie die Ids des Registers,
+  zugleich Dateiname), `name`, `datum` (Zeichenkette `JJJJ-MM-TT`, ein Tag, den es gibt) und
+  `farbe` der Revision: `white`, `blue`, `pink`, `yellow`, `green`, `goldenrod`, `buff`,
+  `salmon`, `cherry`; eine neue Fassung bekommt die Farbe nach der der letzten Fassung (die erste Weiß), nach der
+  letzten Farbe beginnt die Folge von vorn. `drehbuch/fassungen/<id>.fountain` ist der Buchtext genau so, wie er beim
+  Sperren gespeichert wurde (Vergleichsbasis der Revisionen). Je Fassung steht, wo die Seiten des
+  Drehbuchs beim Sperren begannen (DB-34), je Seite ein `[[fassung.seiten]]` mit `nummer`
+  (`"12"`, `"12A"`), `zeile` (Textzeile des gesperrten Textes ab 0, mit der die Seite beginnt;
+  die Zahl der Zeilen bei einer Seite, die am Ende gestrichen war) und `spalte` (Byte in der
+  Zeile, nur wenn die Seite mitten in einer Zeile beginnt, sonst nicht geschrieben); mehrere Seiten
+  an derselben Stelle sind gestrichene (ENTFÄLLT). Die letzte Fassung sperrt die Seiten, solange
+  sie `seiten` hat; eine Fassung ohne `seiten` (vor diesem Feld gesperrt) sperrt keine. Beides gehört der Sitzung, nicht
+  dem Projekt, wie `nummern.toml`: Speichern, Rückgängig und die Sicherung tragen sie nicht;
+  nur Sperren und Löschen einer Fassung schreiben sie (erst der Text, dann die Liste). Fehlt
+  die Liste, gibt es keine Fassungen (keine neue Formatversion). Eine kaputte Liste
+  (Git-Konfliktmarken, ein Wert falschen Typs, unbekannte Farbe oder Schlüssel, ein Datum, das
+  es nicht gibt, eine unsichere oder doppelte Id) lässt das Projekt nicht laden, wie bei
+  `nummern.toml`; die Meldung nennt Pfad und Zeile.
 - **Bilder:** `bilder/` gehört dem Nutzer. `save` löscht dort nie etwas, auch nicht, wenn kein
   Drehort das Bild mehr nutzt. Beim Hinzufügen wird nicht doppelt kopiert (gleicher Name und
   gleicher Inhalt); anderer Inhalt unter demselben Namen bekommt `-2`, `-3` … vor der Endung.

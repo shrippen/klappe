@@ -11,15 +11,24 @@
 //! klappe-cli report --project <folder> --report dialog --figure <id|name> --out <file>
 //!                   [--language de|en]      (pdf, csv, ods or xlsx, by the extension of --out)
 //! klappe-cli script-pdf --project <folder> --out <file> [--paper a4|letter] [--language de|en]
-//!                       [--scene-numbers] [--header]
+//!                       [--scene-numbers] [--header] [--revisions] [--changed-pages]
+//! klappe-cli sides --project <folder> --figure <name> --out <file> [--language de|en]
+//! klappe-cli rename-figure --project <folder> --from <name> --to <name> [--language de|en]
+//! klappe-cli lock-version --project <folder> --name <name> [--language de|en]
+//! klappe-cli remove-version --project <folder> --id <version id> [--language de|en]
+//! klappe-cli versions --project <folder> [--language de|en]
+//! klappe-cli compare --project <folder> [--from <version id>] [--to <version id>] [--language de|en]
 //! ```
 
+mod versions;
+
 use clap::builder::{PossibleValuesParser, TypedValueParser};
-use clap::{Parser, Subcommand, ValueEnum};
+use clap::{Args, Parser, Subcommand, ValueEnum};
 use klappe_services::{
     builtin_camera_presets, error_text, load_notes_text, read_number, ExportFormat, ExportOptions,
-    Field, HeaderLine, Language, Orientation, Paper, PaperSetup, Range, Report, ReportFormat,
-    SceneNumbers, ScriptPaper, ScriptPrint, Sensor, Session, ShotOrder, Size, Unit,
+    Field, HeaderLine, Language, OnOutside, Orientation, Paper, PaperSetup, Range, Report,
+    ReportFormat, Revisions, Saved, SceneNumbers, ScriptPaper, ScriptPrint, Sensor, Session,
+    ShotOrder, Size, Unit,
 };
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -29,6 +38,44 @@ use std::process::ExitCode;
 struct Cli {
     #[command(subcommand)]
     command: Command,
+}
+
+/// The flags of `export`.
+#[derive(Debug, Args)]
+struct ExportArgs {
+    /// The project folder.
+    #[arg(long)]
+    project: PathBuf,
+    /// The scene's number as in the script, e.g. 12 or 12A.
+    #[arg(long)]
+    scene: String,
+    /// The plan's id; the scene's first plan if left out.
+    #[arg(long)]
+    plan: Option<String>,
+    /// Seconds into the scene.
+    #[arg(long, default_value_t = 0.0)]
+    at: f64,
+    /// Sheet size; the project's own (A4 if never chosen) if left out.
+    #[arg(long, value_parser = paper_arg)]
+    paper: Option<Paper>,
+    /// Sheet orientation; the project's own (landscape if never chosen) if left out.
+    #[arg(long, value_parser = orientation_arg)]
+    orientation: Option<Orientation>,
+    /// Language of the legend; the system's if left out.
+    #[arg(long, value_enum)]
+    language: Option<LanguageArg>,
+    /// Taken from the extension of --out if left out; `frames` and `camera` are never guessed.
+    /// `frames`: one PNG per mark into the folder --out, --at is ignored. `camera`: what
+    /// --camera sees at --at, 1920 px wide. `mp4`: the playback as 1920x1080 video, 25 fps,
+    /// written by the installed ffmpeg; --at, --paper and --orientation are ignored.
+    #[arg(long, value_parser = format_arg())]
+    format: Option<ExportFormat>,
+    /// The camera `--format camera` shows.
+    #[arg(long)]
+    camera: Option<String>,
+    /// The file to write; the folder for `--format frames`.
+    #[arg(long)]
+    out: PathBuf,
 }
 
 #[derive(Debug, Subcommand)]
@@ -46,41 +93,7 @@ enum Command {
     /// The plan of a scene at a time as PDF (with shot list), SVG or PNG (LH-80, LH-81); the shot
     /// list as ODS or XLSX (LH-85); the plan at every mark as PNGs in a folder (LH-83); what a
     /// camera sees at a time as PNG (LH-86); the playback as MP4 (LH-84).
-    Export {
-        /// The project folder.
-        #[arg(long)]
-        project: PathBuf,
-        /// The scene's number as in the script, e.g. 12 or 12A.
-        #[arg(long)]
-        scene: String,
-        /// The plan's id; the scene's first plan if left out.
-        #[arg(long)]
-        plan: Option<String>,
-        /// Seconds into the scene.
-        #[arg(long, default_value_t = 0.0)]
-        at: f64,
-        /// Sheet size; the project's own (A4 if never chosen) if left out.
-        #[arg(long, value_parser = paper_arg)]
-        paper: Option<Paper>,
-        /// Sheet orientation; the project's own (landscape if never chosen) if left out.
-        #[arg(long, value_parser = orientation_arg)]
-        orientation: Option<Orientation>,
-        /// Language of the legend; the system's if left out.
-        #[arg(long, value_enum)]
-        language: Option<LanguageArg>,
-        /// Taken from the extension of --out if left out; `frames` and `camera` are never guessed.
-        /// `frames`: one PNG per mark into the folder --out, --at is ignored. `camera`: what
-        /// --camera sees at --at, 1920 px wide. `mp4`: the playback as 1920x1080 video, 25 fps,
-        /// written by the installed ffmpeg; --at, --paper and --orientation are ignored.
-        #[arg(long, value_parser = format_arg())]
-        format: Option<ExportFormat>,
-        /// The camera `--format camera` shows.
-        #[arg(long)]
-        camera: Option<String>,
-        /// The file to write; the folder for `--format frames`.
-        #[arg(long)]
-        out: PathBuf,
-    },
+    Export(ExportArgs),
     /// A report (DB-61) as PDF, CSV, ODS or XLSX, by the extension of --out: the scenes, the
     /// scripted locations with their shooting locations, the characters by scene, the
     /// extract of the breakdown, the statistics (DB-53) or the dialogue of one character
@@ -123,7 +136,49 @@ enum Command {
         /// Print title and draft date at the top of every page.
         #[arg(long)]
         header: bool,
+        /// Mark what changed since the last locked version: `*` in the margin and the next
+        /// revision's colour above the page number.
+        #[arg(long)]
+        revisions: bool,
+        /// Print only the pages that carry a revision mark (DB-43), under their locked
+        /// numbers, without a title page; implies --revisions.
+        #[arg(long)]
+        changed_pages: bool,
     },
+    /// The sides of a character as PDF (DB-62): the scenes it speaks in, whole, with their
+    /// scene numbers, the character's name above every page.
+    Sides {
+        /// The project folder.
+        #[arg(long)]
+        project: PathBuf,
+        /// The character's name or an alias, or a cue of the book.
+        #[arg(long)]
+        figure: String,
+        /// The PDF to write.
+        #[arg(long)]
+        out: PathBuf,
+        /// Language of (MORE) and (CONT'D) when the project has none; the system's if left out.
+        #[arg(long, value_enum)]
+        language: Option<LanguageArg>,
+    },
+    /// Renames a character in the whole book (DB-04): every cue it answers to, in
+    /// `figuren.toml` too; its id, colour and short code stay. Saves the project.
+    RenameFigure {
+        /// The project folder.
+        #[arg(long)]
+        project: PathBuf,
+        /// The character's name or one of its other names.
+        #[arg(long)]
+        from: String,
+        /// The new name.
+        #[arg(long)]
+        to: String,
+        /// Language of the output; the system's if left out.
+        #[arg(long, value_enum)]
+        language: Option<LanguageArg>,
+    },
+    #[command(flatten)]
+    Versions(versions::VersionCommand),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
@@ -152,44 +207,7 @@ struct ExportJob {
 fn main() -> ExitCode {
     match Cli::parse().command {
         Command::Fov { lens, sensor } => fov(lens, &sensor),
-        Command::Export {
-            project,
-            scene,
-            plan,
-            at,
-            paper,
-            orientation,
-            language,
-            format,
-            camera,
-            out,
-        } => {
-            let language = language_of(language);
-            let Some(format) = format.or_else(|| format_of(&out)) else {
-                let path = format!("{out:?}");
-                return refuse(language.text("cli.noFormat").replace("{path}", &path));
-            };
-            if format == ExportFormat::Camera && camera.is_none() {
-                return refuse(language.text("cli.cameraNeedsId"));
-            }
-            if format != ExportFormat::Camera && camera.is_some() {
-                return refuse(language.text("cli.cameraOnly"));
-            }
-            let job = ExportJob {
-                project,
-                scene,
-                plan,
-                at_s: at,
-                paper,
-                orientation,
-                language,
-                format,
-                camera,
-                out,
-            };
-
-            export(&job)
-        }
+        Command::Export(args) => export_command(args),
         Command::Report {
             project,
             report,
@@ -209,23 +227,132 @@ fn main() -> ExitCode {
             language,
             scene_numbers,
             header,
+            revisions,
+            changed_pages,
         } => {
-            let print = ScriptPrint {
-                scene_numbers: if scene_numbers {
-                    SceneNumbers::Shown
-                } else {
-                    SceneNumbers::Hidden
-                },
-                header: if header {
-                    HeaderLine::Title
-                } else {
-                    HeaderLine::Off
-                },
-                language: language_of(language),
+            let flags = PrintFlags {
+                scene_numbers,
+                header,
+                revisions,
+                changed_pages,
             };
+            let print = print_of(language_of(language), flags);
 
             script_pdf(&project, &out, paper, &print)
         }
+        Command::RenameFigure {
+            project,
+            from,
+            to,
+            language,
+        } => rename_figure(&project, (&from, &to), language_of(language)),
+        Command::Sides {
+            project,
+            figure,
+            out,
+            language,
+        } => sides_pdf(&project, &figure, &out, language_of(language)),
+        Command::Versions(command) => command.run(),
+    }
+}
+
+/// Checks the export flags and runs the export.
+fn export_command(args: ExportArgs) -> ExitCode {
+    let ExportArgs {
+        project,
+        scene,
+        plan,
+        at,
+        paper,
+        orientation,
+        language,
+        format,
+        camera,
+        out,
+    } = args;
+    let language = language_of(language);
+    let Some(format) = format.or_else(|| format_of(&out)) else {
+        let path = format!("{out:?}");
+        return refuse(language.text("cli.noFormat").replace("{path}", &path));
+    };
+    if format == ExportFormat::Camera && camera.is_none() {
+        return refuse(language.text("cli.cameraNeedsId"));
+    }
+    if format != ExportFormat::Camera && camera.is_some() {
+        return refuse(language.text("cli.cameraOnly"));
+    }
+    let job = ExportJob {
+        project,
+        scene,
+        plan,
+        at_s: at,
+        paper,
+        orientation,
+        language,
+        format,
+        camera,
+        out,
+    };
+
+    export(&job)
+}
+
+/// Renames the character `from` to `to` in the book and saves the project.
+fn rename_figure(project: &Path, (from, to): (&str, &str), language: Language) -> ExitCode {
+    let renamed = Session::open(project)
+        .and_then(|mut s| {
+            let count = s.rename_figure(from, to)?;
+            let saved = s.save(OnOutside::Ask)?;
+
+            Ok((count, saved))
+        })
+        .map_err(|e| error_text(language, &e));
+
+    match renamed {
+        Ok((count, Saved::Done)) => {
+            let text = language
+                .text("cli.figureRenamed")
+                .replace("{from}", from)
+                .replace("{to}", to.trim())
+                .replace("{count}", &count.to_string());
+            println!("{text}");
+
+            ExitCode::SUCCESS
+        }
+        Ok(_) => refuse(language.text("cli.renameConflict")),
+        Err(message) => refuse(message),
+    }
+}
+
+/// The flags of `script-pdf` that switch something on.
+struct PrintFlags {
+    scene_numbers: bool,
+    header: bool,
+    revisions: bool,
+    changed_pages: bool,
+}
+
+/// What `script-pdf` prints, from its flags.
+fn print_of(language: Language, flags: PrintFlags) -> ScriptPrint {
+    ScriptPrint {
+        scene_numbers: if flags.scene_numbers {
+            SceneNumbers::Shown
+        } else {
+            SceneNumbers::Hidden
+        },
+        header: if flags.header {
+            HeaderLine::Title
+        } else {
+            HeaderLine::Off
+        },
+        language,
+        revisions: if flags.changed_pages {
+            Revisions::ChangedPages
+        } else if flags.revisions {
+            Revisions::On
+        } else {
+            Revisions::Off
+        },
     }
 }
 
@@ -302,6 +429,30 @@ fn write_script_pdf(
     session
         .export_script_pdf(out, print)
         .map_err(|e| error_text(print.language, &e))
+}
+
+/// Writes the sides of `figure`; the scene numbers are always printed.
+fn sides_pdf(project: &Path, figure: &str, out: &Path, language: Language) -> ExitCode {
+    let print = ScriptPrint {
+        scene_numbers: SceneNumbers::Shown,
+        header: HeaderLine::Off,
+        language,
+        revisions: Revisions::Off,
+    };
+    let written = Session::open(project)
+        .map_err(|e| error_text(language, &e))
+        .and_then(|mut session| {
+            warn_load_notes(&session, language);
+
+            session
+                .export_sides_pdf(out, figure, &print)
+                .map_err(|e| error_text(language, &e))
+        });
+
+    match written {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(message) => refuse(message),
+    }
 }
 
 fn fov(lens_mm: f64, sensor: &str) -> ExitCode {
@@ -535,6 +686,7 @@ mod tests {
             scene_numbers: SceneNumbers::Shown,
             header: HeaderLine::Off,
             language: Language::English,
+            revisions: Revisions::Off,
         };
 
         let written = write_script_pdf(&project, &out, Some(ScriptPaper::Letter), &print);

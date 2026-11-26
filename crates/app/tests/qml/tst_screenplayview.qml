@@ -41,6 +41,10 @@ TestCase {
         }
         property int layouts: 0
         function paginateScript() { layouts += 1 }
+        // The last layout: page 2 starts at the text's line 6 (the second heading); two pages.
+        property var pages: ({ pages: 2, breaks: [{ page: 2, label: "2", line: 6 }],
+                               scenes: [{ line: 2, page: 1 }, { line: 6, page: 2 }] })
+        function scriptBreaksJson() { return JSON.stringify(pages) }
         // A heading's line is "h", every other line "a": enough to see the kinds arrive.
         function scriptKinds(text) {
             return text.split("\n").map(l => l.startsWith("INT.") || l.startsWith("EXT.") ? "h" : "a").join("")
@@ -131,6 +135,8 @@ TestCase {
         fake.prints = 0
         fake.enters = 0
         fake.layouts = 0
+        fake.pages = { pages: 2, breaks: [{ page: 2, label: "2", line: 6 }],
+                       scenes: [{ line: 2, page: 1 }, { line: 6, page: 2 }] }
         fake.printLine = "INT. SAAL - TAG"
     }
 
@@ -394,20 +400,6 @@ TestCase {
         const page = findChild(view.printView, "page.0")
         fuzzyCompare(page.height / page.width, 842 / 595, 0.01)
         verify(page.width <= view.printView.width)
-    }
-
-    // A scene picked in the list goes back to the text at its heading.
-    function test_a_scene_from_the_print_view_goes_to_the_text() {
-        const view = make()
-        view.showLayout("print")
-        const list = findChild(view, "sceneRows")
-        tryVerify(() => findChild(list, "scene.s2") !== null)
-
-        findChild(list, "scene.s2").clicked()
-
-        compare(view.layout, "flow")
-        verify(!view.printView.visible)
-        compare(view.area.cursorPosition, book.indexOf("EXT. HOF"))
     }
 
     // A change from outside while the pages show lays them out again.

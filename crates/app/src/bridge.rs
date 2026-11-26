@@ -487,6 +487,13 @@ pub mod qobject {
         #[cxx_name = "scriptPrintJson"]
         fn script_print_json(self: Pin<&mut Self>) -> QString;
 
+        /// The last layout (`paginateScript`, `scriptPrintJson`): `{ pages, breaks: [{ page,
+        /// line }], scenes: [{ line, page }] }`; a break is above text line `line` (from 0),
+        /// `page` counts from 1. Empty before the first layout.
+        #[qinvokable]
+        #[cxx_name = "scriptBreaksJson"]
+        fn script_breaks_json(self: Pin<&mut Self>) -> QString;
+
         /// Writes unsaved changes to the backup; QML calls it on a timer. An error goes to the
         /// status line.
         #[qinvokable]
@@ -1000,6 +1007,44 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "reportFile"]
         fn report_file(self: Pin<&mut Self>, report: &QString) -> QString;
+
+        /// Writes the screenplay as PDF to `path` (DB-70) on `paper` (`a4`,
+        /// `letter`; the project keeps it once the file is written), with the scene `numbers`
+        /// (`shown`, `hidden`), the `header` line (`title`, `off`) and the `revisions` marks
+        /// (DB-41; `on`, `off`) as asked; the result goes to `status`.
+        #[qinvokable]
+        #[cxx_name = "exportScript"]
+        fn export_script(
+            self: Pin<&mut Self>,
+            paper: &QString,
+            numbers: &QString,
+            header: &QString,
+            revisions: &QString,
+            path: &QString,
+        ) -> bool;
+
+        /// The file URL the screenplay PDF is offered under: next to the project folder,
+        /// named by the project's title; empty without a project.
+        #[qinvokable]
+        #[cxx_name = "scriptFile"]
+        fn script_file(self: Pin<&mut Self>) -> QString;
+
+        /// Sets how the screenplay is paged and numbered (`[script]` of the project; `Overview.script`
+        /// shows it): `language` (`de`, `en`, empty for not chosen), `words` (`local`,
+        /// `international`), `paper`, `contd` ("(CONT'D) after action"; `on`, `off`), `numbering` (`automatic`,
+        /// `locked`) and the number of the `first` scene. The paper and the rest are no undo step.
+        /// False if refused.
+        #[qinvokable]
+        #[cxx_name = "setScriptSetup"]
+        fn set_script_setup(
+            self: Pin<&mut Self>,
+            language: &QString,
+            words: &QString,
+            paper: &QString,
+            contd: &QString,
+            numbering: &QString,
+            first: i32,
+        ) -> bool;
 
         /// What a tooltip says about a plan element (`camera:a` …), as JSON.
         #[qinvokable]

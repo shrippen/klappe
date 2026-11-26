@@ -44,6 +44,11 @@ RowLayout {
     readonly property var layouts: ["flow", "print"]
     property string layout: "flow"
     readonly property alias printView: printView
+    /// The last layout's page starts: `{ pages, breaks: [{ page, line }], scenes: [{ line, page }] }`
+    /// (`scriptBreaksJson`). Shown as lines in the flowing text, used to find a scene's page.
+    property var pageMap: ({ pages: 0, breaks: [], scenes: [] })
+    /// Typing since the last layout: the lines and the scene lengths are of an older text (DN-02).
+    property bool stale: false
     /// The empty view's button: ask for a screenplay file.
     signal importRequested()
 
@@ -58,13 +63,55 @@ RowLayout {
         send()
     }
 
+    /// Reads the layout the controller holds now; what was typed up to it is laid out.
+    function readLayout() {
+        pageMap = JSON.parse(controller.scriptBreaksJson())
+        stale = false
+    }
+
+    /// Lays the book out and shows the result (the lines, the lengths in the scene list).
+    function layOut() {
+        controller.paginateScript()
+        readLayout()
+    }
+
+    /// Where text line `line` (from 0) starts in `text`; -1 when the text has fewer lines.
+    function lineStart(text, line) {
+        let at = 0
+        for (let i = 0; i < line; i++) {
+            const next = text.indexOf("\n", at)
+            if (next < 0) {
+                return -1
+            }
+            at = next + 1
+        }
+        return at
+    }
+
+    /// The page starts in `breaks` (by line, ascending) as `{ at }`, `at` the text position of the
+    /// first line of the page, -1 when the text no longer has that line. One pass over the text,
+    /// as it runs on every key.
+    function breakMarks(breaks, text) {
+        const marks = []
+        let line = 0
+        let at = 0
+        for (const b of breaks) {
+            while (at >= 0 && line < b.line) {
+                const next = text.indexOf("\n", at)
+                at = next < 0 ? -1 : next + 1
+                line++
+            }
+            marks.push({ at: at })
+        }
+        return marks
+    }
+
+    readonly property var marks: breakMarks(pageMap.breaks, area.text)
+
     /// The cursor at the start of text line `line` (from 0), that line at the top.
     function goToLine(line) {
-        const rows = area.text.split("\n")
-        let at = 0
-        for (let i = 0; i < Math.min(line, rows.length); i++) {
-            at += rows[i].length + 1
-        }
+        const start = lineStart(area.text, line)
+        const at = start < 0 ? area.text.length : start
         area.cursorPosition = at
         area.forceActiveFocus()
 
@@ -78,6 +125,7 @@ RowLayout {
     function showLayout(name) {
         if (name === "print") {
             flush()
+            layOut()
             printView.refresh()
         }
         layout = name
@@ -89,10 +137,19 @@ RowLayout {
     /// The cursor at the heading of `scene`, a row of the scene list: its `line` is the heading's
     /// text line, null when the book does not hold the scene, which leaves the cursor where it is.
     function goToScene(scene) {
-        if (typeof scene.line === "number") {
-            showLayout("flow")
-            goToLine(scene.line)
+        if (typeof scene.line !== "number") {
+            return
         }
+        // The print view stays: it scrolls to the page the heading stands on.
+        if (layout === "print") {
+            const found = pageMap.scenes.find(s => s.line === scene.line)
+            if (found) {
+                printView.goToPage(found.page, pageMap.pages)
+            }
+            return
+        }
+        showLayout("flow")
+        goToLine(scene.line)
     }
 
     /// Margins in pixels of the page's columns, scaled to `columns`; headings bold, what the page
@@ -244,12 +301,19 @@ RowLayout {
             tools.item.forget()
         }
         // No key was pressed: the pages and lengths follow the new text at once (DN-02).
-        controller.paginateScript()
+        layOut()
     }
 
     Component.onCompleted: load()
     Connections {
         target: view.controller
+        // Another project with the same text, or another paper, changes the project but not the
+        // text: lay out again, unless typing is pending (DN-02: typing never lays out).
+        function onProjectJsonChanged() {
+            if (!view.stale) {
+                view.layOut()
+            }
+        }
         function onScriptTextChanged() {
             view.load()
             if (view.layout === "print") {
@@ -283,7 +347,7 @@ RowLayout {
         interval: view.layoutRestMs
         onTriggered: {
             view.flush()
-            view.controller.paginateScript()
+            view.layOut()
         }
     }
 
@@ -304,6 +368,7 @@ RowLayout {
             Layout.fillHeight: true
             texts: view.texts
             controller: view.controller
+            lengthsStale: view.stale
             onPicked: scene => view.goToScene(scene)
         }
     }
@@ -316,13 +381,25 @@ RowLayout {
         spacing: 0
 
         // Flowing text to write in, or the pages as they print (D-15).
-        KanteSegmented {
-            objectName: "layoutSwitch"
+        RowLayout {
             Layout.alignment: Qt.AlignRight
             Layout.margins: Kirigami.Units.smallSpacing
-            model: view.layouts.map(l => view.texts.t("screenplay." + l))
-            currentIndex: view.layouts.indexOf(view.layout)
-            onActivated: index => view.showLayout(view.layouts[index])
+            spacing: Kirigami.Units.smallSpacing
+
+            // Typed since the last layout (DN-02): the page lines and lengths are of the text before.
+            QQC2.Label {
+                objectName: "staleNote"
+                visible: view.stale
+                color: KanteStyle.mutedTextColor
+                text: view.texts.t("screenplay.stale")
+            }
+
+            KanteSegmented {
+                objectName: "layoutSwitch"
+                model: view.layouts.map(l => view.texts.t("screenplay." + l))
+                currentIndex: view.layouts.indexOf(view.layout)
+                onActivated: index => view.showLayout(view.layouts[index])
+            }
         }
 
         Item {
@@ -419,10 +496,47 @@ RowLayout {
                         }
                         push.restart()
                         relayout.restart()
+                        view.stale = true
                         if (!view._replaying && flow.capitalize()) {
                             return
                         }
                         view.restyle()
+                    }
+                    // The page breaks of the last layout (DB-30): a thin line above the first line of
+                    // each page, the page number at its right end. They sit on the text and move
+                    // nothing; `contentHeight` and `width` re-place them when the lines wrap anew.
+                    Repeater {
+                        model: view.pageMap.breaks
+                        delegate: Item {
+                            required property var modelData
+                            required property int index
+                            readonly property int at: index < view.marks.length ? view.marks[index].at : -1
+                            objectName: "pageBreak." + modelData.label
+                            visible: at >= 0
+                            readonly property real lineTop: area.contentHeight >= 0 && area.width > 0
+                                ? area.positionToRectangle(at).y : 0
+                            x: area.leftPadding
+                            y: lineTop - height
+                            width: area.width - area.leftPadding - area.rightPadding
+                            height: pageNumber.implicitHeight
+                            opacity: view.stale ? KanteStyle.dimOpacity : 1
+
+                            Rectangle {
+                                anchors.bottom: parent.bottom
+                                width: parent.width
+                                height: KanteStyle.borderWidth
+                                color: KanteStyle.ruleColor
+                            }
+                            QQC2.Label {
+                                id: pageNumber
+                                objectName: "pageNumber." + modelData.label
+                                anchors.right: parent.right
+                                text: modelData.label + "."
+                                color: KanteStyle.mutedTextColor
+                                font: KanteStyle.smallFont
+                                Accessible.name: view.texts.t("screenplay.pageNumber", { page: modelData.label })
+                            }
+                        }
                     }
                     // Later: while an edit runs, the cursor has moved but `text` is still the old one.
                     onCursorPositionChanged: Qt.callLater(flow.leaveIfMoved)

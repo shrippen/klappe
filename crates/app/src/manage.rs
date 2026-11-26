@@ -5,8 +5,8 @@ use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
 use klappe_services::{
-    read_number, CardState, Field, Language, ProjectCard, QuestionKey, Range, ServiceError,
-    Session, Unit,
+    read_number, CardState, Field, Language, ProjectCard, QuestionKey, Range, ScriptLanguage,
+    ServiceError, Session, Unit,
 };
 use serde_json::{json, Value};
 
@@ -39,6 +39,12 @@ const HOME_SHORT: &str = "~";
 pub fn project_json(session: &Session, language: Language) -> String {
     let mut value = serde_json::to_value(session.overview()).unwrap_or_default();
     value["questions"] = question_rows(session, language);
+
+    // Without a chosen language the layout uses the window's: the form shows that one and
+    // saves it only when something changes.
+    if value["script"]["language"] == "" {
+        value["script"]["language"] = json!(ScriptLanguage::from(language).name());
+    }
 
     value.to_string()
 }
@@ -325,6 +331,35 @@ mod tests {
         let _ = std::fs::remove_dir_all(dir.join("szenen"));
 
         (Session::open(&dir).unwrap(), Scratch(dir))
+    }
+
+    /// A project without `[script] language` shows the window's language, as the layout
+    /// uses it; a chosen one stays.
+    #[test]
+    fn the_form_shows_the_effective_script_language() {
+        let (mut session, _scratch) = asked("lang");
+        session.set_script_setup(klappe_services::ScriptSetup::default());
+
+        fn shown(session: &Session, language: Language) -> Value {
+            serde_json::from_str(&project_json(session, language)).unwrap()
+        }
+        assert_eq!(
+            shown(&session, Language::English)["script"]["language"],
+            "en"
+        );
+        assert_eq!(
+            shown(&session, Language::German)["script"]["language"],
+            "de"
+        );
+
+        session.set_script_setup(klappe_services::ScriptSetup {
+            language: Some(ScriptLanguage::De),
+            ..klappe_services::ScriptSetup::default()
+        });
+        assert_eq!(
+            shown(&session, Language::English)["script"]["language"],
+            "de"
+        );
     }
 
     #[test]

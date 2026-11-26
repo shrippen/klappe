@@ -569,13 +569,14 @@ fn a_cue_the_window_took_for_a_name_gets_no_second_owner() {
     let dir = two("fig-collide");
     let mut gui = Session::open(&dir).unwrap();
     let mut tui = Session::open(&dir).unwrap();
-    gui.edit_project(rename("anna", "LIESL")).unwrap();
+    // A rename to a cue the book asks about is refused, so the window adds the character.
+    gui.edit_project(add("LIESL")).unwrap();
     tui.resolve_figure("LIESL", FigureChoice::Assign("bert".into()))
         .unwrap();
 
     gui.save(klappe_services::OnOutside::Overwrite).unwrap();
 
-    assert_eq!(names(&dir), ["LIESL", "Bert"]);
+    assert_eq!(names(&dir), ["Anna", "Bert", "LIESL"]);
     assert!(aliases_of(&dir, "bert").is_empty());
 }
 

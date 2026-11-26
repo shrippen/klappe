@@ -156,7 +156,12 @@ FormDialog {
         visible: !dialog.asksFigure
         model: dialog.papers.map(p => p.label)
         currentIndex: dialog.papers.findIndex(p => p.id === dialog.size)
-        onActivated: index => dialog.size = dialog.papers[index].id
+        onActivated: index => {
+            dialog.size = dialog.papers[index].id
+            // The segment control assigns its index and so drops the binding; request()
+            // would set the project's paper and the display would not follow.
+            currentIndex = Qt.binding(() => dialog.papers.findIndex(p => p.id === dialog.size))
+        }
     }
     KanteSectionLabel { visible: !dialog.asksFigure; text: dialog.texts.t("export.orientation") }
     KanteSegmented {
@@ -164,7 +169,11 @@ FormDialog {
         visible: !dialog.asksFigure
         model: dialog.orientations.map(o => dialog.texts.t("export." + o))
         currentIndex: dialog.orientations.indexOf(dialog.orientation)
-        onActivated: index => dialog.orientation = dialog.orientations[index]
+        onActivated: index => {
+            dialog.orientation = dialog.orientations[index]
+            // As with the paper: keeps the index following the chosen orientation.
+            currentIndex = Qt.binding(() => dialog.orientations.indexOf(dialog.orientation))
+        }
     }
 
     // The file dialogs sit in this popup, which has no window while closed; the shot list

@@ -46,6 +46,7 @@ mod text_marks;
 mod timeline;
 mod undo;
 mod uses;
+mod versions;
 mod video;
 mod views;
 
@@ -63,6 +64,8 @@ pub use retime::{Grab, TimeSnap};
 pub use script_pages::Laid;
 pub use speech::{Speech, SpokenLine};
 pub use statistics::DialogueFigure;
+pub(crate) use versions::Revision;
+pub use versions::{Draft, Revisions};
 pub use video::{frame_count as video_frame_count, VideoJob};
 
 /// Groups of the plan the timeline's layer switches show or hide.
@@ -237,6 +240,8 @@ pub struct Session {
     lock: Option<Vec<klappe_model::LockedNumber>>,
     /// How many numbers two scenes carry that the Sperrstand cannot settle (`book_report`).
     twin_numbers: usize,
+    /// The locked versions of the screenplay (DB-40), as `drehbuch/fassungen.toml` has them.
+    versions: Vec<klappe_model::Version>,
     /// The files of the folder as last read or written by this session (`outside.rs`).
     disk: klappe_store::Tree,
     /// What the session encodes of the same files at that moment, after load normalisation.
