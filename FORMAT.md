@@ -566,8 +566,8 @@ kann (NF-03). Umsetzung: `crates/store`; Beispiel: `testdata/beispiel.klappe/`.
   `[[fassung]]` in der Reihenfolge des Sperrens, mit `id` (zufällig wie die Ids des Registers,
   zugleich Dateiname), `name`, `datum` (Zeichenkette `JJJJ-MM-TT`, ein Tag, den es gibt) und
   `farbe` der Revision: `white`, `blue`, `pink`, `yellow`, `green`, `goldenrod`, `buff`,
-  `salmon`, `cherry`; die n-te Fassung bekommt die n-te Farbe, nach der letzten beginnt die
-  Folge von vorn. `drehbuch/fassungen/<id>.fountain` ist der Buchtext genau so, wie er beim
+  `salmon`, `cherry`; eine neue Fassung bekommt die Farbe nach der der letzten Fassung (die erste Weiß), nach der
+  letzten Farbe beginnt die Folge von vorn. `drehbuch/fassungen/<id>.fountain` ist der Buchtext genau so, wie er beim
   Sperren gespeichert wurde (Vergleichsbasis der Revisionen). Beides gehört der Sitzung, nicht
   dem Projekt, wie `nummern.toml`: Speichern, Rückgängig und die Sicherung tragen sie nicht;
   nur Sperren und Löschen einer Fassung schreiben sie (erst der Text, dann die Liste). Fehlt

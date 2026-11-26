@@ -12,6 +12,7 @@
 //! klappe-cli script-pdf --project <folder> --out <file> [--paper a4|letter] [--language de|en]
 //!                       [--scene-numbers] [--header] [--revisions]
 //! klappe-cli lock-version --project <folder> --name <name> [--language de|en]
+//! klappe-cli remove-version --project <folder> --id <version id> [--language de|en]
 //! klappe-cli versions --project <folder> [--language de|en]
 //! klappe-cli compare --project <folder> [--from <version id>] [--to <version id>] [--language de|en]
 //! ```
@@ -128,45 +129,8 @@ enum Command {
         #[arg(long)]
         revisions: bool,
     },
-    /// Locks the book as a version (DB-40): saves the project, locks the scene numbers and
-    /// keeps the text for comparing.
-    LockVersion {
-        /// The project folder.
-        #[arg(long)]
-        project: PathBuf,
-        /// The version's name, e.g. "Drehfassung"; a name no other version has.
-        #[arg(long)]
-        name: String,
-        /// Language of the pages' words and of the output; the system's if left out.
-        #[arg(long, value_enum)]
-        language: Option<LanguageArg>,
-    },
-    /// The locked versions in the order of locking: id, name, date, colour.
-    Versions {
-        /// The project folder.
-        #[arg(long)]
-        project: PathBuf,
-        /// Language of the colour names; the system's if left out.
-        #[arg(long, value_enum)]
-        language: Option<LanguageArg>,
-    },
-    /// What changed between two states of the book (DB-41, DB-42): per scene its number,
-    /// heading and status (new, removed, changed, unchanged, moved), under a changed scene its
-    /// lines with `-` and `+`. Without options the last version against the book now.
-    Compare {
-        /// The project folder.
-        #[arg(long)]
-        project: PathBuf,
-        /// A version's id; the last version if left out.
-        #[arg(long)]
-        from: Option<String>,
-        /// A version's id; the book now if left out.
-        #[arg(long)]
-        to: Option<String>,
-        /// Language of the output; the system's if left out.
-        #[arg(long, value_enum)]
-        language: Option<LanguageArg>,
-    },
+    #[command(flatten)]
+    Versions(versions::VersionCommand),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
@@ -257,18 +221,7 @@ fn main() -> ExitCode {
 
             script_pdf(&project, &out, paper, &print)
         }
-        Command::LockVersion {
-            project,
-            name,
-            language,
-        } => versions::lock(&project, &name, language_of(language)),
-        Command::Versions { project, language } => versions::list(&project, language_of(language)),
-        Command::Compare {
-            project,
-            from,
-            to,
-            language,
-        } => versions::compare(&project, from, to, language_of(language)),
+        Command::Versions(command) => command.run(),
     }
 }
 

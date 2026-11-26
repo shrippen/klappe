@@ -137,3 +137,33 @@ fn the_pdf_marks_revisions_when_asked() {
         assert_eq!(pdf.contains("(Blue Revision"), marked);
     }
 }
+
+#[test]
+fn a_version_is_removed_and_the_next_colour_follows_the_last() {
+    let dir = project("cli-version-remove");
+    for name in ["Eins", "Zwei"] {
+        stdout(&cli(&["lock-version", "--name", name], &dir));
+    }
+    let listed = stdout(&cli(&["versions"], &dir));
+    let first = listed
+        .lines()
+        .next()
+        .unwrap()
+        .split('\t')
+        .next()
+        .unwrap()
+        .to_owned();
+
+    let removed = stdout(&cli(&["remove-version", "--id", &first], &dir));
+    assert!(removed.contains(&first), "{removed}");
+    assert!(!cli(&["remove-version", "--id", &first], &dir)
+        .status
+        .success());
+
+    stdout(&cli(&["lock-version", "--name", "Drei"], &dir));
+    let colours: Vec<String> = stdout(&cli(&["versions"], &dir))
+        .lines()
+        .map(|l| l.split('\t').nth(3).unwrap().to_owned())
+        .collect();
+    assert_eq!(colours, ["Blue", "Pink"]);
+}

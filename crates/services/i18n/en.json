@@ -1464,5 +1464,6 @@
  "compare.moved": "moved",
  "versions.none": "No locked versions.",
  "cli.versionLocked": "Locked version \"{name}\" ({color}, {date})",
- "cli.lockConflict": "The script or the register changed outside; nothing locked"
+ "cli.lockConflict": "The script or the register changed outside; nothing locked",
+ "cli.versionRemoved": "Removed version {id}"
 }

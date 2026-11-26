@@ -269,3 +269,21 @@ fn the_pdf_marks_changed_lines_only_with_a_locked_version() {
         "{pdf}"
     );
 }
+
+#[test]
+fn the_next_colour_follows_the_last_version_even_after_a_delete() {
+    let (_, mut s) = session("versions-after-delete", &book(&THREE));
+    lock(&mut s, "Eins");
+    lock(&mut s, "Zwei");
+    let first = s.versions()[0].id.clone();
+    s.remove_version(&first).unwrap();
+
+    lock(&mut s, "Drei");
+
+    let colours: Vec<RevisionColor> = s.versions().iter().map(|v| v.color).collect();
+    assert_eq!(colours, vec![RevisionColor::Blue, RevisionColor::Pink]);
+
+    // The header names the colour after the last one: yellow.
+    let pdf = pdf_of(&mut s, "versions-after-delete.pdf", &PRINT);
+    assert!(pdf.contains("(Yellow Revision"), "{pdf}");
+}

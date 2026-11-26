@@ -1464,5 +1464,6 @@
  "compare.moved": "verschoben",
  "versions.none": "Keine gesperrten Fassungen.",
  "cli.versionLocked": "Fassung „{name}“ gesperrt ({color}, {date})",
- "cli.lockConflict": "Das Drehbuch oder das Register wurde außerhalb geändert; nichts gesperrt"
+ "cli.lockConflict": "Das Drehbuch oder das Register wurde außerhalb geändert; nichts gesperrt",
+ "cli.versionRemoved": "Fassung {id} gelöscht"
 }

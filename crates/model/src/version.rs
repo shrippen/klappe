@@ -5,8 +5,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::site::SunTime;
 
-/// The colour of a revision, in the order the industry uses; the n-th locked version gets the
-/// n-th colour, and the order starts again after the last.
+/// The colour of a revision, in the order the industry uses: a locked version gets the colour
+/// after that of the last one, white the first, and the order starts again after the last.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum RevisionColor {
@@ -34,9 +34,14 @@ impl RevisionColor {
         RevisionColor::Cherry,
     ];
 
-    /// The colour of the version that is the `n`-th locked, counted from 0.
-    pub fn nth(n: usize) -> Self {
-        Self::ALL[n % Self::ALL.len()]
+    /// The colour after this one; white follows the last.
+    pub fn next(self) -> Self {
+        let at = Self::ALL
+            .iter()
+            .position(|c| *c == self)
+            .unwrap_or_default();
+
+        Self::ALL[(at + 1) % Self::ALL.len()]
     }
 
     /// The name the file format uses; also the end of the text key `revision_color.<name>`.
@@ -98,10 +103,9 @@ mod tests {
 
     #[test]
     fn the_colours_start_again_after_the_last() {
-        assert_eq!(RevisionColor::nth(0), RevisionColor::White);
-        assert_eq!(RevisionColor::nth(8), RevisionColor::Cherry);
-        assert_eq!(RevisionColor::nth(9), RevisionColor::White);
-        assert_eq!(RevisionColor::nth(10), RevisionColor::Blue);
+        assert_eq!(RevisionColor::White.next(), RevisionColor::Blue);
+        assert_eq!(RevisionColor::Salmon.next(), RevisionColor::Cherry);
+        assert_eq!(RevisionColor::Cherry.next(), RevisionColor::White);
     }
 
     #[test]

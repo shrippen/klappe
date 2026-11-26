@@ -8,14 +8,14 @@
 //! The versions belong to the session like the Sperrstand of the scene numbers: no undo step,
 //! no part of the project's save; locking and deleting write them at once.
 
-use klappe_model::{free_random_id, IdCase, RevisionColor, SceneNumbering, Version};
+use klappe_model::{free_random_id, IdCase, SceneNumbering, Version};
 use klappe_script::{compare, Comparison};
 
 use super::{OnOutside, Saved, Session};
 use crate::catalog::Language;
 use crate::error::ServiceError;
 use crate::script_pages::ScriptPrint;
-use crate::versions::{check_name, header_text, text_language, today};
+use crate::versions::{check_name, header_text, next_color, text_language, today};
 
 /// A state of the book to compare.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -49,8 +49,8 @@ impl Session {
 
     /// Locks the book as a version called `name` (DB-40): saves the project as Ctrl+S does
     /// (`on` as for `save`; on `Conflict` nothing is locked), lays the pages out anew (DB-34),
-    /// locks the scene numbers and keeps the text and the list. The version gets the colour of
-    /// its place in the order. No undo step: a locked version is as paper. An empty or used
+    /// locks the scene numbers and keeps the text and the list. The version gets the colour
+    /// after the last version's. No undo step: a locked version is as paper. An empty or used
     /// name is refused before anything is written.
     ///
     /// `language` is the surface's, for the pages' words while the project has none.
@@ -78,7 +78,7 @@ impl Session {
             id: free_random_id(taken, IdCase::Ignored),
             name,
             date: today(),
-            color: RevisionColor::nth(self.versions.len()),
+            color: next_color(&self.versions),
         };
 
         // The text first, so the list never names a text that is not there.
@@ -145,7 +145,7 @@ impl Session {
         }
 
         let language = text_language(&self.project.script, print.language);
-        let next = RevisionColor::nth(self.versions.len());
+        let next = next_color(&self.versions);
 
         Ok(Some(Revision {
             marked: self.revision()?.marked_lines().into_iter().collect(),

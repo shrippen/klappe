@@ -29,6 +29,13 @@ pub(crate) fn check_name<'a>(name: &'a str, versions: &[Version]) -> Result<&'a 
     Ok(name)
 }
 
+/// The colour of the next version: the one after the last version's, white for the first.
+pub(crate) fn next_color(versions: &[Version]) -> RevisionColor {
+    versions
+        .last()
+        .map_or(RevisionColor::White, |v| v.color.next())
+}
+
 /// Today as `YYYY-MM-DD`, in UTC.
 pub(crate) fn today() -> String {
     let seconds = SystemTime::now()
