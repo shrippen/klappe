@@ -11,14 +11,15 @@
 //!                   [--language de|en]      (pdf, csv, ods or xlsx, by the extension of --out)
 //! klappe-cli script-pdf --project <folder> --out <file> [--paper a4|letter] [--language de|en]
 //!                       [--scene-numbers] [--header]
+//! klappe-cli script-fdx --project <folder> --out <file> [--language de|en]
 //! ```
 
 use clap::builder::{PossibleValuesParser, TypedValueParser};
 use clap::{Parser, Subcommand, ValueEnum};
 use klappe_services::{
-    builtin_camera_presets, error_text, load_notes_text, read_number, ExportFormat, ExportOptions,
-    Field, HeaderLine, Language, Orientation, Paper, PaperSetup, Range, Report, ReportFormat,
-    SceneNumbers, ScriptPaper, ScriptPrint, Sensor, Session, ShotOrder, Size, Unit,
+    builtin_camera_presets, error_text, fdx_loss_text, load_notes_text, read_number, ExportFormat,
+    ExportOptions, Field, HeaderLine, Language, Orientation, Paper, PaperSetup, Range, Report,
+    ReportFormat, SceneNumbers, ScriptPaper, ScriptPrint, Sensor, Session, ShotOrder, Size, Unit,
 };
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -119,6 +120,18 @@ enum Command {
         #[arg(long)]
         header: bool,
     },
+    /// The screenplay as a Final Draft file (DB-72); says on stderr what FDX has no place for.
+    ScriptFdx {
+        /// The project folder.
+        #[arg(long)]
+        project: PathBuf,
+        /// The FDX file to write.
+        #[arg(long)]
+        out: PathBuf,
+        /// Language of the note on what was left out; the system's if left out.
+        #[arg(long, value_enum)]
+        language: Option<LanguageArg>,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
@@ -215,6 +228,11 @@ fn main() -> ExitCode {
 
             script_pdf(&project, &out, paper, &print)
         }
+        Command::ScriptFdx {
+            project,
+            out,
+            language,
+        } => script_fdx(&project, &out, language_of(language)),
     }
 }
 
@@ -277,6 +295,29 @@ fn write_script_pdf(
     session
         .export_script_pdf(out, print)
         .map_err(|e| error_text(print.language, &e))
+}
+
+fn script_fdx(project: &Path, out: &Path, language: Language) -> ExitCode {
+    match write_script_fdx(project, out, language) {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(message) => refuse(message),
+    }
+}
+
+/// Writes the screenplay as FDX and notes on stderr what the file lacks.
+fn write_script_fdx(project: &Path, out: &Path, language: Language) -> Result<(), String> {
+    let session = Session::open(project).map_err(|e| error_text(language, &e))?;
+    warn_load_notes(&session, language);
+
+    let loss = session
+        .export_script_fdx(out)
+        .map_err(|e| error_text(language, &e))?;
+    let note = fdx_loss_text(language, &loss);
+    if !note.is_empty() {
+        eprintln!("{note}");
+    }
+
+    Ok(())
 }
 
 fn fov(lens_mm: f64, sensor: &str) -> ExitCode {
@@ -519,6 +560,21 @@ mod tests {
         let _ = std::fs::remove_file(&out);
         assert!(bytes.starts_with(b"%PDF"));
         assert!(String::from_utf8_lossy(&bytes).contains("/MediaBox [0 0 612 792]"));
+    }
+
+    #[test]
+    fn the_screenplay_goes_to_an_fdx_file() {
+        let project = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata/beispiel.klappe");
+        let out =
+            std::env::temp_dir().join(format!("klappe-cli-script-{}.fdx", std::process::id()));
+
+        let written = write_script_fdx(&project, &out, Language::English);
+
+        assert_eq!(written, Ok(()));
+        let text = std::fs::read_to_string(&out).unwrap_or_default();
+        let _ = std::fs::remove_file(&out);
+        assert!(text.contains("<FinalDraft DocumentType=\"Script\""));
+        assert!(text.contains("Type=\"Scene Heading\""));
     }
 
     #[test]

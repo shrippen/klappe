@@ -78,7 +78,7 @@ TestCase {
         const imp = createTemporaryObject(importComponent, tc)
 
         compare(imp.picker.title, "Drehbuch laden")
-        compare(imp.picker.nameFilters[0], "Drehbuch (*.fountain *.txt)")
+        compare(imp.picker.nameFilters[0], "Drehbuch (*.fountain *.txt *.fdx)")
     }
 
     function report(pending, notInBook) {

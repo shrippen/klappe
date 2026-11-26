@@ -37,6 +37,7 @@ fn missing(error: &ServiceError) -> Option<(&'static str, String)> {
         ServiceError::NoPerson(id) => ("error.noPerson", id),
         ServiceError::NoLook(id) => ("error.noLook", id),
         ServiceError::NotLookElement(id) => ("error.notLookElement", id),
+        ServiceError::BadFdx(why) => ("error.badFdx", why),
         _ => return None,
     };
 
@@ -216,6 +217,7 @@ fn plain_key(error: &ServiceError) -> Option<&'static str> {
         | ServiceError::CastNumberTaken(_)
         | ServiceError::NoLook(_)
         | ServiceError::NotLookElement(_)
+        | ServiceError::BadFdx(_)
         | ServiceError::NotEmpty(_)
         | ServiceError::CameraInUse { .. }
         | ServiceError::NumberTaken(_)
@@ -656,6 +658,7 @@ mod tests {
             ServiceError::NoElement("e".to_owned()),
             ServiceError::NoLook("l".to_owned()),
             ServiceError::NotLookElement("e".to_owned()),
+            ServiceError::BadFdx("line 1".to_owned()),
             ServiceError::NumberTaken("12".to_owned()),
             ServiceError::LocationInUse {
                 id: "l".to_owned(),

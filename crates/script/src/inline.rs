@@ -173,25 +173,33 @@ pub fn plain_text(text: &str) -> String {
         let chars: Vec<char> = line.chars().collect();
 
         for run in runs {
-            let marks = run.marks;
-            if marks.note {
+            if run.marks.note {
                 continue;
             }
-            let emphasis = marks.bold || marks.italic || marks.underline;
-            let part = &chars[run.start..run.end];
-            for (i, c) in part.iter().enumerate() {
-                let escapes = *c == ESCAPE && part.get(i + 1).is_some_and(|n| is_mark(*n));
-                if escapes || (emphasis && is_mark(*c)) {
-                    continue;
-                }
-                out.push(*c);
-            }
+            out.push_str(&run_text(&chars[run.start..run.end], run.marks));
         }
         out.push(' ');
     }
 
     // Left-out parts leave double spaces.
     out.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+/// The characters of one run as a reader sees them: without the marks of its emphasis and the
+/// backslash of `\*`.
+pub(crate) fn run_text(part: &[char], marks: Marks) -> String {
+    let emphasis = marks.bold || marks.italic || marks.underline;
+    let mut out = String::new();
+
+    for (i, c) in part.iter().enumerate() {
+        let escapes = *c == ESCAPE && part.get(i + 1).is_some_and(|n| is_mark(*n));
+        if escapes || (emphasis && is_mark(*c)) {
+            continue;
+        }
+        out.push(*c);
+    }
+
+    out
 }
 
 fn is_mark(c: char) -> bool {

@@ -9,6 +9,9 @@ mod anchor;
 mod assist;
 mod caps;
 mod conflict;
+mod fdx;
+mod fdx_read;
+mod fdx_write;
 mod flow;
 mod inline;
 mod kinds;
@@ -21,11 +24,15 @@ mod search;
 mod text;
 mod title;
 mod write;
+mod xml;
 
 pub use align::{align, heading_print, scene_states, Alignment, Fingerprint, Outcome, SceneState};
 pub use assist::{heading_place, suggest, Context, Stage, Suggestions, Vocabulary};
 pub use caps::typed_caps;
 pub use conflict::conflict_line;
+pub use fdx::FdxLoss;
+pub use fdx_read::read_fdx;
+pub use fdx_write::write_fdx;
 pub use flow::{enter_step, force_line, tab_step, upper, EnterStep, Forced, Gap, Slot, TabStep};
 pub use inline::{inline_runs, plain_text, Marks, Run};
 pub use kinds::{located_kinds, text_kinds, TextKind};
@@ -43,6 +50,7 @@ pub use search::{find_all, replace_hits, Case, Hit, Query, Splice};
 pub use text::normal;
 pub use title::{set_title_fields, title_fields, TITLE_KEYS};
 pub use write::write;
+pub use xml::FdxError;
 
 /// One block of a screenplay.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -147,6 +155,9 @@ fn view<'a>(head: Option<(&'a str, Option<&'a str>)>, elements: &'a [Element]) -
         elements,
     }
 }
+
+#[cfg(test)]
+mod fdx_tests;
 
 #[cfg(test)]
 mod tests;

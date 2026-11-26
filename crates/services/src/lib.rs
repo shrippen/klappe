@@ -68,6 +68,7 @@ pub use project_edit::{
 pub use report::{Report, ReportFormat};
 pub use script_pages::{HeaderLine, PageBreak, SceneNumbers, SceneSpan, ScriptPages, ScriptPrint};
 pub use script_refs::{ChangeKind, ScriptChange};
+pub use session::fdx_loss_text;
 pub use session::video_frame_count;
 pub use session::{
     Answer, AnswerLine, Answered, Autosave, BackupState, BookQuestion, ExportOptions, Fade,
@@ -105,7 +106,7 @@ pub use klappe_stellprobe::{
 
 // Fountain, so the TUI editor can style and list what it types without the script crate;
 // `parse` for its tests.
-pub use klappe_script::{parse, parse_located, Element, Located};
+pub use klappe_script::{parse, parse_located, Element, FdxLoss, Located};
 
 // The writing aids of `script/` (completion, Enter and Tab flow, search, title page, inline
 // marks), for the screenplay editors of the surfaces.
