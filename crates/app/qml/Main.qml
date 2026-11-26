@@ -292,6 +292,7 @@ Kirigami.ApplicationWindow {
 
                     ScreenplayView {
                         id: screenplay
+                        objectName: "screenplay"
                         visible: ctl.loaded && root.module === "screenplay"
                         enabled: !backupNotice.blocking
                         Layout.fillWidth: true

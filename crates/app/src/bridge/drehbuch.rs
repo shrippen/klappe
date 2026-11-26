@@ -485,4 +485,15 @@ mod tests {
 
         assert_eq!(title_set(text, "nonsense"), text);
     }
+
+    /// An empty line in a field (Contact: "Eva", "", "Weg 1") does not reach the text, as in
+    /// the terminal's form.
+    #[test]
+    fn blank_lines_of_a_field_are_dropped() {
+        let set = title_set("INT. SAAL\n", r#"{"Contact":"Eva\n\nWeg 1"}"#);
+
+        let v: serde_json::Value = serde_json::from_str(&title_json(&set)).unwrap();
+        assert_eq!(v["Contact"], "Eva\nWeg 1");
+        assert_eq!(set, "Contact:\n   Eva\n   Weg 1\n\nINT. SAAL\n");
+    }
 }

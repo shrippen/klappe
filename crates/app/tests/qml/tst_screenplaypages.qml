@@ -60,6 +60,7 @@ TestCase {
     }
 
     TestTexts { id: de; language: "de" }
+    SignalSpy { id: spy; signalName: "titlePageClicked" }
 
     Component {
         id: viewComponent
@@ -108,6 +109,39 @@ TestCase {
         verify(view.printView.visible)
         compare(view.printView.indexAt(10, view.printView.contentY + 10), 3)
         compare(fake.selected[fake.selected.length - 1], "s2")
+    }
+
+    // DB-06: a click on the title page of the print view asks for the form; the pages of the text
+    // are no title page.
+    function test_a_click_on_the_title_page_asks_for_the_form() {
+        const view = make()
+        view.showLayout("print")
+        // Title page and two pages of text (the layout counts two).
+        view.printView.sheet = { fontPt: 12, ascentPt: 10, pages: [0, 1, 2].map(i => ({ width: 595, height: 842, texts: [] })) }
+        view.printView.positionViewAtBeginning()
+        spy.target = view.printView
+        spy.clear()
+
+        compare(view.printView.titleIndex, 0)
+        const title = findChild(view.printView, "page.0")
+        mouseClick(title, title.width / 2, title.height / 2)
+
+        compare(spy.count, 1)
+    }
+
+    function test_without_a_title_page_a_click_asks_for_nothing() {
+        const view = make()
+        view.showLayout("print")
+        view.printView.sheet = { fontPt: 12, ascentPt: 10, pages: [0, 1].map(i => ({ width: 595, height: 842, texts: [] })) }
+        view.printView.positionViewAtBeginning()
+        spy.target = view.printView
+        spy.clear()
+
+        compare(view.printView.titleIndex, -1)
+        const first = findChild(view.printView, "page.0")
+        mouseClick(first, first.width / 2, first.height / 2)
+
+        compare(spy.count, 0)
     }
 
     // DB-30: a thin line with the page number above the first line of each page after the first,

@@ -671,3 +671,13 @@ fn german_headings_take_sharp_s_as_capital() {
     }
     assert!(matches!(els("Außen HOF")[0], Element::Action(_)));
 }
+
+/// A line left empty in a multi-line value is not written (not even as an indent).
+#[test]
+fn a_value_is_written_without_blank_lines() {
+    let fields = vec![("Contact".to_owned(), "Eva\n\n  \nWeg 1".to_owned())];
+
+    let text = set_title_fields("INT. A\n\nx\n", &fields);
+
+    assert_eq!(text, "Contact:\n   Eva\n   Weg 1\n\nINT. A\n\nx\n");
+}
