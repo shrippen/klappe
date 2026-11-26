@@ -84,9 +84,12 @@ pub(super) fn suggest_json(text: &str, line: usize, kind: &str, pending: &str) -
     let Some(row) = text.split('\n').nth(line) else {
         return String::new();
     };
-    let slot = slot_of(if pending.is_empty() { kind } else { pending });
+    // The open element counts while the reader sees plain text there, as in the terminal.
+    let plain = kind == " " || slot_of(kind) == Some(Slot::Action);
+    let open = !pending.is_empty() && plain;
+    let slot = slot_of(if open { pending } else { kind });
     let context = match slot {
-        Some(Slot::Heading) if !pending.is_empty() && !heading_like(row) => Context::Line,
+        Some(Slot::Heading) if open && !heading_like(row) => Context::Line,
         Some(Slot::Heading) => Context::Heading,
         Some(Slot::Character) => Context::Cue,
         _ => Context::Line,
@@ -493,8 +496,13 @@ mod tests {
 
         // An opened heading line with prose is an action: no location offered.
         let book = "INT. GARTEN - TAG\n\nAnna liest.\n\nCUT TO:\n\nSie g";
-        assert_eq!(suggest_json(book, 6, "h", "h"), "");
+        assert_eq!(suggest_json(book, 6, "a", "h"), "");
         assert!(!suggest_json("INT. GARTEN - TAG\n\nINT. G", 2, "h", "h").is_empty());
+
+        // The open element counts only while the reader sees plain text: a line that became a
+        // heading by what was typed is one, whatever Tab made it before.
+        let book = "INT. GARTEN - TAG\n\nAnna liest.\n\nINT. G";
+        assert!(!suggest_json(book, 4, "h", "c").is_empty());
     }
 
     #[test]

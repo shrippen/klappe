@@ -23,6 +23,8 @@ QtObject {
     property string pendingKind: ""
     /// The kinds `scriptKinds` gave for the text last, as the editor shows them.
     property string shown: ""
+    /// The same as the reader sees them, before the pending line is set as its element.
+    property string readKinds: ""
     /// The letter of each kind by its name, as `scriptLooks` gives them.
     readonly property var letters: JSON.parse(controller.scriptLooks()).letters
 
@@ -56,6 +58,7 @@ QtObject {
     /// `kinds` with the pending line as its element while the reader sees it as plain: an empty
     /// line, or prose on one meant as cue, parenthetical or dialogue.
     function withPending(kinds) {
+        readKinds = kinds
         if (pendingLine < 0 || pendingLine >= kinds.length) {
             return kinds
         }
@@ -156,7 +159,7 @@ QtObject {
         }
 
         const pending = line === pendingLine ? pendingKind : ""
-        const found = controller.scriptSuggest(area.text, line, shown[line] || letters.action, pending)
+        const found = controller.scriptSuggest(area.text, line, readKinds[line] || letters.action, pending)
         return found === "" ? null : JSON.parse(found)
     }
 
