@@ -59,6 +59,29 @@ QtObject {
         area.insert(from, text)
     }
 
+    /// Where line `line` (from 0) of the source starts; -1 when the source has fewer lines.
+    function lineStart(line) {
+        return lineStarts([line])[0]
+    }
+
+    /// Where each of `lines` (ascending, from 0) starts, -1 for a line the source does not have.
+    /// One pass over the source, as the page marks ask on every key.
+    function lineStarts(lines) {
+        const text = read()
+        const starts = []
+        let line = 0
+        let at = 0
+        for (const wanted of lines) {
+            while (at >= 0 && line < wanted) {
+                const next = text.indexOf("\n", at)
+                at = next < 0 ? -1 : next + 1
+                line++
+            }
+            starts.push(at)
+        }
+        return starts
+    }
+
     /// Where the character at `pos` is drawn, in the area's coordinates.
     function rectOf(pos) {
         return area.positionToRectangle(pos)

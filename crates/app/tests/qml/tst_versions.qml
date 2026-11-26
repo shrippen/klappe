@@ -382,7 +382,7 @@ TestCase {
         const marks = findChild(view.area, "revisionMarks")
         compare(view.revisionLines.join(), "2,6")
         compare(view.nextRevision.color, "pink")
-        const a = view.area.positionToRectangle(view.lineStart(tc.book, 2))
+        const a = view.area.positionToRectangle(view.doc.lineStart(2))
         const placed = []
         for (let i = 0; i < marks.children.length; i++) {
             if (marks.children[i].objectName === "revisionMark") {
@@ -393,7 +393,7 @@ TestCase {
         compare(placed[0].y, a.y)
         verify(placed[0].visible)
         compare(placed[0].Accessible.name, "Seit der letzten Fassung geändert")
-        compare(marks.ranges[1].from, view.lineStart(tc.book, 6))
+        compare(marks.ranges[1].from, view.doc.lineStart(6))
     }
 
     // The swatch and the marks take Kante's revision colours by the file's names.
@@ -464,7 +464,7 @@ TestCase {
         const view = make()
         const marks = findChild(view.area, "revisionMarks")
         const at = marks.ranges[0].from
-        compare(at, view.lineStart(tc.book, 2))
+        compare(at, view.doc.lineStart(2))
 
         view.area.forceActiveFocus()
         view.area.cursorPosition = 0
@@ -480,8 +480,22 @@ TestCase {
     function test_a_line_beyond_the_text_has_no_range() {
         const view = make()
 
-        compare(view.lineRanges([0, 2], "ab\n\ncd").map(r => r.from + ":" + r.to).join(), "0:2,4:6")
-        compare(view.lineRanges([1, 9], "ab\ncd").map(r => r.from).join(), "3,-1")
+        view.doc.load("ab\n\ncd")
+        compare(view.lineRanges([0, 2]).map(r => r.from + ":" + r.to).join(), "0:2,4:6")
+        view.doc.load("ab\ncd")
+        compare(view.lineRanges([1, 9]).map(r => r.from).join(), "3,-1")
+    }
+
+    // The marks at the end of the text: the empty last line is a line, one more is none.
+    function test_the_marks_at_the_end_of_the_text() {
+        lockedTwice()
+        fake.revision = [0, 2, 3]
+        const view = make()
+
+        view.doc.load("ab\n\n")
+        view.readRevision()
+
+        compare(view.revisionRanges.map(r => r.from + ":" + r.to).join(), "0:2,4:4,-1:-1")
     }
 
     // DB-42: von / bis, the scenes with a word for what became of them, the lines of the one chosen.

@@ -116,29 +116,20 @@ RowLayout {
         revisionLines = marking ? JSON.parse(controller.revisionJson()) : []
         // Placed once per layout, like the page breaks' lines: typing moves no mark (DN-02),
         // a mark cost a text position lookup twice, on every key.
-        revisionRanges = lineRanges(revisionLines, doc.read())
+        revisionRanges = lineRanges(revisionLines)
     }
 
     /// The lines of `lines` (ascending, from 0) as text positions `{ from, to }`, `to` the end of
-    /// the line; `from` is -1 when the text no longer has the line. One pass over the text.
-    function lineRanges(lines, text) {
-        const ranges = []
-        let line = 0
-        let at = 0
-        for (const wanted of lines) {
-            while (at >= 0 && line < wanted) {
-                const next = text.indexOf("\n", at)
-                at = next < 0 ? -1 : next + 1
-                line++
-            }
+    /// the line; `from` is -1 when the text no longer has the line.
+    function lineRanges(lines) {
+        const text = doc.read()
+        return doc.lineStarts(lines).map(at => {
             if (at < 0) {
-                ranges.push({ from: -1, to: -1 })
-                continue
+                return { from: -1, to: -1 }
             }
             const end = text.indexOf("\n", at)
-            ranges.push({ from: at, to: end < 0 ? text.length : end })
-        }
-        return ranges
+            return { from: at, to: end < 0 ? text.length : end }
+        })
     }
 
     /// The version's dialogs; what was typed goes to the session first, the lock saves it.
@@ -165,43 +156,18 @@ RowLayout {
         readLayout()
     }
 
-    /// Where text line `line` (from 0) starts in `text`; -1 when the text has fewer lines.
-    function lineStart(text, line) {
-        let at = 0
-        for (let i = 0; i < line; i++) {
-            const next = text.indexOf("\n", at)
-            if (next < 0) {
-                return -1
-            }
-            at = next + 1
-        }
-        return at
-    }
-
     /// The page starts in `breaks` (by line, ascending) as `{ at }`, `at` the text position of the
-    /// first line of the page, -1 when the text no longer has that line. One pass over the text,
-    /// as it runs on every key.
-    function breakMarks(breaks, text) {
-        const marks = []
-        let line = 0
-        let at = 0
-        for (const b of breaks) {
-            while (at >= 0 && line < b.line) {
-                const next = text.indexOf("\n", at)
-                at = next < 0 ? -1 : next + 1
-                line++
-            }
-            marks.push({ at: at })
-        }
-        return marks
+    /// first line of the page, -1 when the text no longer has that line.
+    function breakMarks(breaks) {
+        return doc.lineStarts(breaks.map(b => b.line)).map(at => ({ at: at }))
     }
 
-    readonly property var marks: breakMarks(pageMap.breaks, doc.source)
+    readonly property var marks: breakMarks(pageMap.breaks)
 
     /// The cursor at the start of text line `line` (from 0), that line at the top.
     function goToLine(line) {
         const text = doc.read()
-        const start = lineStart(text, line)
+        const start = doc.lineStart(line)
         const at = start < 0 ? text.length : start
         doc.setCursor(at)
         area.forceActiveFocus()
@@ -415,8 +381,7 @@ RowLayout {
         // The block may have stepped into a folded section: open the sections around it.
         sceneList.unfold(m.unfold)
         const text = doc.read()
-        const from = lineStart(text, m.from)
-        const end = lineStart(text, m.to)
+        const [from, end] = doc.lineStarts([m.from, m.to])
         putText(from, end < 0 ? text.length : end, m.lines.join("\n") + (end < 0 ? "" : "\n"))
         flush()
         sceneList.focusAt(m.line)
