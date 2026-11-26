@@ -235,7 +235,7 @@ impl Session {
             &self.project.title,
             revision.as_ref(),
         );
-        if sheet.pages.is_empty() {
+        if print.revisions == Revisions::ChangedPages && sheet.pages.is_empty() {
             return Err(ServiceError::NoChangedPages);
         }
 

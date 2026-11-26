@@ -164,3 +164,22 @@ fn a_project_without_a_script_has_no_sides() {
 
     assert!(matches!(result, Err(ServiceError::NoScript)));
 }
+
+/// What stands before the first heading is a unit of its own, and a book without a heading
+/// is one.
+#[test]
+fn dialogue_before_the_first_heading_counts() {
+    let book = "ANNA\nHallo.\n\nINT. HOF – TAG\n\nBERT\nJa.\n\n";
+    let mut s = open("sides-preamble", book);
+
+    let pdf = sides(&mut s, "sides-preamble", "Anna").unwrap();
+
+    assert!(pdf.contains("(Hallo.) Tj"), "{pdf}");
+    assert!(!pdf.contains("(Ja.) Tj"), "{pdf}");
+    assert!(!pdf.contains("(1) Tj"), "{pdf}");
+
+    let mut s = open("sides-no-heading", "ANNA\nHallo.\n");
+    let pdf = sides(&mut s, "sides-no-heading", "Anna").unwrap();
+
+    assert!(pdf.contains("(Hallo.) Tj"), "{pdf}");
+}

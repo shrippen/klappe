@@ -32,7 +32,7 @@ pub(crate) fn sides(text: &str, project: &Project, figure: &str) -> Result<Sides
     let lines: Vec<&str> = text.split('\n').collect();
     let chunks = scene_chunks(&located, lines.len());
     let mut out = Vec::new();
-    for (index, chunk) in chunks.iter().enumerate() {
+    for chunk in &chunks {
         let spoken = located[chunk.elements.clone()]
             .iter()
             .any(|l| cues.iter().any(|cue| names(&l.element, cue)));
@@ -40,7 +40,7 @@ pub(crate) fn sides(text: &str, project: &Project, figure: &str) -> Result<Sides
             continue;
         }
 
-        out.extend(chunk_lines(&lines, &located, chunk, index));
+        out.extend(chunk_lines(&lines, chunk));
     }
 
     if out.is_empty() {
@@ -75,53 +75,67 @@ fn figure_cues(
     })
 }
 
-/// A scene of the book: its elements and the text lines it takes.
+/// A scene of the book: its elements and the text lines it takes. What stands before the
+/// first heading is a unit of its own, or the whole book if it has no heading.
 struct Chunk {
     elements: std::ops::Range<usize>,
     lines: std::ops::Range<usize>,
+    /// The place in the book of a heading that has no number in the text.
+    unnumbered: Option<usize>,
 }
 
-/// The scenes in book order. What stands before the first heading (title page) is no scene.
+/// The units in book order.
 fn scene_chunks(located: &[Located], line_count: usize) -> Vec<Chunk> {
     let heads: Vec<usize> = (0..located.len())
         .filter(|&i| matches!(located[i].element, Element::SceneHeading { .. }))
         .collect();
+    let first = heads.first().copied().unwrap_or(located.len());
+    let mut chunks = Vec::new();
 
-    heads
-        .iter()
-        .enumerate()
-        .map(|(n, &head)| {
-            let next = heads.get(n + 1).copied();
-            let end = next.map_or(line_count, |i| first_line(&located[i]));
+    if first > 0 {
+        let end = located.get(first).map_or(line_count, first_line);
 
-            Chunk {
-                elements: head + 1..next.unwrap_or(located.len()),
-                lines: first_line(&located[head])..end,
+        chunks.push(Chunk {
+            elements: 0..first,
+            lines: first_line(&located[0])..end,
+            unnumbered: None,
+        });
+    }
+
+    for (n, &head) in heads.iter().enumerate() {
+        let next = heads.get(n + 1).copied();
+        let end = next.map_or(line_count, |i| first_line(&located[i]));
+        let numbered = matches!(
+            &located[head].element,
+            Element::SceneHeading {
+                number: Some(_),
+                ..
             }
-        })
-        .collect()
+        );
+
+        chunks.push(Chunk {
+            elements: head + 1..next.unwrap_or(located.len()),
+            lines: first_line(&located[head])..end,
+            unnumbered: (!numbered).then_some(n + 1),
+        });
+    }
+
+    chunks
 }
 
 fn first_line(located: &Located) -> usize {
     located.lines.first().copied().unwrap_or_default()
 }
 
-/// The lines of scene `index` (from 0); a heading without a number gets its place in the
-/// book, as the full PDF prints it, so the sides say which scene is meant.
-fn chunk_lines(lines: &[&str], located: &[Located], chunk: &Chunk, index: usize) -> Vec<String> {
+/// The lines of a unit; a heading without a number gets its place in the book, as the full
+/// PDF prints it, so the sides say which scene is meant.
+fn chunk_lines(lines: &[&str], chunk: &Chunk) -> Vec<String> {
     let mut out: Vec<String> = lines[chunk.lines.clone()]
         .iter()
         .map(|l| (*l).to_owned())
         .collect();
-    let numbered = matches!(
-        &located[chunk.elements.start - 1].element,
-        Element::SceneHeading {
-            number: Some(_),
-            ..
-        }
-    );
-    if let (false, Some(head)) = (numbered, out.first_mut()) {
-        head.push_str(&format!(" {NUMBER_MARK}{}{NUMBER_MARK}", index + 1));
+    if let (Some(place), Some(head)) = (chunk.unnumbered, out.first_mut()) {
+        head.push_str(&format!(" {NUMBER_MARK}{place}{NUMBER_MARK}"));
     }
 
     out

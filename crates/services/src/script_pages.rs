@@ -311,6 +311,7 @@ impl Layout {
         self.pagination
             .pages
             .iter()
+            .filter(|page| !only_changed || self.page_changed(page, revision))
             .map(|page| ScriptPage {
                 label: (page.number > 1).then(|| format!("{}.", page.label)),
                 lines: page
@@ -335,8 +336,25 @@ impl Layout {
                     })
                     .collect(),
             })
-            .filter(|page| !only_changed || page.lines.iter().any(|l| l.revised == Revised::Yes))
             .collect()
+    }
+
+    /// Whether whoever holds the last locked version needs the page (DB-43): a line is marked,
+    /// the page is new (12A), a sheet of struck pages, or a page that lost text.
+    fn page_changed(&self, page: &klappe_script::Page, revision: Option<&Revision>) -> bool {
+        let Some(revision) = revision else {
+            return false;
+        };
+        let marked = || {
+            let revised = |line| self.revised(line, Some(revision)) == Revised::Yes;
+
+            page.lines.iter().any(revised)
+        };
+
+        !page.omitted.is_empty()
+            || !revision.old_pages.contains(&page.label)
+            || revision.shortened.contains(&page.label)
+            || marked()
     }
 
     /// Whether the text line a printed row is from is new or changed. A repeated name and

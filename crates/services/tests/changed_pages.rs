@@ -90,7 +90,12 @@ fn only_pages_with_a_mark_are_printed_under_their_numbers() {
         changed.len() >= 2 && changed.len() < all.len(),
         "{changed:?}"
     );
-    assert_eq!(changed, marked);
+    // The pages with a mark, and 2B, which the text ran over onto and has no mark.
+    assert!(
+        marked.iter().all(|label| changed.contains(label)),
+        "{changed:?}"
+    );
+    assert!(changed.contains(&vec!["2B.".to_owned()]), "{changed:?}");
     assert!(
         changed.iter().flatten().any(|l| l.ends_with("A.")),
         "{changed:?}"
@@ -155,4 +160,96 @@ fn without_a_change_nothing_is_written() {
 
     assert!(matches!(result, Err(ServiceError::NoChangedPages)));
     assert!(!path.exists());
+}
+
+/// Every text of every page the print has.
+fn texts(s: &mut Session, print: &ScriptPrint) -> Vec<Vec<String>> {
+    s.print_pages(print)
+        .iter()
+        .map(|page| page.texts.iter().map(|t| t.text.clone()).collect())
+        .collect()
+}
+
+fn has(page: &[String], text: &str) -> bool {
+    page.iter().any(|t| t == text)
+}
+
+/// Text that runs over onto a new page 1A has no mark there, but the page is new: whoever
+/// swaps page 1 needs it.
+#[test]
+fn a_new_page_without_a_mark_is_printed() {
+    let mut s = session("changed-new-page", 4);
+    lock(&mut s);
+    let text = s.script_text().replace(
+        "Scene 1 line 0.\n",
+        &format!("Scene 1 line 0.\n{}", "More text.\n".repeat(6)),
+    );
+    s.set_script_text(&text);
+
+    let all = texts(&mut s, &PRINT);
+    let changed = texts(&mut s, &CHANGED);
+
+    let carried = all.iter().find(|p| has(p, "Scene 2 line 8.")).unwrap();
+    assert!(has(carried, "1A."), "{all:?}");
+    assert!(!has(carried, "*"), "{all:?}");
+    assert!(changed.iter().any(|p| has(p, "1A.")), "{changed:?}");
+    assert!(changed.len() < all.len(), "{changed:?}");
+}
+
+/// A struck scene leaves a sheet `2-3 OMITTED` and a shorter page 1: both go to the ones who
+/// hold the script.
+#[test]
+fn struck_pages_and_the_page_that_lost_text_are_printed() {
+    let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join("changed-struck");
+    let _ = std::fs::remove_dir_all(&dir);
+    let mut s = Session::create(&dir, "Nachtwache", Language::English).unwrap();
+    s.set_script_text(&format!(
+        "{}{}{}",
+        scene(1, 40),
+        scene(2, 150),
+        scene(3, 40)
+    ));
+    lock(&mut s);
+    let text = s.script_text().to_owned();
+    let (from, to) = (
+        text.find("INT. ROOM 2").unwrap(),
+        text.find("INT. ROOM 3").unwrap(),
+    );
+    s.set_script_text(&format!("{}{}", &text[..from], &text[to..]));
+
+    let all = texts(&mut s, &PRINT);
+    let changed = texts(&mut s, &CHANGED);
+
+    assert!(
+        all.iter().any(|p| p.iter().any(|t| t.contains("OMITTED"))),
+        "{all:?}"
+    );
+    assert!(
+        changed
+            .iter()
+            .any(|p| p.iter().any(|t| t.contains("OMITTED"))),
+        "{changed:?}"
+    );
+    // Page 1 lost the start of scene 2 and has no label of its own.
+    assert!(
+        changed.iter().any(|p| has(p, "Scene 1 line 3.")),
+        "{changed:?}"
+    );
+    assert!(changed.len() < all.len(), "{changed:?}");
+}
+
+/// Only the changed-pages print refuses an empty result: a book of a title page prints.
+#[test]
+fn a_book_of_a_title_page_still_prints_without_revisions() {
+    let mut s = session("changed-title-only", 1);
+    s.set_script_text("Title: Nachtwache\nAuthor: X\n");
+    let path = Path::new(env!("CARGO_TARGET_TMPDIR")).join("changed-title-only.pdf");
+    let off = ScriptPrint {
+        revisions: Revisions::Off,
+        ..PRINT
+    };
+
+    s.export_script_pdf(&path, &off).unwrap();
+
+    assert!(path.exists());
 }
