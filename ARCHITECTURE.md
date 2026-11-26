@@ -6,9 +6,9 @@ How this repository is meant to be built. Where the code differs today is listed
 ## What it does
 
 Klappe is a film pre-production suite for directors and their crew. Its first module,
-Stellprobe, plans a scene on a floor plan (blocking, cameras, light, the 180° axis, shot
-list). The screenplay is written as Fountain both in the window and in the terminal. Every
-module works on one project, a folder of text files.
+Stellprobe, plans a scene on a floor plan (blocking, cameras, light, the 180° axis, shot list).
+The screenplay is stored as Fountain; the terminal edits it as such, the window shows it as
+printed (D-36). Every module works on one project, a folder of text files.
 
 ## Building blocks
 
@@ -132,3 +132,8 @@ A change that needs more places than listed is a finding for the audit.
 
 - The window's screenplay editor (`ScreenplayView.qml`) has what the terminal editor has, but its
   undo is the editor's own text history (`scripthistory.h`), not the session's.
+- The window's screenplay editor still shows the Fountain text itself. Target (D-36): it shows a
+  projection without marks, made and mapped back by pure functions in `script/` (`shown.rs`:
+  per source line the kind, shown text, runs, number, notes and a column map; an edit of the
+  shown text becomes a splice of the touched source lines), held by one editor helper in `app/`
+  that the flow, search, suggestions and title card use instead of the text area.
