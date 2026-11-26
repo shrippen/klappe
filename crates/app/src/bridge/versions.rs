@@ -72,6 +72,8 @@ pub(super) fn compare_json(comparison: &Comparison) -> String {
             json!({
                 "number": scene.number,
                 "heading": scene.heading,
+                "oldNumber": scene.old_number,
+                "oldHeading": scene.old_heading,
                 "status": status,
                 "place": place,
                 "lines": lines,
@@ -143,6 +145,11 @@ impl qobject::Controller {
         };
 
         let ok = result.is_ok();
+        if ok {
+            // The pages of the last version are no longer kept: the layout is made anew.
+            self.as_mut().changed();
+            self.as_mut().refresh();
+        }
         let text = match result {
             Ok(()) => language.text("versions.removed"),
             Err(e) => error_text(language, &e),
@@ -223,6 +230,8 @@ mod tests {
             scenes: vec![SceneDiff {
                 number: Some("2".into()),
                 heading: Some("EXT. HOF".into()),
+                old_number: Some("2".into()),
+                old_heading: Some("EXT. GARTEN".into()),
                 status: SceneStatus::Changed,
                 place: ScenePlace::Moved,
                 lines: vec![
@@ -244,6 +253,7 @@ mod tests {
         assert_eq!(v[0]["status"], "changed");
         assert_eq!(v[0]["place"], "moved");
         assert_eq!(v[0]["number"], "2");
+        assert_eq!(v[0]["oldHeading"], "EXT. GARTEN");
         assert_eq!(v[0]["lines"][0]["change"], "removed");
         assert_eq!(v[0]["lines"][1]["text"], "neu");
         assert_eq!(v[0]["lines"][1]["line"], 5);

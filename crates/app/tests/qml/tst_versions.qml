@@ -23,8 +23,11 @@ TestCase {
     // What the session returns for the comparison: scene 1 changed, scene 2 moved only,
     // scene 3 gone, scene 4 new.
     readonly property var diff: [
-        { number: "1", heading: "INT. SAAL - TAG", status: "changed", place: "kept",
-          lines: [{ change: "removed", line: 2, text: "Er kommt an." }, { change: "added", line: 2, text: "Sie kommt an." }] },
+        { number: "1", heading: "INT. SAAL - TAG", oldNumber: "1", oldHeading: "INT. SAAL - NACHT",
+          status: "changed", place: "kept",
+          lines: [{ change: "removed", line: 2, text: "Er kommt an." }, { change: "added", line: 2, text: "Sie kommt an." },
+                  { change: "added", line: 3, text: "Sie setzt sich." }, { change: "added", line: 4, text: "Sie wartet." },
+                  { change: "removed", line: 7, text: "Er geht." }, { change: "added", line: 9, text: "Sie geht." }] },
         { number: "2", heading: "EXT. HOF - NACHT", status: "same", place: "moved", lines: [] },
         { number: "3", heading: "INT. KELLER", status: "removed", place: "kept",
           lines: [{ change: "removed", line: 0, text: "Dunkel." }] },
@@ -92,7 +95,6 @@ TestCase {
         function removeVersion(id) {
             calls.push("remove:" + id)
             versions = versions.filter(v => v.id !== id)
-            projectJson = JSON.stringify({ scenes: tc.scenes, locked: versions.length })
             return true
         }
         function revisionJson() {
@@ -154,6 +156,21 @@ TestCase {
     }
 
     // The row of scene `at`: a list makes its rows when it lays out.
+    // Every descendant of `parent` with that object name (findChild finds only the first).
+    function allChildren(parent, name) {
+        const found = []
+        const walk = item => {
+            for (const c of item.children) {
+                if (c.objectName === name) {
+                    found.push(c)
+                }
+                walk(c)
+            }
+        }
+        walk(parent)
+        return found
+    }
+
     function row(dialog, at) {
         tryVerify(() => findChild(dialog.rows, "compare." + at) !== null)
         return findChild(dialog.rows, "compare." + at)
@@ -305,6 +322,22 @@ TestCase {
         tryVerify(() => view.versions.length === 1)
         compare(view.versions[0].id, "v1")
         compare(fake.calls[fake.calls.length - 1], "remove:v0")
+    }
+
+    // The last version kept the page starts: without it the book is laid out anew, so the
+    // window must ask for the new layout (the real call changes nothing else it could notice).
+    function test_deleting_a_version_lays_the_book_out_anew() {
+        lockedTwice()
+        const view = make()
+        const before = fake.layouts
+
+        view.removeDialog.ask(view.versions[1])
+        tryCompare(view.removeDialog, "opened", true)
+        view.removeDialog.accept()
+
+        tryVerify(() => view.versions.length === 1)
+        verify(fake.layouts > before)
+        verify(!view.stale)
     }
 
     // The Delete key asks like the button: the menu closes first.
@@ -479,8 +512,8 @@ TestCase {
         tryCompare(dialog, "opened", true)
 
         const first = row(dialog, 0)
-        const removed = findChild(findChild(first, "half.old"), "line.old")
-        const added = findChild(findChild(first, "half.new"), "line.new")
+        const removed = findChild(first, "line.old")
+        const added = findChild(first, "line.new")
         verify(removed && added)
         compare(removed.Accessible.name, "gestrichen Er kommt an.")
         compare(added.Accessible.name, "neu Sie kommt an.")
@@ -489,9 +522,44 @@ TestCase {
         verify(!added.children[1].font.strikeout)
 
         tryVerify(() => removed.mapToItem(first, 0, 0).x < added.mapToItem(first, 0, 0).x)
-        const left = removed.mapToItem(first, 0, 0)
-        const right = added.mapToItem(first, 0, 0)
-        compare(left.y, right.y)
+        compare(removed.mapToItem(first, 0, 0).y, added.mapToItem(first, 0, 0).y)
+        dialog.close()
+    }
+
+    // One change is one row: when three lines replace one, the next removed line stands level
+    // with the first line of its own replacement, not beside the second new line of the first.
+    function test_each_change_starts_level_on_both_sides() {
+        lockedTwice()
+        const view = make()
+        view.askCompare("v0")
+        const dialog = view.compareDialog
+        tryCompare(dialog, "opened", true)
+
+        const first = row(dialog, 0)
+        tryVerify(() => allChildren(first, "line.old").length === 2 && allChildren(first, "line.new").length === 4)
+        const ys = name => allChildren(first, name).map(l => l.mapToItem(first, 0, 0).y)
+        tryVerify(() => ys("line.old")[1] > ys("line.old")[0])
+        const old = ys("line.old")
+        const now = ys("line.new")
+        // Old lines: "Er kommt an." (change 1) and "Er geht." (change 2); new lines: three, then one.
+        compare(old[0], now[0])
+        verify(now[2] > now[0])
+        compare(old[1], now[3])
+        verify(old[1] > old[0])
+        dialog.close()
+    }
+
+    // The heads: the old heading left, the new one right.
+    function test_the_left_head_is_the_old_heading() {
+        lockedTwice()
+        const view = make()
+        view.askCompare("v0")
+        const dialog = view.compareDialog
+        tryCompare(dialog, "opened", true)
+
+        const first = row(dialog, 0)
+        compare(findChild(first, "head.old").text, "1 INT. SAAL - NACHT · geändert")
+        compare(findChild(first, "head.new").text, "1 INT. SAAL - TAG · geändert")
         dialog.close()
     }
 
@@ -504,16 +572,16 @@ TestCase {
         tryCompare(dialog, "opened", true)
 
         const gone = row(dialog, 2)
-        verify(findChild(gone, "half.head.old").visible)
-        verify(!findChild(gone, "half.head.new").visible)
-        compare(findChild(gone, "half.new").Accessible.name, "Nicht in dieser Fassung")
-        verify(findChild(findChild(gone, "half.old"), "line.old") !== null)
-        verify(findChild(findChild(gone, "half.new"), "line.new") === null)
+        compare(findChild(gone, "head.old").text, "3 INT. KELLER · gestrichen")
+        compare(findChild(gone, "head.new").text, "")
+        compare(findChild(gone, "head.new").Accessible.name, "Nicht in dieser Fassung")
+        verify(findChild(gone, "line.old") !== null)
+        verify(findChild(gone, "line.new") === null)
 
         const came = row(dialog, 3)
-        verify(!findChild(came, "half.head.old").visible)
-        verify(findChild(came, "half.head.new").visible)
-        verify(findChild(findChild(came, "half.old"), "line.old") === null)
+        compare(findChild(came, "head.old").text, "")
+        compare(findChild(came, "head.new").text, "4 INT. DACH · neu")
+        verify(findChild(came, "line.old") === null)
         dialog.close()
     }
 
@@ -526,14 +594,14 @@ TestCase {
         tryCompare(dialog, "opened", true)
 
         const moved = row(dialog, 1)
-        compare(findChild(moved, "half.head.old").text, "2 EXT. HOF - NACHT · verschoben")
-        compare(findChild(moved, "half.head.new").text, "2 EXT. HOF - NACHT · verschoben")
+        compare(findChild(moved, "head.old").text, "2 EXT. HOF - NACHT · verschoben")
+        compare(findChild(moved, "head.new").text, "2 EXT. HOF - NACHT · verschoben")
         verify(findChild(moved, "line.old") === null)
         verify(findChild(moved, "line.new") === null)
         dialog.close()
     }
 
-    // One list holds both columns: they scroll together, each half is as wide as the other.
+    // One list holds both columns: they scroll together, each side is as wide as the other.
     function test_both_columns_share_one_list_and_one_width() {
         lockedTwice()
         const view = make()
@@ -542,9 +610,9 @@ TestCase {
         tryCompare(dialog, "opened", true)
 
         const first = row(dialog, 0)
-        tryVerify(() => findChild(first, "half.old").width > 150)
-        compare(findChild(first, "half.old").width, findChild(first, "half.new").width)
-        compare(findChild(first, "half.old").parent, findChild(first, "half.new").parent)
+        tryVerify(() => findChild(first, "head.old").width > 150)
+        tryVerify(() => findChild(first, "head.new").width === findChild(first, "head.old").width)
+        compare(findChild(first, "head.old").parent, findChild(first, "head.new").parent)
         dialog.close()
     }
 

@@ -172,6 +172,17 @@ fn a_heading_that_changed_alone_is_a_change() {
 }
 
 #[test]
+fn a_scene_keeps_its_old_heading() {
+    let old = book(&THREE);
+    let new = old.replace("KÜCHE", "KELLER");
+    let c = compare(&old, &new);
+
+    assert_eq!(c.scenes[1].heading.as_deref(), Some("INT. KELLER – TAG"));
+    assert_eq!(c.scenes[1].old_heading.as_deref(), Some("INT. KÜCHE – TAG"));
+    assert_eq!(c.scenes[1].old_number, c.scenes[1].number);
+}
+
+#[test]
 fn twin_scenes_are_not_guessed() {
     // The same scene twice: align cannot tell which is which, so nothing is paired.
     let twin = scene(None, "SAAL", A);

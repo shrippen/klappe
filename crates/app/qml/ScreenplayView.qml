@@ -448,7 +448,11 @@ RowLayout {
         objectName: "removeDialog"
         texts: view.texts
         controller: view.controller
-        onRemoved: view.readVersions()
+        // The last version kept the page starts: without it the pages are free again.
+        onRemoved: {
+            view.readVersions()
+            view.layOut()
+        }
     }
     VersionCompare {
         id: compareDialog
@@ -665,8 +669,8 @@ RowLayout {
                         texts: view.texts
                         stale: view.stale
                         ranges: view.revisionRanges
-                        ink: view.nextRevision ? ink.color(view.nextRevision.color) : KanteStyle.textColor
-                        RevisionInk { id: ink }
+                        ink: view.nextRevision ? revisionInk.color(view.nextRevision.color) : KanteStyle.textColor
+                        RevisionInk { id: revisionInk }
                     }
                     // Later: while an edit runs, the cursor has moved but `text` is still the old one.
                     onCursorPositionChanged: Qt.callLater(flow.leaveIfMoved)

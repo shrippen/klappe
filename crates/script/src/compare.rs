@@ -57,6 +57,10 @@ pub struct SceneDiff {
     /// The new scene's number and heading, the old one's for a removed scene.
     pub number: Option<String>,
     pub heading: Option<String>,
+    /// The old state's number and heading: those of `number` and `heading` unless the heading
+    /// or number changed; none for a new scene.
+    pub old_number: Option<String>,
+    pub old_heading: Option<String>,
     pub status: SceneStatus,
     pub place: ScenePlace,
     /// In text order, a removed line above the added line that replaces it. A new scene has all its
@@ -189,9 +193,13 @@ fn lone(scene: &Scene, status: SceneStatus) -> SceneDiff {
         _ => Edit::Added,
     };
 
+    let old = status == SceneStatus::Removed;
+
     SceneDiff {
         number: scene.number.clone(),
         heading: scene.heading.clone(),
+        old_number: scene.number.clone().filter(|_| old),
+        old_heading: scene.heading.clone().filter(|_| old),
         status,
         place: ScenePlace::Kept,
         lines: scene.lines.iter().map(|row| row.change(change)).collect(),
@@ -225,6 +233,8 @@ fn both(old: &Scene, new: &Scene, moved: bool) -> SceneDiff {
     SceneDiff {
         number: new.number.clone(),
         heading: new.heading.clone(),
+        old_number: old.number.clone(),
+        old_heading: old.heading.clone(),
         status: if lines.is_empty() {
             SceneStatus::Same
         } else {

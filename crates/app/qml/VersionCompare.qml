@@ -7,18 +7,23 @@ import Kante
 // Compares two states of the book (DB-42, DB-44) in two columns: the old state left, the new
 // one right, the head of each is its name ("from" a locked version, "to" a locked version or the
 // book now). Both columns are one list, so they scroll together and the two halves of a scene
-// stand level: lines that went are struck through on the left, lines that came are underlined on
-// a tint on the right; a removed scene has a gap on the right, a new one on the left; a scene that
-// moved says so in words in both columns. Up and Down, or a click, choose the scene. The session
-// does the comparing; this only shows it.
+// stand level: each head left is the old one, right the new one. Below it every change (a run
+// of removed lines and the added lines that replace them) is a row of its own: lines that went
+// are struck through on the left, lines that came are underlined on a tint on the right, and a
+// row is as high as the taller side, so the next change starts level again. A removed scene has
+// a gap on the right, a new one on the left; a scene that moved says so in words in both
+// columns. Up and Down, or a click, choose the scene. The session does the comparing; this only
+// shows it.
 //
-//  Von [Drehfassung ▾]          Bis [Aktuelles Buch ▾]
-//  ┌────────────────────────────┬────────────────────────────┐
-//  │ 1 INT. SAAL  geändert      │ 1 INT. SAAL  geändert      │
-//  │ ~~Er geht.~~               │ Sie geht.                  │
-//  │ 3 INT. KELLER  gestrichen  │                            │
-//  │                            │ 4 INT. DACH  neu           │
-//  └────────────────────────────┴────────────────────────────┘
+//  Von [Drehfassung ▾]               Bis [Aktuelles Buch ▾]
+//  ┌─────────────────────────────────┬─────────────────────────────────┐
+//  │ 1 INT. SAAL - NACHT · geändert  │ 1 INT. SAAL - TAG · geändert    │
+//  │ ~~Er geht.~~                    │ Sie geht.                       │
+//  │                                 │ Sie bleibt.                     │
+//  │ ~~Er bleibt.~~                  │ Sie schläft.                    │  (next change, level again)
+//  │ 3 INT. KELLER · gestrichen      │                                 │
+//  │                                 │ 4 INT. DACH · neu               │
+//  └─────────────────────────────────┴─────────────────────────────────┘
 KanteDialog {
     id: dialog
 
@@ -89,67 +94,65 @@ KanteDialog {
         return scene.status !== (side === "old" ? "new" : "removed")
     }
 
-    /// The lines of that side: the removed ones of the old state, the added ones of the new.
-    function sideLines(scene, side) {
-        const change = side === "old" ? "removed" : "added"
-        return scene.lines.filter(l => l.change === change)
+    /// The changes of a scene, each `{ removed: [text], added: [text] }`: the lines come in text
+    /// order, the removed lines of a change right above the added ones that replace it, so a
+    /// removed line after an added one starts the next change.
+    function hunks(scene) {
+        const out = []
+        let at = null
+        for (const l of scene.lines) {
+            const removed = l.change === "removed"
+            if (at === null || (removed && at.added.length > 0)) {
+                at = { removed: [], added: [] }
+                out.push(at)
+            }
+            (removed ? at.removed : at.added).push(l.text)
+        }
+        return out
+    }
+
+    /// The head of a scene on that side: the number and the heading of that state, then what
+    /// became of it; empty on the side where the scene is not.
+    function head(scene, side) {
+        if (!present(scene, side)) {
+            return ""
+        }
+        const old = side === "old"
+        const number = old ? (scene.oldNumber ?? scene.number) : scene.number
+        const heading = old ? (scene.oldHeading ?? scene.heading) : scene.heading
+        const moved = scene.status !== "same" || scene.place === "moved"
+        return (number ? number + " " : "") + (heading || texts.t("version.noHeading"))
+            + (moved ? " · " + status(scene) : "")
     }
 
     onOpened: rows.forceActiveFocus()
 
-    // One half of a scene: its head with what became of it, then the lines of its side.
-    component Half: ColumnLayout {
-        id: half
-        required property var scene
-        /// "old" or "new".
-        required property string side
-        readonly property bool here: dialog.present(scene, side)
-
+    // One line of a change: struck through when removed, underlined on a tint when added.
+    component Change: Item {
+        id: line
+        required property string text
+        required property bool added
+        objectName: "line." + (added ? "new" : "old")
         Layout.fillWidth: true
-        Layout.alignment: Qt.AlignTop
-        spacing: Kirigami.Units.smallSpacing
-        Accessible.name: here ? "" : dialog.texts.t("version.absent")
+        implicitHeight: words.implicitHeight
+        Accessible.role: Accessible.StaticText
+        Accessible.name: dialog.texts.t(added ? "version.lineAdded" : "version.lineRemoved") + " " + text
 
-        QQC2.Label {
-            objectName: "half.head." + half.side
-            Layout.fillWidth: true
-            visible: half.here
-            wrapMode: Text.WordWrap
-            font.bold: true
-            color: KanteStyle.strongTextColor
-            text: (half.scene.number ? half.scene.number + " " : "") + dialog.heading(half.scene)
-                + (half.scene.status !== "same" || half.scene.place === "moved" ? " · " + dialog.status(half.scene) : "")
+        Rectangle {
+            anchors.fill: parent
+            visible: line.added
+            color: KanteStyle.tintHighlightColor
         }
-
-        Repeater {
-            model: half.here ? dialog.sideLines(half.scene, half.side) : []
-            delegate: Item {
-                id: line
-                required property var modelData
-                readonly property bool added: modelData.change === "added"
-                objectName: "line." + half.side
-                Layout.fillWidth: true
-                implicitHeight: words.implicitHeight
-                Accessible.role: Accessible.StaticText
-                Accessible.name: dialog.texts.t(added ? "version.lineAdded" : "version.lineRemoved") + " " + modelData.text
-
-                Rectangle {
-                    anchors.fill: parent
-                    visible: line.added
-                    color: KanteStyle.tintHighlightColor
-                }
-                QQC2.Label {
-                    id: words
-                    width: parent.width
-                    wrapMode: Text.WordWrap
-                    font.family: KanteStyle.monoFamily
-                    font.strikeout: !line.added
-                    font.underline: line.added
-                    color: line.added ? KanteStyle.strongTextColor : KanteStyle.mutedTextColor
-                    text: line.modelData.text
-                    Accessible.ignored: true
-                }
-            }
+        QQC2.Label {
+            id: words
+            width: parent.width
+            wrapMode: Text.WordWrap
+            font.family: KanteStyle.monoFamily
+            font.strikeout: !line.added
+            font.underline: line.added
+            color: line.added ? KanteStyle.strongTextColor : KanteStyle.mutedTextColor
+            text: line.text
+            Accessible.ignored: true
         }
     }
 
@@ -243,16 +246,64 @@ KanteDialog {
                 }
                 TapHandler { onTapped: block.ListView.view.currentIndex = block.index }
 
-                RowLayout {
+                ColumnLayout {
                     id: pair
                     x: Kirigami.Units.smallSpacing
                     y: Kirigami.Units.smallSpacing
                     width: parent.width - bar.width - Kirigami.Units.smallSpacing * 2
-                    spacing: dialog.columnGap
-                    uniformCellSizes: true
+                    spacing: Kirigami.Units.smallSpacing
 
-                    Half { objectName: "half.old"; scene: block.modelData; side: "old" }
-                    Half { objectName: "half.new"; scene: block.modelData; side: "new" }
+                    // The heads: a side without the scene keeps its cell, empty.
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: dialog.columnGap
+                        uniformCellSizes: true
+
+                        Repeater {
+                            model: ["old", "new"]
+                            delegate: QQC2.Label {
+                                required property string modelData
+                                objectName: "head." + modelData
+                                Layout.fillWidth: true
+                                Layout.alignment: Qt.AlignTop
+                                wrapMode: Text.WordWrap
+                                font.bold: true
+                                color: KanteStyle.strongTextColor
+                                text: dialog.head(block.modelData, modelData)
+                                Accessible.name: text !== "" ? text : dialog.texts.t("version.absent")
+                            }
+                        }
+                    }
+
+                    // Every change one row, both sides as high as the taller.
+                    Repeater {
+                        model: dialog.hunks(block.modelData)
+                        delegate: RowLayout {
+                            required property var modelData
+                            Layout.fillWidth: true
+                            spacing: dialog.columnGap
+                            uniformCellSizes: true
+
+                            ColumnLayout {
+                                objectName: "half.old"
+                                Layout.fillWidth: true
+                                Layout.alignment: Qt.AlignTop
+                                Repeater {
+                                    model: modelData.removed
+                                    delegate: Change { required property string modelData; text: modelData; added: false }
+                                }
+                            }
+                            ColumnLayout {
+                                objectName: "half.new"
+                                Layout.fillWidth: true
+                                Layout.alignment: Qt.AlignTop
+                                Repeater {
+                                    model: modelData.added
+                                    delegate: Change { required property string modelData; text: modelData; added: true }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
