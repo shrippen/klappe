@@ -1,5 +1,6 @@
 import QtQuick
 import QtTest
+import Kante
 import "../../qml"
 
 // ScreenplayView, the locked versions (DB-40 to DB-42, DB-44): the "Fassung" menu with its
@@ -341,6 +342,19 @@ TestCase {
         verify(placed[0].visible)
         compare(placed[0].Accessible.name, "Seit der letzten Fassung geändert")
         compare(marks.ranges[1].from, view.lineStart(tc.book, 6))
+    }
+
+    // The swatch and the marks take Kante's revision colours by the file's names.
+    function test_the_revision_colours_are_kantes() {
+        lockedTwice()
+        const view = make()
+        verify(KanteStyle.revisions.length === 9)
+
+        view.versionMenu.menu.popup()
+        tryCompare(view.versionMenu.menu, "visible", true)
+        compare(findChild(item(view, "version.v1"), "swatch.v1").swatchColor, KanteStyle.revisionColor("blue"))
+        compare(findChild(item(view, "version.v0"), "swatch.v0").swatchColor, KanteStyle.revisionColor("white"))
+        view.versionMenu.menu.close()
     }
 
     function test_without_a_version_nothing_is_marked() {

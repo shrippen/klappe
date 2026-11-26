@@ -1,23 +1,11 @@
 import QtQuick
 import Kante
 
-// The colour of a revision (DB-41) as it is drawn: the file's name of the colour (`blue`) to a
-// Kante colour. Kante has no revision colours; until it has, the nearest label colour stands in
-// (white: the card colour on a light theme, the strong text colour on a dark one; buff: the muted one). The colour's name is always shown beside
-// it, so two colours that share a stand-in stay apart.
+// The colour of a revision (DB-41) as it is drawn: the file's name of the colour (`blue`) to
+// Kante's revision colour. `RevisionColor::name` and `KanteStyle.revisions` use the same names,
+// so this is the one place that maps them. The colour's name is shown beside it all the same.
 QtObject {
     function color(name) {
-        switch (name) {
-        case "white": return KanteStyle.light ? KanteStyle.cardColor : KanteStyle.strongTextColor
-        case "blue": return KanteStyle.labelColor("blue")
-        case "pink": return KanteStyle.labelColor("purple")
-        case "yellow": return KanteStyle.labelColor("yellow")
-        case "green": return KanteStyle.labelColor("green")
-        case "goldenrod": return KanteStyle.labelColor("orange")
-        case "buff": return KanteStyle.mutedTextColor
-        case "salmon":
-        case "cherry": return KanteStyle.labelColor("red")
-        }
-        return KanteStyle.textColor
+        return KanteStyle.revisionColor(name)
     }
 }
