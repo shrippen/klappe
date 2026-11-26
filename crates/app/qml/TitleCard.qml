@@ -38,14 +38,26 @@ KanteFloatingPanel {
     readonly property bool dirty: base !== "" && JSON.stringify(values()) !== base
     /// The title and the author as the text has them, for the folded line.
     property string summary: ""
-    /// Asks the app to give the keys back to the text.
+    /// Asks the app to give the keys back to the text: after Apply and after Esc.
     signal applied()
+    signal dismissed()
 
     collapsed: true
     collapseText: texts.t("titlepage.collapse")
     expandText: texts.t("titlepage.expand")
     title: collapsed ? texts.t("titlepage.title") + " · " + (summary !== "" ? summary : texts.t("titlepage.empty"))
+                       + (dirty ? " · " + texts.t("titlepage.changed") : "")
                      : texts.t("titlepage.title")
+
+    // Esc in a field folds the card and gives the keys back to the text; what is typed stays.
+    Keys.onEscapePressed: event => {
+        if (collapsed) {
+            return
+        }
+        collapsed = true
+        dismissed()
+        event.accepted = true
+    }
 
     /// Reads the fields from the text unless something is typed in the card.
     function follow() {

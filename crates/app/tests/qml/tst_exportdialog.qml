@@ -24,6 +24,11 @@ TestCase {
         function clearStatus() {}
         function exportFile(extension) { return "file:///work/Wartburg-Plan-A." + extension }
         function exportTo(kind, order, paper, path) { return call("exportTo", [kind, order, paper, path]) }
+        // The characters of the dialogue report (services `DialogueFigure`).
+        property var figures: [{ id: "anna", name: "ANNA", replies: 3 }, { id: "bob", name: "BOB", replies: 2 }]
+        function dialogueFigures() { return JSON.stringify(figures) }
+        function exportDialogue(figure, format, path) { return call("exportDialogue", [figure, format, path]) }
+        function reportFile(report) { return "file:///work/" + report + ".pdf" }
     }
 
     TestTexts { id: de; language: "de" }
@@ -35,6 +40,7 @@ TestCase {
             controller: fake
             papers: [{ id: "a4", label: "A4" }, { id: "a3", label: "A3" }, { id: "letter", label: "Letter" }]
             orientations: ["portrait", "landscape"]
+            reportFormats: ["pdf", "csv", "ods", "xlsx"]
             formats: [
                 { id: "pdf", paper: true, extension: "pdf" },
                 { id: "png", paper: true, extension: "png" },
@@ -52,6 +58,7 @@ TestCase {
 
     function init() {
         fake.calls = []
+        fake.figures = [{ id: "anna", name: "ANNA", replies: 3 }, { id: "bob", name: "BOB", replies: 2 }]
     }
 
     function make() {
@@ -211,6 +218,48 @@ TestCase {
         tryCompare(dialog, "opened", false)
 
         compare(fake.calls, [])
+    }
+
+    // DB-52: the dialogue report asks for the character first, without the paper form, then
+    // for the file.
+    function test_the_dialogue_report_asks_for_the_character_first() {
+        const dialog = make()
+        const box = findChild(dialog.contentItem, "figureBox")
+
+        dialog.requestReport("dialog")
+        tryCompare(dialog, "opened", true)
+        verify(box.visible)
+        verify(!findChild(dialog.contentItem, "paper").visible)
+        compare(dialog.figure, "anna")
+        compare(box.model, ["ANNA (3)", "BOB (2)"])
+        compare(fake.calls, [])
+
+        box.activated(1)
+        compare(dialog.figure, "bob")
+        dialog.save("file:///work/Dialog.CSV")
+
+        compare(fake.calls, [["exportDialogue", "bob", "csv", "file:///work/Dialog.CSV"]])
+    }
+
+    function test_a_plan_export_shows_the_paper_not_the_character() {
+        const dialog = make()
+
+        dialog.request("pdf")
+        tryCompare(dialog, "opened", true)
+
+        verify(findChild(dialog.contentItem, "paper").visible)
+        verify(!findChild(dialog.contentItem, "figureBox").visible)
+    }
+
+    // A book without a reply has nobody to choose: nothing opens, the controller says why.
+    function test_the_dialogue_report_without_a_reply_opens_nothing() {
+        const dialog = make()
+        fake.figures = []
+
+        dialog.requestReport("dialog")
+
+        verify(!dialog.opened)
+        verify(!findChild(dialog, "files").visible)
     }
 
     // Choosing a paper and cancelling: the next opening shows the project's again.

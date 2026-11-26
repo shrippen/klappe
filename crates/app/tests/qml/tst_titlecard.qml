@@ -17,6 +17,7 @@ TestCase {
 
     property var puts: []
     property int appliedCount: 0
+    property int dismissedCount: 0
     property var fields: ({ "Title": "Heimat", "Credit": "", "Author": "", "Source": "",
                             "Draft date": "", "Contact": "Eva\nWeg 1" })
     // What the controller makes of the text: the title line replaced, the rest kept.
@@ -40,12 +41,14 @@ TestCase {
             area: editor
             putText: (from, to, text) => tc.puts.push({ from: from, to: to, text: text })
             onApplied: tc.appliedCount++
+            onDismissed: tc.dismissedCount++
         }
     }
 
     function init() {
         puts = []
         appliedCount = 0
+        dismissedCount = 0
         result = ""
         fields = { "Title": "Heimat", "Credit": "", "Author": "Eva", "Source": "",
                    "Draft date": "", "Contact": "Eva\nWeg 1" }
@@ -206,5 +209,50 @@ TestCase {
 
         compare(findChild(form, "field.Title").Accessible.name, "Titel")
         compare(form.contactField.Accessible.name, "Kontakt")
+    }
+
+    function test_esc_in_a_field_folds_and_keeps_what_is_typed() {
+        const form = make()
+        form.show()
+        form.setField("Author", "Anna")
+        verify(findChild(form, "field.Title").activeFocus)
+
+        keyClick(Qt.Key_Escape)
+
+        verify(form.collapsed)
+        compare(dismissedCount, 1)
+        compare(form.values()["Author"], "Anna")
+        verify(form.dirty)
+        compare(puts.length, 0)
+    }
+
+    function test_esc_in_the_contact_field_folds_too() {
+        const form = make()
+        form.show()
+        form.contactField.area.forceActiveFocus()
+
+        keyClick(Qt.Key_Escape)
+
+        verify(form.collapsed)
+        compare(dismissedCount, 1)
+    }
+
+    function test_the_folded_line_says_changed_while_something_is_typed() {
+        const form = make()
+        form.show()
+        form.setField("Author", "Anna")
+        form.collapsed = true
+
+        compare(form.title, "Titelseite · Heimat · Eva · geändert")
+        form.discard()
+        compare(form.title, "Titelseite · Heimat · Eva")
+    }
+
+    function test_the_changed_note_is_english_too() {
+        const form = createTemporaryObject(formComponent, tc, { texts: en })
+        form.follow()
+        form.setField("Author", "Anna")
+
+        compare(form.title, "Title page · Heimat · Eva · changed")
     }
 }

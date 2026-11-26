@@ -202,6 +202,8 @@ RowLayout {
         KanteMenuItem { objectName: "reportCast"; action: reportCommands.cast; iconRoom: true }
         KanteMenuItem { objectName: "reportExtract"; action: reportCommands.extract; iconRoom: true }
         KanteMenuItem { objectName: "reportContacts"; action: reportCommands.contacts; iconRoom: true }
+        KanteMenuItem { objectName: "reportStatistics"; action: reportCommands.statistics; iconRoom: true }
+        KanteMenuItem { objectName: "reportDialogue"; action: reportCommands.dialogue; iconRoom: true }
         KanteMenuSection { text: header.texts.t("script.title") }
         KanteMenuItem { objectName: "scriptPdf"; action: actScriptPdf; iconRoom: true }
     }

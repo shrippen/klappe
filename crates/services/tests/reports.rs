@@ -305,7 +305,15 @@ fn the_overview_offers_the_reports() {
 
     assert_eq!(
         overview.reports,
-        ["szenen", "spielorte", "figuren", "auszug", "kontakte"]
+        [
+            "szenen",
+            "spielorte",
+            "figuren",
+            "auszug",
+            "kontakte",
+            "statistik",
+            "dialog"
+        ]
     );
     assert_eq!(overview.report_formats, ["pdf", "csv", "ods", "xlsx"]);
 }

@@ -440,6 +440,22 @@ pub mod qobject {
         #[cxx_name = "tabStep"]
         fn tab_step(self: &Self, line: &QString, kind: &QString) -> QString;
 
+        /// The choices for the end of line `line` (from 0) of `text`, a line of kind `kind` (a
+        /// letter of `scriptKinds`; `pending` the letter of the slot Enter or Tab made the line, or
+        /// empty, taken while `kind` is plain): `{ from, options, finishes, kind, gap }`, empty for
+        /// none. `from` is where in the line the choice goes (a
+        /// position of the text area), `options` at most eight, the most frequent first; `finishes`
+        /// says the choice ends the element, `kind` and `gap` (as `enterStep`) what follows it.
+        #[qinvokable]
+        #[cxx_name = "scriptSuggest"]
+        fn script_suggest(
+            self: &Self,
+            text: &QString,
+            line: i32,
+            kind: &QString,
+            pending: &QString,
+        ) -> QString;
+
         /// Line `at` of `text` in capitals as typed (a heading, a forced or `pending` cue);
         /// empty when nothing changes. `pending` is the letter of the slot Enter or Tab made the
         /// line, or empty.
@@ -996,6 +1012,24 @@ pub mod qobject {
             format: &QString,
             path: &QString,
         ) -> bool;
+
+        /// Writes the dialogue report (DB-52) of the character `figure` (an id) as `format`
+        /// to `path`, as `exportReport`.
+        #[qinvokable]
+        #[cxx_name = "exportDialogue"]
+        fn export_dialogue(
+            self: Pin<&mut Self>,
+            figure: &QString,
+            format: &QString,
+            path: &QString,
+        ) -> bool;
+
+        /// The characters with a reply in the book, most replies first, as
+        /// `[{ id, name, replies }]`; the choice before the dialogue report. A book without a
+        /// reply says so on the status line.
+        #[qinvokable]
+        #[cxx_name = "dialogueFigures"]
+        fn dialogue_figures(self: Pin<&mut Self>) -> QString;
 
         /// The file URL a report is offered under: next to the project folder, named by the
         /// report as a PDF; empty without a project.

@@ -381,7 +381,7 @@ TestCase {
         const files = findChild(dialog, "files")
         const reports = { reportScenes: "szenen", reportPlaces: "spielorte",
                           reportCast: "figuren", reportExtract: "auszug",
-                          reportContacts: "kontakte" }
+                          reportContacts: "kontakte", reportStatistics: "statistik" }
 
         for (const name in reports) {
             verify(entry(header, "exportMenu", name).enabled, name)
@@ -396,6 +396,10 @@ TestCase {
             back()
             verify(header.commandPalette.commands.some(c => c.id === "report." + reports[name]), name)
         }
+
+        // The dialogue report asks for the character first (`tst_exportdialog.qml`).
+        verify(entry(header, "exportMenu", "reportDialogue").enabled)
+        verify(header.commandPalette.commands.some(c => c.id === "report.dialog"))
 
         dialog.report = "szenen"
         dialog.save("file:///work/Liste.CSV")
