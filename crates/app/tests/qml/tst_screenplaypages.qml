@@ -172,4 +172,19 @@ TestCase {
         compare(view.pageMap.pages, 3)
         verify(!view.stale)
     }
+
+    // DN-02: typing never lays out; a project change meanwhile (the push of the typed text)
+    // leaves the layout and the stale state as they are.
+    function test_the_project_changing_while_typing_does_not_lay_out() {
+        const view = make()
+        view.area.forceActiveFocus()
+        view.area.insert(view.area.length, "x")
+        verify(view.stale)
+        const before = fake.layouts
+
+        fake.projectJson = JSON.stringify({ scenes: tc.scenes, paper: "letter" })
+
+        compare(fake.layouts, before)
+        verify(view.stale)
+    }
 }
