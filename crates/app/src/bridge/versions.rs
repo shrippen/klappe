@@ -40,8 +40,8 @@ pub(super) fn versions_json(
 
 /// The comparison as `[{ number, heading, headingText, oldHeadingText, statusText, status,
 /// place, lines: [{ change, line, text, group }] }]`; the `…Text` fields are the words to show
-/// as they are (`ohne Überschrift`, `geändert, verschoben`). `status` is `new`, `removed`, `changed` or `same`, `place` `kept` or `moved`, `change`
-/// `added` or `removed`.
+/// as they are (`(ohne Überschrift)`, `geändert, verschoben`). `status` is `new`, `removed`,
+/// `changed` or `same`, `place` `kept` or `moved`, `change` `added` or `removed`.
 pub(super) fn compare_json(comparison: &Comparison, language: Language) -> String {
     let scenes: Vec<_> = comparison
         .scenes
