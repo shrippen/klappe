@@ -267,19 +267,21 @@ ColumnLayout {
             subtitle: modelData.synopsis ? modelData.synopsis
                       : (!section && !scene.inBook && scene.heading !== "" ? list.texts.t("scene.notInBook") : "")
             meta: section ? "" : list.marks(scene)
-            // The indent of the tree, and a section's arrow: down open, right folded.
+            // The indent of the tree, and a section's arrow.
             Row {
                 Item {
-                    width: modelData.depth * Kirigami.Units.gridUnit
+                    width: modelData.depth * Kirigami.Units.largeSpacing
                     height: 1
                 }
-                KanteIcon {
+                // The terminal's marks: down open, right folded.
+                Text {
                     id: arrow
                     objectName: "fold." + modelData.line
                     visible: row.section
                     width: Kirigami.Units.iconSizes.small
-                    height: width
-                    iconSource: modelData.folded ? "arrow-right" : "arrow-down"
+                    horizontalAlignment: Text.AlignHCenter
+                    text: modelData.folded ? "\u25B8" : "\u25BE"
+                    font: KanteStyle.defaultFont
                     color: KanteStyle.mutedTextColor
                     HoverHandler {
                         id: overArrow
