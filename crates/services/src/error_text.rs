@@ -35,6 +35,7 @@ fn missing(error: &ServiceError) -> Option<(&'static str, String)> {
         ServiceError::NoCharacter(id) => ("error.noCharacter", id),
         ServiceError::NoElement(id) => ("error.noElement", id),
         ServiceError::NoPerson(id) => ("error.noPerson", id),
+        ServiceError::NoVersion(id) => ("error.noVersion", id),
         ServiceError::NoLook(id) => ("error.noLook", id),
         ServiceError::NotLookElement(id) => ("error.notLookElement", id),
         ServiceError::BadFdx(why) => ("error.badFdx", why),
@@ -44,8 +45,16 @@ fn missing(error: &ServiceError) -> Option<(&'static str, String)> {
     Some((found.0, found.1.clone()))
 }
 
-/// A number already in use: a shot's (e.g. "12.3") or a role's cast number.
+/// A number already in use: a shot's (e.g. "12.3") or a role's cast number; a version's name.
 fn taken_text(language: Language, error: &ServiceError) -> Option<String> {
+    if let ServiceError::VersionNameTaken(name) = error {
+        return Some(
+            language
+                .text("error.versionNameTaken")
+                .replace("{name}", name),
+        );
+    }
+
     let (key, number) = match error {
         ServiceError::CastNumberTaken(number) => ("error.castNumberTaken", number.to_string()),
         ServiceError::NumberTaken(number) => ("error.numberTaken", number.clone()),
@@ -203,6 +212,8 @@ fn plain_key(error: &ServiceError) -> Option<&'static str> {
         ServiceError::LastPlan(_) => Some("error.lastPlan"),
         ServiceError::FewPoints => Some("error.fewPoints"),
         ServiceError::NotCopyable => Some("error.notCopyable"),
+        ServiceError::NoVersions => Some("error.noVersions"),
+        ServiceError::EmptyVersionName => Some("error.versionNameEmpty"),
         ServiceError::VersionCamera(_) => Some("error.versionCamera"),
         // Listed so a new variant must be placed: `error_text` words these itself.
         ServiceError::NoScene(_)
@@ -214,6 +225,8 @@ fn plain_key(error: &ServiceError) -> Option<&'static str> {
         | ServiceError::NoCharacter(_)
         | ServiceError::NoElement(_)
         | ServiceError::NoPerson(_)
+        | ServiceError::NoVersion(_)
+        | ServiceError::VersionNameTaken(_)
         | ServiceError::CastNumberTaken(_)
         | ServiceError::NoLook(_)
         | ServiceError::NotLookElement(_)

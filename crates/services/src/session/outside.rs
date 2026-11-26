@@ -198,6 +198,7 @@ impl Session {
     /// Used by `open`, `reload` and a take-over. Fails before anything changes.
     pub(super) fn take(&mut self, mut loaded: Loaded) -> Result<(), ServiceError> {
         let lock = klappe_store::load_lock(&self.dir)?;
+        let versions = klappe_store::load_versions(&self.dir)?;
         let places = klappe_store::load_places(&self.dir)?;
         let (scene, plan) = self.ids_on_view();
 
@@ -211,6 +212,7 @@ impl Session {
         self.script_text = loaded.script;
         self.load_notes = loaded.notes;
         self.lock = lock;
+        self.versions = versions;
         self.places = places;
         self.follow_scene(scene, plan);
         self.reconcile();

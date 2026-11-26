@@ -57,7 +57,7 @@ pub use report::{
     ReportTable,
 };
 pub use script::{
-    Face, Placed, SceneNumbers, ScriptLine, ScriptPage, ScriptSheet, SheetPage, TitlePage,
+    Face, Placed, Revised, SceneNumbers, ScriptLine, ScriptPage, ScriptSheet, SheetPage, TitlePage,
     ASCENT_PT as SCRIPT_ASCENT_PT, FONT_PT as SCRIPT_FONT_PT,
 };
 pub use video::{video_program_found, VideoSpec, VideoWriter, FFMPEG};

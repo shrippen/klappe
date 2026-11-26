@@ -10,16 +10,23 @@
 //! klappe-cli report --project <folder> --report <szenen|spielorte|figuren|auszug|kontakte> --out <file>
 //!                   [--language de|en]      (pdf, csv, ods or xlsx, by the extension of --out)
 //! klappe-cli script-pdf --project <folder> --out <file> [--paper a4|letter] [--language de|en]
-//!                       [--scene-numbers] [--header]
+//!                       [--scene-numbers] [--header] [--revisions]
 //! klappe-cli script-fdx --project <folder> --out <file> [--language de|en]
+//! klappe-cli lock-version --project <folder> --name <name> [--language de|en]
+//! klappe-cli remove-version --project <folder> --id <version id> [--language de|en]
+//! klappe-cli versions --project <folder> [--language de|en]
+//! klappe-cli compare --project <folder> [--from <version id>] [--to <version id>] [--language de|en]
 //! ```
+
+mod versions;
 
 use clap::builder::{PossibleValuesParser, TypedValueParser};
 use clap::{Parser, Subcommand, ValueEnum};
 use klappe_services::{
     builtin_camera_presets, error_text, fdx_loss_text, load_notes_text, read_number, ExportFormat,
     ExportOptions, Field, HeaderLine, Language, Orientation, Paper, PaperSetup, Range, Report,
-    ReportFormat, SceneNumbers, ScriptPaper, ScriptPrint, Sensor, Session, ShotOrder, Size, Unit,
+    ReportFormat, Revisions, SceneNumbers, ScriptPaper, ScriptPrint, Sensor, Session, ShotOrder,
+    Size, Unit,
 };
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -119,6 +126,10 @@ enum Command {
         /// Print title and draft date at the top of every page.
         #[arg(long)]
         header: bool,
+        /// Mark what changed since the last locked version: `*` in the margin and the next
+        /// revision's colour above the page number.
+        #[arg(long)]
+        revisions: bool,
     },
     /// The screenplay as a Final Draft file (DB-72); says on stderr what FDX has no place for.
     ScriptFdx {
@@ -132,6 +143,8 @@ enum Command {
         #[arg(long, value_enum)]
         language: Option<LanguageArg>,
     },
+    #[command(flatten)]
+    Versions(versions::VersionCommand),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
@@ -211,20 +224,14 @@ fn main() -> ExitCode {
             language,
             scene_numbers,
             header,
+            revisions,
         } => {
-            let print = ScriptPrint {
-                scene_numbers: if scene_numbers {
-                    SceneNumbers::Shown
-                } else {
-                    SceneNumbers::Hidden
-                },
-                header: if header {
-                    HeaderLine::Title
-                } else {
-                    HeaderLine::Off
-                },
-                language: language_of(language),
+            let flags = PrintFlags {
+                scene_numbers,
+                header,
+                revisions,
             };
+            let print = print_of(language_of(language), flags);
 
             script_pdf(&project, &out, paper, &print)
         }
@@ -233,6 +240,36 @@ fn main() -> ExitCode {
             out,
             language,
         } => script_fdx(&project, &out, language_of(language)),
+        Command::Versions(command) => command.run(),
+    }
+}
+
+/// The flags of `script-pdf` that switch something on.
+struct PrintFlags {
+    scene_numbers: bool,
+    header: bool,
+    revisions: bool,
+}
+
+/// What `script-pdf` prints, from its flags.
+fn print_of(language: Language, flags: PrintFlags) -> ScriptPrint {
+    ScriptPrint {
+        scene_numbers: if flags.scene_numbers {
+            SceneNumbers::Shown
+        } else {
+            SceneNumbers::Hidden
+        },
+        header: if flags.header {
+            HeaderLine::Title
+        } else {
+            HeaderLine::Off
+        },
+        language,
+        revisions: if flags.revisions {
+            Revisions::On
+        } else {
+            Revisions::Off
+        },
     }
 }
 
@@ -551,6 +588,7 @@ mod tests {
             scene_numbers: SceneNumbers::Shown,
             header: HeaderLine::Off,
             language: Language::English,
+            revisions: Revisions::Off,
         };
 
         let written = write_script_pdf(&project, &out, Some(ScriptPaper::Letter), &print);
