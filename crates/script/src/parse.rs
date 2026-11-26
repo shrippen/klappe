@@ -198,6 +198,12 @@ pub(crate) fn boneyard_spans(text: &str) -> Vec<Range<usize>> {
     spans
 }
 
+/// How many `/* ... */` boneyards the text holds; the parser cuts them, so a script no longer
+/// has them (an export that cannot carry them counts them here).
+pub fn boneyard_count(text: &str) -> usize {
+    boneyard_spans(text).len()
+}
+
 /// Whether the character at `at` follows an odd run of backslashes: `\/*` escapes the
 /// slash, `\\/*` is a backslash and an opener. Matches how `inline_runs` skips escapes.
 fn is_escaped(text: &str, at: usize) -> bool {

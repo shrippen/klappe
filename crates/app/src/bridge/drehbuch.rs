@@ -206,6 +206,7 @@ fn report_json(report: &ImportReport) -> String {
         "created": report.created,
         "pending": report.pending,
         "notInBook": report.not_in_book,
+        "stylesLost": report.styles_lost,
     })
     .to_string()
 }
@@ -363,7 +364,8 @@ impl qobject::Controller {
 #[cfg(test)]
 mod tests {
     use super::{
-        breaks_json, enter_json, kinds_text, looks_json, print_json, suggest_json, tab_json,
+        breaks_json, enter_json, kinds_text, looks_json, print_json, report_json, suggest_json,
+        tab_json, ImportReport,
     };
 
     /// Enter at the end of a heading opens an action after a blank line; at the end of a cue
@@ -483,6 +485,21 @@ mod tests {
         let none: serde_json::Value = serde_json::from_str(&breaks_json(None)).unwrap();
         assert_eq!(none["pages"], 0);
         assert_eq!(none["breaks"].as_array().map(Vec::len), Some(0));
+    }
+
+    /// The import report carries what an FDX import could not keep, for the report dialog.
+    #[test]
+    fn the_import_report_names_the_lost_styles() {
+        let report = ImportReport {
+            scenes: 2,
+            styles_lost: 3,
+            ..ImportReport::default()
+        };
+
+        let v: serde_json::Value = serde_json::from_str(&report_json(&report)).unwrap();
+
+        assert_eq!(v["scenes"], 2);
+        assert_eq!(v["stylesLost"], 3);
     }
 
     /// A cue and its line get their own letter, and the looks place the cue as the page does.

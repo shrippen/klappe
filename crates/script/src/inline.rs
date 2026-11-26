@@ -70,8 +70,23 @@ fn closes_later(chars: &[char], from: usize, run: usize) -> bool {
 /// Emphasis counts only when its closing mark is on the same line, so a lone `*` is text.
 /// Example: `a *b* [[c]]` gives italic for `*b*` and note for `[[c]]`.
 pub fn inline_runs(line: &str, in_boneyard: bool) -> (Vec<Run>, bool) {
+    let scan = scan(line, in_boneyard);
+
+    (runs(&scan.marks), scan.boneyard)
+}
+
+/// What `scan` found: the marks of each character, which characters open or close an
+/// emphasis (a lone `*` or `_` does neither), and whether the next line is in a boneyard.
+struct Scan {
+    marks: Vec<Marks>,
+    toggles: Vec<bool>,
+    boneyard: bool,
+}
+
+fn scan(line: &str, in_boneyard: bool) -> Scan {
     let chars: Vec<char> = line.chars().collect();
     let mut marks = vec![Marks::default(); chars.len()];
+    let mut toggles = vec![false; chars.len()];
     let mut now = Marks::default();
     let mut boneyard = in_boneyard;
     let mut at = 0;
@@ -102,6 +117,8 @@ pub fn inline_runs(line: &str, in_boneyard: bool) -> (Vec<Run>, bool) {
             }
         }
         if c == ESCAPE {
+            // An escaped character is text inside the emphasis it stands in.
+            paint(&mut marks, at, 2, now, now);
             at += 2;
             continue;
         }
@@ -113,15 +130,28 @@ pub fn inline_runs(line: &str, in_boneyard: bool) -> (Vec<Run>, bool) {
             _ => 1,
         };
         // The marks of an emphasis count to it, the opening and the closing one.
-        for m in marks.iter_mut().skip(at).take(step) {
-            m.bold = before.bold || now.bold;
-            m.italic = before.italic || now.italic;
-            m.underline = before.underline || now.underline;
+        paint(&mut marks, at, step, before, now);
+        // A mark that changed the emphasis is a mark; any other is text.
+        if now != before {
+            toggles[at..at + step].iter_mut().for_each(|t| *t = true);
         }
         at += step;
     }
 
-    (runs(&marks), boneyard)
+    Scan {
+        marks,
+        toggles,
+        boneyard,
+    }
+}
+
+/// Gives `len` characters from `at` the emphasis that holds before or after them.
+fn paint(marks: &mut [Marks], at: usize, len: usize, before: Marks, now: Marks) {
+    for m in marks.iter_mut().skip(at).take(len) {
+        m.bold = before.bold || now.bold;
+        m.italic = before.italic || now.italic;
+        m.underline = before.underline || now.underline;
+    }
 }
 
 /// Handles a run of stars at `at`; returns how many characters it took.
@@ -169,22 +199,9 @@ pub fn plain_text(text: &str) -> String {
     let mut out = String::new();
 
     for line in text.lines() {
-        let (runs, _) = inline_runs(line, false);
-        let chars: Vec<char> = line.chars().collect();
-
-        for run in runs {
-            let marks = run.marks;
-            if marks.note {
-                continue;
-            }
-            let emphasis = marks.bold || marks.italic || marks.underline;
-            let part = &chars[run.start..run.end];
-            for (i, c) in part.iter().enumerate() {
-                let escapes = *c == ESCAPE && part.get(i + 1).is_some_and(|n| is_mark(*n));
-                if escapes || (emphasis && is_mark(*c)) {
-                    continue;
-                }
-                out.push(*c);
+        for (marks, part) in visible_runs(line) {
+            if !marks.note {
+                out.push_str(&part);
             }
         }
         out.push(' ');
@@ -193,6 +210,51 @@ pub fn plain_text(text: &str) -> String {
     // Left-out parts leave double spaces.
     out.split_whitespace().collect::<Vec<_>>().join(" ")
 }
+
+/// The runs of a line with the text a reader sees: the marks that open or close an emphasis
+/// are gone, and so is the backslash of `\*`, `\_`, `\[` and `\\`; a `*` or `_` that opens
+/// nothing is text. Notes come with their marks, for the caller to leave out.
+pub(crate) fn visible_runs(line: &str) -> Vec<(Marks, String)> {
+    let chars: Vec<char> = line.chars().collect();
+    let scan = scan(line, false);
+    let escapes = escape_marks(&chars);
+
+    runs(&scan.marks)
+        .iter()
+        .map(|run| {
+            let mut part = String::new();
+            for i in run.start..run.end {
+                if !scan.toggles[i] && !escapes[i] {
+                    part.push(chars[i]);
+                }
+            }
+
+            (run.marks, part)
+        })
+        .collect()
+}
+
+/// Which characters are a backslash that protects what follows (a mark, a bracket or another
+/// backslash). The protected character is text, so `\\*` is a backslash and
+/// then a mark.
+fn escape_marks(chars: &[char]) -> Vec<bool> {
+    let mut escapes = vec![false; chars.len()];
+    let mut i = 0;
+
+    while i < chars.len() {
+        let protects = chars[i] == ESCAPE
+            && chars
+                .get(i + 1)
+                .is_some_and(|c| is_mark(*c) || *c == ESCAPE || *c == NOTE_BRACKET);
+        escapes[i] = protects;
+        i += if protects { 2 } else { 1 };
+    }
+
+    escapes
+}
+
+/// The character a note opens with.
+const NOTE_BRACKET: char = '[';
 
 fn is_mark(c: char) -> bool {
     c == STAR || c == UNDERLINE

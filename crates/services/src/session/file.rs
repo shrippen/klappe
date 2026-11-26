@@ -13,6 +13,9 @@ use crate::error::ServiceError;
 use crate::plan_edit::{Grid, Snapping};
 use crate::shot_edit;
 
+/// The extension of a Final Draft file, whatever its case.
+const FDX_EXTENSION: &str = "fdx";
+
 impl Session {
     /// Opens a project folder; the first scene with a plan is current.
     pub fn open(dir: &Path) -> Result<Self, ServiceError> {
@@ -246,13 +249,25 @@ impl Session {
         self.refresh_pending();
     }
 
-    /// Replaces the screenplay with the Fountain file `path` (UTF-8) and aligns the register
+    /// Replaces the screenplay with the Fountain or FDX (`.fdx`, DB-72) file `path` (UTF-8) and aligns the register
     /// with it at once (D-16); unsaved until `save`, one undo step. A file that cannot be
     /// read changes nothing.
     pub fn import_script(&mut self, path: &Path) -> Result<ImportReport, ServiceError> {
         let text = klappe_store::load_script_file(path)?;
+        let is_fdx = path
+            .extension()
+            .is_some_and(|e| e.eq_ignore_ascii_case(FDX_EXTENSION));
+        if !is_fdx {
+            return Ok(self.import_book(&text));
+        }
 
-        Ok(self.import_book(&text))
+        // The book is kept as Fountain, whatever it was read from.
+        let (script, loss) =
+            klappe_script::read_fdx(&text).map_err(|e| ServiceError::BadFdx(e.to_string()))?;
+        let mut report = self.import_book(&klappe_script::write(&script));
+        report.styles_lost = loss.styles;
+
+        Ok(report)
     }
 }
 
