@@ -149,7 +149,7 @@ impl Writer {
     fn paragraph(&mut self, el: &Element) -> Node {
         match el {
             Element::SceneHeading { text, number } => {
-                let mut par = self.par(HEADING, text);
+                let mut par = Self::raw_par(HEADING, text);
                 if let Some(n) = number {
                     par.attrs.push((NUMBER.to_owned(), n.clone()));
                 }
@@ -162,11 +162,11 @@ impl Writer {
                     Some(ext) => format!("{name} ({ext})"),
                     None => name.clone(),
                 };
-                self.par(CHARACTER, &text)
+                Self::raw_par(CHARACTER, &text)
             }
             Element::Parenthetical(text) => self.par(PARENTHETICAL, &format!("({text})")),
             Element::Dialogue(text) => self.par(DIALOGUE, text),
-            Element::Transition(text) => self.par(TRANSITION, text),
+            Element::Transition(text) => Self::raw_par(TRANSITION, text),
             Element::Centered(text) => {
                 let par = self.par(ACTION, text);
                 par.with_attr(ALIGNMENT, CENTER)
@@ -182,6 +182,14 @@ impl Writer {
             }
             Element::PageBreak => Node::new(PARAGRAPH),
         }
+    }
+
+    /// A paragraph whose text is no inline Fountain (heading, name, transition): one run, as is.
+    fn raw_par(kind: &str, text: &str) -> Node {
+        let mut par = Node::new(PARAGRAPH).with_attr(TYPE, kind);
+        par.kids.push(Kid::Node(Node::new(TEXT).with_text(text)));
+
+        par
     }
 
     fn par(&mut self, kind: &str, text: &str) -> Node {
