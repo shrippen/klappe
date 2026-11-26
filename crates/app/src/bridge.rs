@@ -487,6 +487,13 @@ pub mod qobject {
         #[cxx_name = "scriptPrintJson"]
         fn script_print_json(self: Pin<&mut Self>) -> QString;
 
+        /// The last layout (`paginateScript`, `scriptPrintJson`): `{ pages, breaks: [{ page,
+        /// line }], scenes: [{ line, page }] }`; a break is above text line `line` (from 0),
+        /// `page` counts from 1. Empty before the first layout.
+        #[qinvokable]
+        #[cxx_name = "scriptBreaksJson"]
+        fn script_breaks_json(self: Pin<&mut Self>) -> QString;
+
         /// Writes unsaved changes to the backup; QML calls it on a timer. An error goes to the
         /// status line.
         #[qinvokable]

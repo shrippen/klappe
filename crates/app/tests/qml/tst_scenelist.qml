@@ -85,7 +85,7 @@ TestCase {
     function test_the_markers_show_text_plans_and_shots() {
         const list = make()
 
-        compare(row(list, "a").meta, "1 3/8 T P1 S5")
+        compare(row(list, "a").meta, "T P1 S5")
         compare(row(list, "b").meta, "T")
         compare(row(list, "c").meta, "P2 S7")
         compare(row(list, "d").meta, "")
@@ -194,6 +194,19 @@ TestCase {
         verify(text.includes("Shots: 7"), text)
         verify(row(list, "a").Accessible.description.includes("im Buch"), "text marker")
         verify(!row(list, "a").Accessible.description.includes("nicht im Buch"))
+    }
+
+    // DB-32, DN-02: the length stands beside the markers, pale while the layout is out of date.
+    function test_the_length_is_pale_when_out_of_date() {
+        const list = make()
+        const length = findChild(row(list, "a"), "length.a")
+
+        compare(length.text, "1 3/8")
+        compare(length.opacity, 1)
+        verify(!findChild(row(list, "b"), "length.b").visible)
+
+        list.lengthsStale = true
+        verify(length.opacity < 1)
     }
 
     // DB-32: a scene of the book says its length, to the eye and to a screen reader.
