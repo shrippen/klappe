@@ -102,6 +102,7 @@ fn what_fdx_lacks_is_reported() {
             synopses: 1,
             notes: 2,
             lyrics: 1,
+            boneyards: 0,
             page_breaks: 2,
         }
     );
