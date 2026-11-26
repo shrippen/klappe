@@ -6,7 +6,7 @@ import "../../qml"
 // TitleCard (DB-06): folded by default with the title and the author; unfolded it shows the fields
 // the controller reads from the text; Apply puts only the changed part of the text in place (one
 // `putText`) and folds, Discard sets the fields back, nothing changed puts nothing; the card
-// follows the text unless something is typed in it; Enter and Space on the head fold it.
+// follows the text, except in a field typed in it; Enter and Space on the head fold it.
 TestCase {
     id: tc
     name: "TitleCard"
