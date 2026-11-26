@@ -98,7 +98,7 @@ pub(crate) fn sheets(
     let table_w = table_width(&widths, content_w, orientation);
     let title = sheet_title(page, texts);
     let mut writer = SheetWriter::new(pal, (width_pt, height_pt), margin, &title);
-    writer.rule_w = table_w;
+    writer.set_rule_w(table_w);
     let mut ctx = Ctx {
         w: writer,
         widths: &widths,
@@ -119,7 +119,7 @@ pub(crate) fn sheets(
         let shooting = order == ShotOrder::Shooting;
         let mut heading = shooting && *shot_setup != setup;
         let band_h = if heading { BAND_PT } else { 0.0 };
-        if ctx.w.y + band_h + height > ctx.w.bottom && ctx.w.rows > 0 {
+        if !ctx.w.fits(band_h + height) && ctx.w.rows() > 0 {
             ctx.w.close();
             ctx.begin();
             heading = shooting;
@@ -188,9 +188,9 @@ impl Ctx<'_> {
             extra,
             Weight::Bold,
             HEAD_RULE_PT,
-            self.w.pal.foreground,
+            self.w.palette().foreground,
         );
-        self.w.rows = 0;
+        self.w.reset_rows();
     }
 
     /// A row, and under it the free text lines of an upright table, with one rule below both.
@@ -208,23 +208,23 @@ impl Ctx<'_> {
         }
 
         self.w.row(lines, self.widths, weight, 0.0, rule);
-        let x = self.w.margin + self.indent + PAD_PT;
-        let top = self.w.y - ROW_PAD_PT;
+        let x = self.w.margin() + self.indent + PAD_PT;
+        let top = self.w.y() - ROW_PAD_PT;
         for (k, text) in extra.iter().enumerate() {
             self.w
                 .text(x, top + k as f64 * LINE_PT + CELL_PT, CELL_PT, weight, text);
         }
-        self.w.y += extra.len() as f64 * LINE_PT;
+        self.w.advance(extra.len() as f64 * LINE_PT);
         self.w.rule(rule_pt, rule);
     }
 
     /// A heading over the rows that follow, e.g. "Setup 2".
     fn band(&mut self, text: &str) {
-        let at = (self.w.margin + PAD_PT, self.w.y + ROW_PAD_PT + CELL_PT);
+        let at = (self.w.margin() + PAD_PT, self.w.y() + ROW_PAD_PT + CELL_PT);
         self.w.text(at.0, at.1, CELL_PT, Weight::Bold, text);
 
-        self.w.y += BAND_PT;
-        self.w.rule(ROW_RULE_PT, self.w.pal.muted);
+        self.w.advance(BAND_PT);
+        self.w.rule(ROW_RULE_PT, self.w.palette().muted);
     }
 }
 

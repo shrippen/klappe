@@ -33,7 +33,7 @@ pub(crate) fn table_sheets(table: &ReportTable, pal: &Palette) -> Vec<Sheet> {
     out.table_head(&head, &widths);
     for row in &table.rows {
         let lines = wrapped(row, &widths, Weight::Regular);
-        if out.y + row_height(&lines) > out.bottom && out.rows > 0 {
+        if !out.fits(row_height(&lines)) && out.rows() > 0 {
             out.next_sheet();
             out.table_head(&head, &widths);
         }
@@ -47,7 +47,7 @@ pub(crate) fn extract_sheets(pages: &[ExtractPage], pal: &Palette) -> Vec<Sheet>
     let mut out = writer(pal, Orientation::Portrait, "");
 
     for (i, page) in pages.iter().enumerate() {
-        out.title = page.title.clone();
+        out.set_title(&page.title);
         match i {
             0 => out.begin(),
             _ => out.next_sheet(),
@@ -83,15 +83,15 @@ fn facts(out: &mut SheetWriter, facts: &[String]) {
     let joined = facts.join(FACT_SEPARATOR);
     for line in cell_lines(&joined, out.content_w() - 2.0 * PAD_PT, Weight::Regular) {
         out.text(
-            out.margin + PAD_PT,
-            out.y + CELL_PT,
+            out.margin() + PAD_PT,
+            out.y() + CELL_PT,
             CELL_PT,
             Weight::Regular,
             &line,
         );
-        out.y += LINE_PT;
+        out.advance(LINE_PT);
     }
-    out.y += GAP_PT;
+    out.advance(GAP_PT);
 }
 
 /// A box with `title` over `lines`; one that does not fit what is left of the sheet goes on
@@ -105,7 +105,7 @@ fn boxed(out: &mut SheetWriter, title: &str, entries: &[String]) {
     let mut rest = lines.as_slice();
 
     loop {
-        let room = out.bottom - out.y - 2.0 * ROW_PAD_PT - LINE_PT;
+        let room = out.room() - 2.0 * ROW_PAD_PT - LINE_PT;
         let fits = (room / LINE_PT).floor().max(0.0) as usize;
         if fits < rest.len().min(1) {
             out.next_sheet();
@@ -123,25 +123,25 @@ fn boxed(out: &mut SheetWriter, title: &str, entries: &[String]) {
 }
 
 fn draw_box(out: &mut SheetWriter, title: &str, lines: &[String]) {
-    let x = out.margin + 2.0 * PAD_PT;
+    let x = out.margin() + 2.0 * PAD_PT;
     let height = (lines.len() + 1) as f64 * LINE_PT + 2.0 * ROW_PAD_PT;
-    out.prims.push(Prim::Shape {
+    out.push(Prim::Shape {
         class: "box".into(),
         geom: Geom::Rect(Rect {
-            x: out.margin,
-            y: out.y,
+            x: out.margin(),
+            y: out.y(),
             w: out.content_w(),
             h: height,
         }),
         fill: None,
         stroke: Some(Stroke {
-            rgb: out.pal.muted,
+            rgb: out.palette().muted,
             width_pt: ROW_RULE_PT,
             dash: Dash::Solid,
         }),
     });
 
-    let top = out.y + ROW_PAD_PT + CELL_PT;
+    let top = out.y() + ROW_PAD_PT + CELL_PT;
     out.text(x, top, CELL_PT, Weight::Bold, title);
     for (k, line) in lines.iter().enumerate() {
         out.text(
@@ -152,7 +152,7 @@ fn draw_box(out: &mut SheetWriter, title: &str, lines: &[String]) {
             line,
         );
     }
-    out.y += height + GAP_PT;
+    out.advance(height + GAP_PT);
 }
 
 /// Each column as wide as its text wants. Too wide for the sheet, a column gives up what it

@@ -60,20 +60,20 @@ pub(crate) fn title_band(
 
 /// Sheets under construction, drawn top down.
 pub(crate) struct SheetWriter<'a> {
-    pub(crate) pal: &'a Palette,
+    pal: &'a Palette,
     width_pt: f64,
     height_pt: f64,
-    pub(crate) margin: f64,
-    pub(crate) bottom: f64,
+    margin: f64,
+    bottom: f64,
     /// How far a rule reaches from the margin.
-    pub(crate) rule_w: f64,
+    rule_w: f64,
     /// Over every sheet, until `next_sheet` is told another.
-    pub(crate) title: String,
+    title: String,
     sheets: Vec<Sheet>,
-    pub(crate) prims: Vec<Prim>,
-    pub(crate) y: f64,
+    prims: Vec<Prim>,
+    y: f64,
     /// Table rows on this sheet.
-    pub(crate) rows: usize,
+    rows: usize,
 }
 
 impl<'a> SheetWriter<'a> {
@@ -96,6 +96,51 @@ impl<'a> SheetWriter<'a> {
             y: 0.0,
             rows: 0,
         }
+    }
+
+    pub(crate) fn palette(&self) -> &'a Palette {
+        self.pal
+    }
+
+    pub(crate) fn margin(&self) -> f64 {
+        self.margin
+    }
+
+    pub(crate) fn y(&self) -> f64 {
+        self.y
+    }
+
+    pub(crate) fn rows(&self) -> usize {
+        self.rows
+    }
+
+    /// What is left of the sheet below the cursor.
+    pub(crate) fn room(&self) -> f64 {
+        self.bottom - self.y
+    }
+
+    pub(crate) fn fits(&self, height: f64) -> bool {
+        self.y + height <= self.bottom
+    }
+
+    pub(crate) fn advance(&mut self, dy: f64) {
+        self.y += dy;
+    }
+
+    pub(crate) fn reset_rows(&mut self) {
+        self.rows = 0;
+    }
+
+    pub(crate) fn set_title(&mut self, title: &str) {
+        self.title = title.to_owned();
+    }
+
+    pub(crate) fn set_rule_w(&mut self, rule_w: f64) {
+        self.rule_w = rule_w;
+    }
+
+    pub(crate) fn push(&mut self, prim: Prim) {
+        self.prims.push(prim);
     }
 
     pub(crate) fn content_w(&self) -> f64 {

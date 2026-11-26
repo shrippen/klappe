@@ -13,7 +13,7 @@ use crate::palette::palette;
 use crate::{camera_pages, layout, table, Orientation, Page, Paper, ShotTexts, Texts, Theme};
 
 const TITLE_CLASS: &str = "title";
-const REPEATS: usize = 4;
+const REPEATS: usize = 10;
 
 fn page() -> Page {
     let texts = Texts {
@@ -154,4 +154,65 @@ fn a_long_camera_pages_title_stays_in_the_margin() {
     let sheets = camera_pages::sheets(&plan(), &page, pal, ShotOrder::Cut, &[view]).unwrap();
 
     assert_inside(&sheets[0].prims, sheets[0].width_pt, &page);
+}
+
+/// Baseline of the last title line.
+fn title_bottom(prims: &[Prim]) -> f64 {
+    prims
+        .iter()
+        .filter_map(|p| match p {
+            Prim::Text { class, at, .. } if class == TITLE_CLASS => Some(at.1),
+            _ => None,
+        })
+        .fold(f64::MIN, f64::max)
+}
+
+/// The top of the first text of `class`.
+fn first_text_y(prims: &[Prim], class_name: &str) -> f64 {
+    prims
+        .iter()
+        .filter_map(|p| match p {
+            Prim::Text { class, at, .. } if class == class_name => Some(at.1),
+            _ => None,
+        })
+        .fold(f64::MAX, f64::min)
+}
+
+#[test]
+fn the_plan_starts_below_a_wrapped_title() {
+    let page = page();
+
+    let doc = layout::compose(&list(), &page, Theme::Light).unwrap();
+
+    assert!(doc.clip.y > title_bottom(&doc.chrome));
+}
+
+#[test]
+fn the_table_head_starts_below_a_wrapped_title() {
+    let page = page();
+    let pal = palette(Theme::Light).unwrap();
+
+    let sheets = table::sheets(&plan(), &page, pal, ShotOrder::Cut).unwrap();
+
+    let prims = &sheets[0].prims;
+    assert!(first_text_y(prims, "cell") > title_bottom(prims));
+}
+
+#[test]
+fn the_camera_view_starts_below_a_wrapped_title() {
+    let page = page();
+    let pal = palette(Theme::Light).unwrap();
+    let view = ShotView {
+        shot: "s1".into(),
+        view: VectorView {
+            height: 0.5,
+            faces: Vec::new(),
+        },
+        strength: Vec::new(),
+    };
+
+    let sheets = camera_pages::sheets(&plan(), &page, pal, ShotOrder::Cut, &[view]).unwrap();
+
+    let prims = &sheets[0].prims;
+    assert!(first_text_y(prims, "caption") > title_bottom(prims));
 }
