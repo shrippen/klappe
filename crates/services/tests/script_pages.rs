@@ -5,8 +5,9 @@
 use std::path::{Path, PathBuf};
 
 use klappe_services::{
-    HeaderLine, Language, Numbering, ProjectEdit, Revisions, SceneNumbering, SceneNumbers,
-    ScriptLanguage, ScriptPaper, ScriptPrint, ScriptSetup, ScriptWords, ServiceError, Session,
+    HeaderLine, Language, Numbering, PrintFace, PrintUnderline, ProjectEdit, Revisions,
+    SceneNumbering, SceneNumbers, ScriptLanguage, ScriptPaper, ScriptPrint, ScriptSetup,
+    ScriptWords, ServiceError, Session,
 };
 
 const PRINT: ScriptPrint = ScriptPrint {
@@ -250,6 +251,57 @@ fn the_print_pages_follow_the_text() {
     assert_eq!(pages.len(), 1);
     assert_eq!(numbers, 2);
     assert!(pages[0].texts.iter().any(|t| t.text == "Nachtwache"));
+}
+
+/// D-36: emphasis prints as faces and a line, never as marks; a scene heading stays bold with
+/// its runs in italic or underlined.
+#[test]
+fn the_print_pages_show_emphasis_as_faces() {
+    let text = "INT. SAAL - TAG\n\nSie ist **sehr** *müde* und _allein_ \\* ***beides***.\n";
+    let mut s = session("print-emphasis", text);
+
+    let pages = s.print_pages(&PRINT);
+    let look = |word: &str| {
+        let t = pages[0].texts.iter().find(|t| t.text == word).unwrap();
+        (t.face, t.underline)
+    };
+
+    assert_eq!(look("sehr"), (PrintFace::Bold, PrintUnderline::No));
+    assert_eq!(look("müde"), (PrintFace::Italic, PrintUnderline::No));
+    assert_eq!(look("allein"), (PrintFace::Regular, PrintUnderline::Yes));
+    assert_eq!(look("beides"), (PrintFace::BoldItalic, PrintUnderline::No));
+    let plain = pages[0]
+        .texts
+        .iter()
+        .find(|t| t.text.starts_with("Sie ist"));
+    assert!(plain.is_some());
+    assert!(pages[0].texts.iter().all(|t| !t.text.contains("**")));
+    assert!(pages[0].texts.iter().any(|t| t.text.contains(" * ")));
+
+    s.set_script_text("INT. *SAAL* - _TAG_\n");
+    let pages = s.print_pages(&PRINT);
+    let look = |word: &str| {
+        let t = pages[0].texts.iter().find(|t| t.text == word).unwrap();
+        (t.face, t.underline)
+    };
+
+    assert_eq!(look("INT. "), (PrintFace::Bold, PrintUnderline::No));
+    assert_eq!(look("SAAL"), (PrintFace::BoldItalic, PrintUnderline::No));
+    assert_eq!(look("TAG"), (PrintFace::Bold, PrintUnderline::Yes));
+}
+
+/// A heading that starts with a mark (`.**DRAUSSEN**`, forced) still gets its scene number at
+/// both margins: its place in the script.
+#[test]
+fn a_heading_with_a_mark_keeps_its_scene_number() {
+    let text = ".**DRAUSSEN**\n\nEs regnet.\n\nINT. SAAL - TAG\n\nNoch mehr.\n";
+    let mut s = session("print-heading-mark", text);
+
+    let pages = s.print_pages(&PRINT);
+    let count = |number: &str| pages[0].texts.iter().filter(|t| t.text == number).count();
+
+    assert_eq!(count("1"), 2);
+    assert_eq!(count("2"), 2);
 }
 
 /// The project form: the numbering reaches `projekt.toml` at once, the paper and the rest wait

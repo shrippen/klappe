@@ -20,6 +20,11 @@ const OBJ_PAGES: usize = 2;
 const OBJ_FONT_REGULAR: usize = 3;
 const OBJ_FONT_BOLD: usize = 4;
 const OBJ_FIRST_STATE: usize = 5;
+// The pages of text have two more fonts in place of the states.
+const OBJ_FONT_ITALIC: usize = OBJ_FONT_BOLD + 1;
+const OBJ_FONT_BOLD_ITALIC: usize = OBJ_FONT_ITALIC + 1;
+/// The pages of text have four fonts, so their pages start after them.
+const OBJ_FIRST_TEXT_PAGE: usize = OBJ_FONT_BOLD_ITALIC + 1;
 /// Circle quarter as a cubic Bézier: 4/3 * (sqrt 2 - 1).
 const BEZIER_KAPPA: f64 = 0.552_284_749_8;
 /// Mean advance of Helvetica text in em; PDF has no layout, so centring estimates the width
@@ -135,15 +140,17 @@ pub(crate) struct TextPage {
     pub content: Vec<u8>,
 }
 
-/// Pages of Courier text (`/F1` regular, `/F2` bold; standard fonts, nothing embedded):
-/// the same objects as `write`, without a plan.
+/// Pages of Courier text (`/F1` regular, `/F2` bold, `/F3` oblique, `/F4` bold oblique;
+/// standard fonts, nothing embedded): the same objects as `write`, without a plan.
 pub(crate) fn write_text(pages: &[TextPage]) -> Vec<u8> {
     // No transparency states and no pictures: the pages follow the fonts.
-    let first_page = OBJ_FIRST_STATE;
+    let first_page = OBJ_FIRST_TEXT_PAGE;
     let kids: Vec<String> = (0..pages.len())
         .map(|i| format!("{} 0 R", first_page + 2 * i))
         .collect();
-    let resources = format!("<< /Font << /F1 {OBJ_FONT_REGULAR} 0 R /F2 {OBJ_FONT_BOLD} 0 R >> >>");
+    let resources = format!(
+        "<< /Font << /F1 {OBJ_FONT_REGULAR} 0 R /F2 {OBJ_FONT_BOLD} 0 R /F3 {OBJ_FONT_ITALIC} 0 R /F4 {OBJ_FONT_BOLD_ITALIC} 0 R >> >>"
+    );
 
     let mut objects: Vec<Vec<u8>> = vec![
         format!("<< /Type /Catalog /Pages {OBJ_PAGES} 0 R >>").into_bytes(),
@@ -155,6 +162,8 @@ pub(crate) fn write_text(pages: &[TextPage]) -> Vec<u8> {
         .into_bytes(),
         font("Courier").into_bytes(),
         font("Courier-Bold").into_bytes(),
+        font("Courier-Oblique").into_bytes(),
+        font("Courier-BoldOblique").into_bytes(),
     ];
     for (i, page) in pages.iter().enumerate() {
         objects.push(

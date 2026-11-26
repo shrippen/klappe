@@ -44,6 +44,9 @@ const NUMBER_GAP_COLUMNS: usize = 1;
 /// The revision mark ends this far (10 mm) from the paper's right edge, where a printer
 /// still reaches.
 const REVISION_MARK_EDGE_PT: f64 = 10.0 * PT_PER_MM;
+/// An underline is this thick and this far below the baseline, in points.
+const UNDERLINE_PT: f64 = 0.6;
+const UNDERLINE_DROP_PT: f64 = 1.5;
 /// What marks a line of a revision in the margin.
 const REVISION_MARK: &str = "*";
 
@@ -55,11 +58,41 @@ pub enum Revised {
     Yes,
 }
 
+/// The Courier of a text: the four standard faces.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Face {
     #[default]
     Regular,
     Bold,
+    Italic,
+    BoldItalic,
+}
+
+impl Face {
+    pub fn is_bold(self) -> bool {
+        matches!(self, Face::Bold | Face::BoldItalic)
+    }
+
+    pub fn is_italic(self) -> bool {
+        matches!(self, Face::Italic | Face::BoldItalic)
+    }
+}
+
+/// Whether a text has a line under it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Underline {
+    #[default]
+    No,
+    Yes,
+}
+
+/// The characters `start..end` of a line (not bytes) in one face.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ScriptRun {
+    pub start: usize,
+    pub end: usize,
+    pub face: Face,
+    pub underline: Underline,
 }
 
 /// Text at a column and row of a page.
@@ -70,7 +103,10 @@ pub struct ScriptLine {
     /// From 0 at the left edge of the text.
     pub col: usize,
     pub text: String,
+    /// The face of the whole text, where `runs` is empty.
     pub face: Face,
+    /// Sections of the text in a face of their own, ascending; text between them has `face`.
+    pub runs: Vec<ScriptRun>,
     /// The number of the scene a heading starts: printed at both sides if asked for.
     pub scene_number: Option<String>,
     pub revised: Revised,
@@ -127,6 +163,7 @@ pub struct Placed {
     pub x_pt: f64,
     pub baseline_pt: f64,
     pub face: Face,
+    pub underline: Underline,
     pub text: String,
 }
 
@@ -201,19 +238,48 @@ fn text_ops(out: &mut String, placed: &Placed, height_pt: f64) {
     let font = match placed.face {
         Face::Regular => "F1",
         Face::Bold => "F2",
+        Face::Italic => "F3",
+        Face::BoldItalic => "F4",
     };
+    let y_pt = height_pt - placed.baseline_pt;
     let _ = writeln!(
         out,
         "BT /{font} {} Tf {} {} Td ({}) Tj ET",
         num(FONT_PT),
         num(placed.x_pt),
-        num(height_pt - placed.baseline_pt),
+        num(y_pt),
         pdf_string(&placed.text)
+    );
+
+    if placed.underline == Underline::No {
+        return;
+    }
+
+    // A line under the characters, not under the spaces after them.
+    let under_pt = y_pt - UNDERLINE_DROP_PT;
+    let _ = writeln!(
+        out,
+        "{} w {} {} m {} {} l S",
+        num(UNDERLINE_PT),
+        num(placed.x_pt),
+        num(under_pt),
+        num(placed.x_pt + width_pt(placed.text.trim_end())),
+        num(under_pt)
     );
 }
 
 /// Adds `text` at `x_pt` with its baseline `at_pt` below the top; blank text prints nothing.
 fn place(out: &mut Vec<Placed>, face: Face, x_pt: f64, at_pt: f64, text: &str) {
+    place_run(out, (face, Underline::No), x_pt, at_pt, text);
+}
+
+fn place_run(
+    out: &mut Vec<Placed>,
+    (face, underline): (Face, Underline),
+    x_pt: f64,
+    at_pt: f64,
+    text: &str,
+) {
     if text.trim().is_empty() {
         return;
     }
@@ -222,8 +288,28 @@ fn place(out: &mut Vec<Placed>, face: Face, x_pt: f64, at_pt: f64, text: &str) {
         x_pt,
         baseline_pt: at_pt,
         face,
+        underline,
         text: text.to_owned(),
     });
+}
+
+/// The text of a line: one piece per run, each at its column.
+fn place_line(out: &mut Vec<Placed>, line: &ScriptLine, x_pt: f64, at_pt: f64) {
+    if line.runs.is_empty() {
+        place(out, line.face, x_pt, at_pt, &line.text);
+        return;
+    }
+
+    for run in &line.runs {
+        let part: String = line
+            .text
+            .chars()
+            .skip(run.start)
+            .take(run.end - run.start)
+            .collect();
+        let run_pt = x_pt + run.start as f64 * COLUMN_PT;
+        place_run(out, (run.face, run.underline), run_pt, at_pt, &part);
+    }
 }
 
 fn width_pt(text: &str) -> f64 {
@@ -270,7 +356,7 @@ fn page_texts(sheet: &ScriptSheet, page: &ScriptPage) -> Vec<Placed> {
     for line in &page.lines {
         let at_pt = TOP_PT + line.row as f64 * ROW_PT + ASCENT_PT;
         let x_pt = LEFT_PT + line.col as f64 * COLUMN_PT;
-        place(&mut out, line.face, x_pt, at_pt, &line.text);
+        place_line(&mut out, line, x_pt, at_pt);
 
         let number = line
             .scene_number

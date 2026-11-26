@@ -506,3 +506,94 @@ fn a_date_and_a_quoted_abbreviation_do_not_end_a_sentence() {
         ]
     );
 }
+
+#[test]
+fn emphasis_prints_without_its_marks() {
+    let p = lay("Sie ist **sehr** *müde* und _allein_ \\* fertig.\n", 10);
+
+    assert_eq!(
+        page(&p, 1),
+        [row(0, 0, "Sie ist sehr müde und allein * fertig.")]
+    );
+}
+
+#[test]
+fn a_row_breaks_after_the_characters_a_reader_sees() {
+    // 55 columns of text and `**bb**`: 61 typed characters, 57 seen, so one row.
+    let text = format!("{}**bb**\n", "aaaa ".repeat(11));
+    let p = lay(&text, 10);
+
+    assert_eq!(p.pages[0].lines.len(), 1);
+    assert_eq!(
+        p.pages[0].lines[0].text,
+        format!("{}bb", "aaaa ".repeat(11))
+    );
+}
+
+/// `(start, end, bold, italic, underline)` of the runs of the first line.
+fn marked(p: &Pagination, row: usize) -> Vec<(usize, usize, bool, bool, bool)> {
+    p.pages[0].lines[row]
+        .runs
+        .iter()
+        .map(|r| {
+            (
+                r.start,
+                r.end,
+                r.marks.bold,
+                r.marks.italic,
+                r.marks.underline,
+            )
+        })
+        .collect()
+}
+
+#[test]
+fn a_line_carries_its_runs() {
+    let p = lay("Sie ist **sehr** *müde* und _allein_.\n", 10);
+
+    // `Sie ist sehr müde und allein.`
+    assert_eq!(
+        marked(&p, 0),
+        [
+            (0, 8, false, false, false),
+            (8, 12, true, false, false),
+            (12, 13, false, false, false),
+            (13, 17, false, true, false),
+            (17, 22, false, false, false),
+            (22, 28, false, false, true),
+            (28, 29, false, false, false),
+        ]
+    );
+}
+
+#[test]
+fn an_emphasis_goes_on_in_the_next_row() {
+    // 55 columns, then `bold` fits the row, `words here` does not.
+    let text = format!("{}***bold words here*** end\n", "aaaa ".repeat(11));
+    let p = lay(&text, 10);
+    let lines = &p.pages[0].lines;
+
+    assert_eq!(lines[0].text, format!("{}bold", "aaaa ".repeat(11)));
+    assert_eq!(lines[1].text, "words here end");
+    assert!(lines[0]
+        .runs
+        .last()
+        .is_some_and(|r| r.marks.bold && r.marks.italic));
+    assert_eq!(marked(&p, 1)[0], (0, 10, true, true, false));
+    assert_eq!(marked(&p, 1)[1], (10, 14, false, false, false));
+}
+
+#[test]
+fn a_cut_page_keeps_the_text_unmarked() {
+    // A block that a page cuts between sentences prints without marks on both pages.
+    let text = "a\nb\nc\n\n**Eins zwei.** Drei vier. *Fuenf sechs.* Sieben.\nAchtes Wort.\n";
+    let p = lay(text, 8);
+    let all: Vec<&str> = p
+        .pages
+        .iter()
+        .flat_map(|p| &p.lines)
+        .map(|l| l.text.as_str())
+        .collect();
+
+    assert!(all.iter().all(|t| !t.contains('*')), "{all:?}");
+}

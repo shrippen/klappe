@@ -9,7 +9,7 @@ use klappe_services::{
     can_suggest, enter_step, error_text, heading_like, length_text, move_entry, outline,
     parse_located, sections_around, set_title_fields, suggest, tab_step, text_kinds, title_fields,
     typed_caps, visible_entries, Align, Context, EnterStep, Gap, HeaderLine, ImportReport, Laid,
-    MoveWay, OutlineEntry, OutlineKind, PrintFace, Revisions, SceneNumbering, SceneNumbers,
+    MoveWay, OutlineEntry, OutlineKind, PrintUnderline, Revisions, SceneNumbering, SceneNumbers,
     SceneSpan, ScriptLanguage, ScriptPages, ScriptPaper, ScriptPrint, ScriptSetup, ScriptWords,
     SheetPage, Slot, Stage, TextKind, Vocabulary, SCRIPT_ASCENT_PT, SCRIPT_FONT_PT, TEXT_COLUMNS,
 };
@@ -168,7 +168,9 @@ pub(super) fn print_json(pages: &[SheetPage]) -> String {
                     json!({
                         "x": t.x_pt,
                         "y": t.baseline_pt,
-                        "bold": t.face == PrintFace::Bold,
+                        "bold": t.face.is_bold(),
+                        "italic": t.face.is_italic(),
+                        "underline": t.underline == PrintUnderline::Yes,
                         "text": t.text,
                     })
                 })

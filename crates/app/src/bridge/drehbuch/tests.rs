@@ -54,7 +54,9 @@ fn tab_turns_an_empty_line() {
     assert_eq!(paren["col"], 1);
     assert_eq!(tab_json("Text", "a"), "");
 }
-use klappe_services::{PageBreak, Placed, PrintFace, SceneSpan, ScriptPages, SheetPage};
+use klappe_services::{
+    PageBreak, Placed, PrintFace, PrintUnderline, SceneSpan, ScriptPages, SheetPage,
+};
 
 /// Texts keep their place in points and their face.
 #[test]
@@ -65,7 +67,8 @@ fn a_page_lists_its_texts_in_points() {
         texts: vec![Placed {
             x_pt: 108.0,
             baseline_pt: 82.0,
-            face: PrintFace::Bold,
+            face: PrintFace::BoldItalic,
+            underline: PrintUnderline::Yes,
             text: "INT. SAAL".into(),
         }],
     };
@@ -77,6 +80,8 @@ fn a_page_lists_its_texts_in_points() {
     assert_eq!(text["x"], 108.0);
     assert_eq!(text["y"], 82.0);
     assert_eq!(text["bold"], true);
+    assert_eq!(text["italic"], true);
+    assert_eq!(text["underline"], true);
 }
 
 /// The layout reaches the editor as the lines the pages start at and each scene's page;

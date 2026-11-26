@@ -18,7 +18,7 @@ ListView {
 
     required property var controller
     required property var texts
-    /// `{ fontPt, ascentPt, pages: [{ width, height, texts: [{ x, y, bold, text }] }] }`.
+    /// `{ fontPt, ascentPt, pages: [{ width, height, texts: [{ x, y, bold, italic, underline, text }] }] }`.
     property var sheet: ({ fontPt: 0, ascentPt: 0, pages: [] })
     /// Pixels per point: a 96 dpi screen shows the paper at its size; a narrower view less.
     readonly property real fullScale: 96 / 72
@@ -91,6 +91,8 @@ ListView {
                     font.family: KanteStyle.monoFamily
                     font.pixelSize: sheetList.sheet.fontPt
                     font.bold: modelData.bold
+                    font.italic: modelData.italic
+                    font.underline: modelData.underline
                     color: KanteStyle.textColor
                 }
             }

@@ -3,7 +3,7 @@
 
 use klappe_export::{
     script_pdf, script_sheet_pages, Face, Paper, Revised, SceneNumbers, ScriptLine, ScriptPage,
-    ScriptSheet, TitlePage,
+    ScriptRun, ScriptSheet, TitlePage, Underline,
 };
 
 fn line(row: usize, col: usize, text: &str) -> ScriptLine {
@@ -12,6 +12,7 @@ fn line(row: usize, col: usize, text: &str) -> ScriptLine {
         col,
         text: text.into(),
         face: Face::Regular,
+        runs: Vec::new(),
         scene_number: None,
         revised: Revised::No,
     }
@@ -243,4 +244,61 @@ fn the_revision_mark_stays_on_the_paper_and_off_the_numbers() {
             }
         }
     }
+}
+
+/// D-36: a run is set in its own face at its column, with a line under it if asked; the PDF has
+/// the four fonts, and the text has no marks.
+#[test]
+fn runs_are_set_in_their_faces() {
+    let mut s = sheet();
+    let run = |start, end, face, underline| ScriptRun {
+        start,
+        end,
+        face,
+        underline,
+    };
+    let mut emphasised = line(0, 0, "Sie ist sehr müde und allein.");
+    emphasised.runs = vec![
+        run(0, 8, Face::Regular, Underline::No),
+        run(8, 12, Face::Bold, Underline::No),
+        run(12, 13, Face::Regular, Underline::No),
+        run(13, 17, Face::Italic, Underline::No),
+        run(17, 22, Face::Regular, Underline::No),
+        run(22, 28, Face::BoldItalic, Underline::Yes),
+        run(28, 29, Face::Regular, Underline::No),
+    ];
+    s.pages[0].lines = vec![emphasised];
+
+    let pages = script_sheet_pages(&s);
+    let texts = &pages[0].texts;
+    let faces: Vec<_> = texts.iter().map(|t| (t.text.as_str(), t.face)).collect();
+    // The lone space between two runs prints nothing.
+    assert_eq!(
+        faces,
+        [
+            ("Sie ist ", Face::Regular),
+            ("sehr", Face::Bold),
+            ("müde", Face::Italic),
+            (" und ", Face::Regular),
+            ("allein", Face::BoldItalic),
+            (".", Face::Regular),
+        ]
+    );
+    let bold = texts.iter().find(|t| t.text == "sehr").unwrap();
+    assert!((bold.x_pt - (108.0 + 8.0 * 7.2)).abs() < 1e-9);
+    let under = texts.iter().find(|t| t.text == "allein").unwrap();
+    assert_eq!(under.underline, Underline::Yes);
+    assert_eq!(bold.underline, Underline::No);
+
+    let pdf = text(&script_pdf(&s));
+    for font in ["Courier-Oblique", "Courier-BoldOblique", "/F3 ", "/F4 "] {
+        assert!(pdf.contains(font), "{font}: {pdf}");
+    }
+    assert!(pdf.contains("/F2 12 Tf 165.6 "), "{pdf}");
+    assert!(pdf.contains("(allein) Tj ET"), "{pdf}");
+    assert!(
+        pdf.contains("0.6 w 266.4 758.39 m 309.6 758.39 l S"),
+        "{pdf}"
+    );
+    assert!(!pdf.contains('*') && !pdf.contains('_'), "{pdf}");
 }
