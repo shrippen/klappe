@@ -9,7 +9,7 @@
 //! no part of the project's save; locking and deleting write them at once.
 
 use klappe_model::{free_random_id, IdCase, PageStart, SceneNumbering, Version};
-use klappe_script::{compare, Comparison, Edit};
+use klappe_script::{compare, Comparison};
 
 use super::{OnOutside, Saved, Session};
 use crate::catalog::Language;
@@ -44,8 +44,9 @@ pub(crate) struct Revision {
     pub(crate) header: String,
     /// The numbers of the pages the last version had.
     pub(crate) old_pages: Vec<String>,
-    /// The pages of the last version that lost text since: a page that is shorter now.
-    pub(crate) shortened: Vec<String>,
+    /// The numbers of the pages whose text differs from the page of that number in the last
+    /// version (DB-43).
+    pub(crate) changed: Vec<String>,
 }
 
 impl Session {
@@ -167,38 +168,71 @@ impl Session {
         let language = text_language(&self.project.script, print.language);
         let next = next_color(&self.versions);
 
-        let comparison = self.revision()?;
-        let pages = self.versions.last().map(|v| v.pages.as_slice());
-        let pages = pages.unwrap_or_default();
+        let last = self.versions.last().ok_or(ServiceError::NoVersions)?;
+        if print.revisions == Revisions::ChangedPages && last.pages.is_empty() {
+            return Err(ServiceError::NoLockedPages);
+        }
 
         Ok(Some(Revision {
-            marked: comparison.marked_lines().into_iter().collect(),
+            marked: self.revision()?.marked_lines().into_iter().collect(),
             header: header_text(language, next, &today()),
-            old_pages: pages.iter().map(|p| p.label.clone()).collect(),
-            shortened: shortened_pages(&comparison, pages),
+            old_pages: last.pages.iter().map(|p| p.label.clone()).collect(),
+            changed: self.changed_pages(print, last)?,
         }))
+    }
+
+    /// The numbers of the pages of the layout now whose text differs from the page of that
+    /// number in `last` (DB-43); only a print of the changed pages asks.
+    fn changed_pages(
+        &self,
+        print: &ScriptPrint,
+        last: &Version,
+    ) -> Result<Vec<String>, ServiceError> {
+        let Some(layout) = self
+            .layout
+            .as_ref()
+            .filter(|_| print.revisions == Revisions::ChangedPages)
+        else {
+            return Ok(Vec::new());
+        };
+        let before = self.draft_text(&Draft::Version(last.id.clone()))?;
+        let before = page_texts(&before, &last.pages);
+        let now = page_texts(self.script_text(), &layout.page_starts(self.script_text()));
+
+        Ok(now
+            .into_iter()
+            .filter(|(label, text)| before.iter().any(|(l, t)| l == label && t != text))
+            .map(|(label, _)| label)
+            .collect())
     }
 }
 
-/// The labels of the pages of a version that have text in the range of lines `comparison`
-/// says was removed: those pages are shorter now (DB-43).
-fn shortened_pages(comparison: &Comparison, pages: &[PageStart]) -> Vec<String> {
-    let removed: Vec<usize> = comparison
-        .scenes
-        .iter()
-        .flat_map(|s| &s.lines)
-        .filter(|l| l.change == Edit::Removed)
-        .map(|l| l.line)
-        .collect();
+/// The text of the lines `from..to`, as the comparison reads it: no blank line, no
+/// surrounding space.
+fn page_text(lines: &[&str], from: usize, to: usize) -> String {
+    let end = to.min(lines.len());
+    let from = from.min(end);
 
-    pages
+    lines[from..end]
+        .iter()
+        .map(|l| l.trim())
+        .filter(|l| !l.is_empty())
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+/// The text of each page of `starts` in `text`, by number: the lines up to the next page's.
+fn page_texts(text: &str, starts: &[PageStart]) -> Vec<(String, String)> {
+    let text = text.replace("\r\n", "\n").replace('\r', "\n");
+    let lines: Vec<&str> = text.split('\n').collect();
+
+    starts
         .iter()
         .enumerate()
-        .filter(|(i, page)| {
-            let end = pages.get(i + 1).map_or(usize::MAX, |next| next.line);
+        .map(|(i, page)| {
+            let end = starts.get(i + 1).map_or(lines.len(), |next| next.line);
 
-            removed.iter().any(|line| (page.line..end).contains(line))
+            (page.label.clone(), page_text(&lines, page.line, end))
         })
-        .map(|(_, page)| page.label.clone())
         .collect()
 }

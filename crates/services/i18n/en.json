@@ -1471,6 +1471,7 @@
  "error.noVersion": "Version not found: {detail}",
  "error.noVersions": "There is no locked version yet.",
  "error.noChangedPages": "No page has changed since the locked version.",
+ "error.noLockedPages": "The version has no locked pages; print the whole book.",
  "error.noDialogue": "Character without dialogue: {detail}",
  "error.versionNameEmpty": "A version needs a name.",
  "error.versionNameTaken": "There is already a version called \"{name}\".",

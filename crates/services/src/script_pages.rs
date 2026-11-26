@@ -339,22 +339,17 @@ impl Layout {
             .collect()
     }
 
-    /// Whether whoever holds the last locked version needs the page (DB-43): a line is marked,
-    /// the page is new (12A), a sheet of struck pages, or a page that lost text.
+    /// Whether whoever holds the last locked version needs the page (DB-43): a sheet of struck
+    /// pages, a page it has no number of (12A), or one whose text differs from its page of
+    /// that number.
     fn page_changed(&self, page: &klappe_script::Page, revision: Option<&Revision>) -> bool {
         let Some(revision) = revision else {
             return false;
         };
-        let marked = || {
-            let revised = |line| self.revised(line, Some(revision)) == Revised::Yes;
-
-            page.lines.iter().any(revised)
-        };
 
         !page.omitted.is_empty()
             || !revision.old_pages.contains(&page.label)
-            || revision.shortened.contains(&page.label)
-            || marked()
+            || revision.changed.contains(&page.label)
     }
 
     /// Whether the text line a printed row is from is new or changed. A repeated name and

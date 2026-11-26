@@ -1471,6 +1471,7 @@
  "error.noVersion": "Fassung nicht gefunden: {detail}",
  "error.noVersions": "Es gibt noch keine gesperrte Fassung.",
  "error.noChangedPages": "Keine Seite ist geändert seit der gesperrten Fassung.",
+ "error.noLockedPages": "Die Fassung hat keine festen Seiten; bitte das ganze Buch drucken.",
  "error.noDialogue": "Figur ohne Dialog: {detail}",
  "error.versionNameEmpty": "Eine Fassung braucht einen Namen.",
  "error.versionNameTaken": "Eine Fassung „{name}“ gibt es schon.",

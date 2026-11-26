@@ -95,11 +95,11 @@ fn only_pages_with_a_mark_are_printed_under_their_numbers() {
         marked.iter().all(|label| changed.contains(label)),
         "{changed:?}"
     );
-    assert!(changed.contains(&vec!["2B.".to_owned()]), "{changed:?}");
-    assert!(
-        changed.iter().flatten().any(|l| l.ends_with("A.")),
-        "{changed:?}"
-    );
+    let want: Vec<Vec<String>> = ["2.", "2A.", "2B.", "4."]
+        .iter()
+        .map(|l| vec![(*l).to_owned()])
+        .collect();
+    assert_eq!(changed, want);
 }
 
 #[test]
@@ -252,4 +252,66 @@ fn a_book_of_a_title_page_still_prints_without_revisions() {
     s.export_script_pdf(&path, &off).unwrap();
 
     assert!(path.exists());
+}
+
+/// Paragraphs of `name`'s scene, one row apart: a scene is about one and a half pages.
+fn place(name: &str) -> String {
+    let paragraphs: Vec<String> = (0..40).map(|i| format!("{name} line {i}.")).collect();
+
+    format!("INT. {name} - DAY\n\n{}\n\n", paragraphs.join("\n\n"))
+}
+
+/// A moved scene changes no line, but the pages it left and came to have other text.
+#[test]
+fn a_moved_scene_prints_the_pages_it_left_and_came_to() {
+    let names = ["OFFICE", "HARBOUR", "STREET", "TOWER", "ROOF"];
+    let mut s = session("changed-moved", 1);
+    s.set_script_text(&names.map(place).concat());
+    lock(&mut s);
+    let text = s.script_text().to_owned();
+    let (harbour, street, tower, roof) = (
+        text.find("INT. HARBOUR").unwrap(),
+        text.find("INT. STREET").unwrap(),
+        text.find("INT. TOWER").unwrap(),
+        text.find("INT. ROOF").unwrap(),
+    );
+    s.set_script_text(&format!(
+        "{}{}{}{}{}",
+        &text[..harbour],
+        &text[tower..roof],
+        &text[harbour..tower],
+        &text[street..street],
+        &text[roof..]
+    ));
+
+    let changed = labels(&mut s, &CHANGED);
+
+    let want: Vec<Vec<String>> = ["2.", "2A.", "2B.", "5.", "6."]
+        .iter()
+        .map(|l| vec![(*l).to_owned()])
+        .collect();
+    assert_eq!(changed, want);
+}
+
+/// A version locked before the pages were kept has none to compare with.
+#[test]
+fn a_version_without_pages_cannot_print_changed_pages() {
+    let mut s = session("changed-no-pages", 3);
+    lock(&mut s);
+    let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join("changed-no-pages");
+    let file = dir.join("drehbuch/fassungen.toml");
+    let list = std::fs::read_to_string(&file).unwrap();
+    let cut = list.find("[[fassung.seiten]]").unwrap();
+    std::fs::write(&file, &list[..cut]).unwrap();
+    let mut s = Session::open(&dir).unwrap();
+    s.set_script_text(
+        &s.script_text()
+            .replace("Scene 3 line 4.", "Scene 3 changed."),
+    );
+    let path = dir.join("old.pdf");
+
+    let result = s.export_script_pdf(&path, &CHANGED);
+
+    assert!(matches!(result, Err(ServiceError::NoLockedPages)));
+    assert!(!path.exists());
 }

@@ -117,6 +117,10 @@ pub enum ServiceError {
     /// No page carries a revision mark, so a print of the changed pages would be empty (DB-43).
     #[error("no page has changed")]
     NoChangedPages,
+    /// The last version was locked before pages were kept, so its pages cannot be told apart
+    /// (DB-43).
+    #[error("the version has no locked pages")]
+    NoLockedPages,
     /// The character is in the project or the book, but speaks nowhere, so it has no sides
     /// (DB-62).
     #[error("{0} has no dialogue")]
