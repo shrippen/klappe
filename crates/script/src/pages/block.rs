@@ -151,6 +151,12 @@ impl Part {
     /// The row of the bytes `range` of the visible text.
     fn line(&self, range: Range<usize>) -> Line {
         let text = self.shown.text[range.clone()].to_string();
+        // The first row starts where the part does, even if a mark comes before its first
+        // visible character: `**INT. X**` is a heading at offset 0.
+        let offset = match range.start {
+            0 => self.base,
+            at => self.shown.raw[at],
+        };
         let room = self.width.saturating_sub(text.chars().count());
         let shift = match self.align {
             Align::Left => 0,
@@ -165,7 +171,7 @@ impl Part {
             runs: self.shown.runs(range.clone()),
             text,
             element: self.element,
-            offset: self.shown.raw[range.start],
+            offset,
             number: None,
             added: self.added,
         }

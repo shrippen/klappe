@@ -290,6 +290,20 @@ fn the_print_pages_show_emphasis_as_faces() {
     assert_eq!(look("TAG"), (PrintFace::Bold, PrintUnderline::Yes));
 }
 
+/// A heading that starts with a mark (`.**DRAUSSEN**`, forced) still gets its scene number at
+/// both margins: its place in the script.
+#[test]
+fn a_heading_with_a_mark_keeps_its_scene_number() {
+    let text = ".**DRAUSSEN**\n\nEs regnet.\n\nINT. SAAL - TAG\n\nNoch mehr.\n";
+    let mut s = session("print-heading-mark", text);
+
+    let pages = s.print_pages(&PRINT);
+    let count = |number: &str| pages[0].texts.iter().filter(|t| t.text == number).count();
+
+    assert_eq!(count("1"), 2);
+    assert_eq!(count("2"), 2);
+}
+
 /// The project form: the numbering reaches `projekt.toml` at once, the paper and the rest wait
 /// for the next save, and English words are never international.
 #[test]
