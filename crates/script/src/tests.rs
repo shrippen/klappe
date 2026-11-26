@@ -154,6 +154,28 @@ fn scene_numbers() {
 }
 
 #[test]
+fn scene_number_edges() {
+    for (line, text, number) in [
+        ("EXT. HOF", "EXT. HOF", None),
+        ("EXT. HOF   #3#", "EXT. HOF", Some("3")),
+        ("EXT. #1 HOF #2#", "EXT. #1 HOF", Some("2")),
+        ("EXT. HOF ##", "EXT. HOF ##", None),
+        ("EXT. HOF #1 #", "EXT. HOF #1 #", None),
+        ("EXT. HOF #12A", "EXT. HOF #12A", None),
+        ("EXT. HOF#4#", "EXT. HOF", Some("4")),
+    ] {
+        assert_eq!(els(line), vec![heading(text, number)], "{line:?}");
+    }
+}
+
+#[test]
+fn a_numbered_heading_is_written_as_read() {
+    for line in ["EXT. HOF #12A#", "EXT. #1 HOF #2#", "EXT. HOF"] {
+        assert_eq!(write(&parse(line)), format!("{line}\n"), "{line:?}");
+    }
+}
+
+#[test]
 fn forced_action() {
     assert_eq!(
         els("!INT. KEIN KOPF\n\nx"),
