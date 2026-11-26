@@ -74,6 +74,24 @@ Item {
             if (area.text !== sections || ctl.scriptText !== sections) {
                 return root.fail("section down: " + JSON.stringify(area.text))
             }
+
+            // A scene moved into a folded section opens it: the block stays on screen with the focus.
+            ctl.editScript(book)
+            view.flush()
+            const list = view.sceneList
+            const akt1 = JSON.parse(ctl.scriptOutlineJson("[]")).find(e => e.text === "Akt I")
+            list.setFolded({ key: akt1.key, line: akt1.line, folded: false }, true)
+            const hidden = list.items.filter(i => i.text === "INT. A - TAG" || (i.scene && i.scene.heading === "INT. A - TAG"))
+            if (hidden.length !== 0) {
+                return root.fail("a folded section hides its scenes")
+            }
+            view.moveBlock(14, "up")
+            if (list.items.find(i => i.line === 12) === undefined) {
+                return root.fail("the moved scene is on screen: " + JSON.stringify(list.items.map(i => i.line)))
+            }
+            if (list.collapsed[akt1.key]) {
+                return root.fail("the section around the block is open")
+            }
             Qt.exit(0)
         }
     }

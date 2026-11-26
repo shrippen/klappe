@@ -6,10 +6,10 @@ use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
 use klappe_services::{
-    enter_step, error_text, length_text, move_entry, outline, tab_step, text_kinds, typed_caps,
-    Align, EnterStep, Gap, HeaderLine, ImportReport, Laid, MoveWay, OutlineEntry, OutlineKind,
-    PrintFace, Revisions, SceneNumbers, SceneSpan, ScriptPages, ScriptPrint, SheetPage, Slot,
-    TextKind, SCRIPT_ASCENT_PT, SCRIPT_FONT_PT, TEXT_COLUMNS,
+    enter_step, error_text, length_text, move_entry, outline, sections_around, tab_step,
+    text_kinds, typed_caps, visible_entries, Align, EnterStep, Gap, HeaderLine, ImportReport, Laid,
+    MoveWay, OutlineEntry, OutlineKind, PrintFace, Revisions, SceneNumbers, SceneSpan, ScriptPages,
+    ScriptPrint, SheetPage, Slot, TextKind, SCRIPT_ASCENT_PT, SCRIPT_FONT_PT, TEXT_COLUMNS,
 };
 use serde_json::{json, Map, Value};
 
@@ -165,11 +165,22 @@ fn span_of<'a>(
     pages.scenes.iter().find(|s| s.line == entry.line)
 }
 
-/// The outline of the screenplay for the scene list: `[{ kind: section | scene | synopsis,
-/// level (sections: 1 for `#`), depth, line, end, text, number, length }]` in text order. A
-/// section's `length` is the total of its scenes, a scene's its own, both from the last layout.
-pub(super) fn outline_json(text: &str, pages: Option<&ScriptPages>) -> String {
+/// What a folded section is remembered by: its level and title. Typing above it does not move
+/// it; renaming it opens it.
+fn fold_key(entry: &OutlineEntry) -> String {
+    match entry.kind {
+        OutlineKind::Section(level) => format!("{level}{}", entry.text),
+        _ => String::new(),
+    }
+}
+
+/// The entries of the scene list: `[{ kind: section | scene | synopsis, level (sections: 1 for
+/// `#`), depth, line, end, text, number, length, key, folded }]` in text order, without what a
+/// folded section holds (`folded`: the `key`s of the folded sections). A section's `length` is
+/// the total of its scenes, a scene's its own, both from the last layout.
+pub(super) fn outline_json(text: &str, pages: Option<&ScriptPages>, folded: &[String]) -> String {
     let entries = outline(text);
+    let is_folded = |e: &OutlineEntry| folded.contains(&fold_key(e));
     let scenes = entries.iter().filter(|e| e.scene.is_some()).count();
     let eighths = |e: &OutlineEntry| -> usize {
         let Some(span) = pages.and_then(|p| span_of(p, scenes, e)) else {
@@ -178,9 +189,10 @@ pub(super) fn outline_json(text: &str, pages: Option<&ScriptPages>) -> String {
         span.eighths
     };
 
-    let rows: Vec<_> = entries
-        .iter()
-        .map(|e| {
+    let rows: Vec<_> = visible_entries(&entries, &is_folded, "")
+        .into_iter()
+        .map(|i| {
+            let e = &entries[i];
             let (kind, level, length) = match e.kind {
                 OutlineKind::Section(level) => {
                     let total: usize = entries
@@ -213,6 +225,8 @@ pub(super) fn outline_json(text: &str, pages: Option<&ScriptPages>) -> String {
                 "text": e.text,
                 "number": e.number,
                 "length": length,
+                "key": fold_key(e),
+                "folded": is_folded(e),
             })
         })
         .collect();
@@ -222,7 +236,8 @@ pub(super) fn outline_json(text: &str, pages: Option<&ScriptPages>) -> String {
 
 /// Moving the scene or section at text line `line` one place (`up` or `down`), as `moveOutline`
 /// describes it: `{ from, to, lines, line }`, the text lines `from..to` replaced by `lines`,
-/// the block at `line` now; empty where it cannot move.
+/// the block at `line` now, `unfold` the `key`s of the sections around it there; empty where it
+/// cannot move.
 pub(super) fn move_json(text: &str, line: usize, way: &str) -> String {
     let way = match way {
         "up" => MoveWay::Up,
@@ -241,8 +256,27 @@ pub(super) fn move_json(text: &str, line: usize, way: &str) -> String {
         return String::new();
     };
 
-    json!({ "from": moved.from, "to": moved.to, "lines": moved.lines, "line": moved.line })
-        .to_string()
+    // The sections around the block after the move: it may have stepped into a folded one.
+    let mut moved_lines = lines;
+    moved_lines.splice(moved.from..moved.to, moved.lines.clone());
+    let after = outline(&moved_lines.join("\n"));
+    let unfold: Vec<String> = after
+        .iter()
+        .position(|e| e.line == moved.line)
+        .map(|i| sections_around(&after, i))
+        .unwrap_or_default()
+        .into_iter()
+        .map(|i| fold_key(&after[i]))
+        .collect();
+
+    json!({
+        "from": moved.from,
+        "to": moved.to,
+        "lines": moved.lines,
+        "line": moved.line,
+        "unfold": unfold,
+    })
+    .to_string()
 }
 
 /// The counts of an import for the report dialog.
@@ -287,12 +321,13 @@ impl qobject::Controller {
         q(&breaks_json(s.script_pages()))
     }
 
-    pub(super) fn script_outline_json(mut self: Pin<&mut Self>) -> QString {
+    pub(super) fn script_outline_json(mut self: Pin<&mut Self>, folded: &QString) -> QString {
+        let folded: Vec<String> = serde_json::from_str(&folded.to_string()).unwrap_or_default();
         let Some(s) = self.as_mut().session() else {
             return q("[]");
         };
 
-        q(&outline_json(s.script_text(), s.script_pages()))
+        q(&outline_json(s.script_text(), s.script_pages(), &folded))
     }
 
     pub(super) fn move_outline(mut self: Pin<&mut Self>, line: i32, way: &QString) -> QString {
@@ -539,7 +574,8 @@ mod tests {
             length: "1 1/8".into(),
         };
 
-        let v: serde_json::Value = serde_json::from_str(&outline_json(BOOK, Some(&pages))).unwrap();
+        let v: serde_json::Value =
+            serde_json::from_str(&outline_json(BOOK, Some(&pages), &[])).unwrap();
         let kinds: Vec<_> = v
             .as_array()
             .unwrap()
@@ -554,7 +590,7 @@ mod tests {
         assert_eq!(v[2]["depth"], 1);
         assert_eq!(v[3]["length"], "5/8");
 
-        let none: serde_json::Value = serde_json::from_str(&outline_json(BOOK, None)).unwrap();
+        let none: serde_json::Value = serde_json::from_str(&outline_json(BOOK, None, &[])).unwrap();
         assert_eq!(none[0]["length"], "");
         assert_eq!(none[2]["length"], "");
     }
@@ -571,7 +607,8 @@ mod tests {
             length: "5/8".into(),
         };
 
-        let v: serde_json::Value = serde_json::from_str(&outline_json(BOOK, Some(&pages))).unwrap();
+        let v: serde_json::Value =
+            serde_json::from_str(&outline_json(BOOK, Some(&pages), &[])).unwrap();
         assert_eq!(v[2]["length"], "");
         assert_eq!(v[3]["length"], "5/8");
         assert_eq!(v[0]["length"], "5/8");
@@ -598,5 +635,29 @@ mod tests {
         assert_eq!(move_json(BOOK, 2, "up"), "");
         assert_eq!(move_json(BOOK, 4, "left"), "");
         assert_eq!(move_json(BOOK, 3, "up"), "");
+    }
+
+    /// A folded section hides what it holds, synopsis and scenes; its entry says it is folded.
+    #[test]
+    fn folded_sections_leave_out_their_content() {
+        let folded = ["1Akt I".to_string()];
+        let v: serde_json::Value =
+            serde_json::from_str(&outline_json(BOOK, None, &folded)).unwrap();
+
+        assert_eq!(v.as_array().map(Vec::len), Some(1));
+        assert_eq!(v[0]["key"], "1Akt I");
+        assert_eq!(v[0]["folded"], true);
+    }
+
+    /// A move names the sections around the block where it lands, so the window can open them.
+    #[test]
+    fn a_move_names_the_sections_to_open() {
+        let v: serde_json::Value = serde_json::from_str(&move_json(BOOK, 4, "down")).unwrap();
+
+        assert_eq!(v["unfold"], serde_json::json!(["1Akt I"]));
+
+        let two = "# A\n\nINT. X\n\n# B\n\nINT. Y\n";
+        let up: serde_json::Value = serde_json::from_str(&move_json(two, 6, "up")).unwrap();
+        assert_eq!(up["unfold"], serde_json::json!(["1A"]));
     }
 }

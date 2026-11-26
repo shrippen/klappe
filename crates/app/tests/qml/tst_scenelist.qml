@@ -234,10 +234,30 @@ TestCase {
         { kind: "scene", level: 0, depth: 0, line: 12, end: 14, text: "INT. KELLER", number: null, length: "1" }
     ]
 
+    // The whole outline the list's owner shows from; `shownOf` is what the bridge makes of it:
+    // keys, the folded flag, and without what a folded section holds.
+    property var source: treeOutline
+
+    function shownOf(all, collapsed) {
+        const out = []
+        let hiddenTo = -1
+        for (const e of all) {
+            if (e.line < hiddenTo) {
+                continue
+            }
+            const key = e.kind === "section" ? e.level + e.text : ""
+            const folded = key !== "" && collapsed[key] === true
+            hiddenTo = folded ? e.end : hiddenTo
+            out.push(Object.assign({}, e, { key: key, folded: folded }))
+        }
+        return out
+    }
+
     function makeTree() {
+        source = treeOutline
         fake.projectJson = JSON.stringify({ scenes: treeScenes })
         const list = make()
-        list.outline = treeOutline
+        list.outline = Qt.binding(() => shownOf(tc.source, list.collapsed))
         return list
     }
 
@@ -263,23 +283,50 @@ TestCase {
         verify(section(list, 0).Accessible.description.includes("Abschnitt, aufgeklappt"))
     }
 
-    function test_the_arrow_folds_and_unfolds_a_section() {
+    function test_a_tap_on_the_arrow_folds_and_unfolds_a_section() {
         const list = makeTree()
         const rows = findChild(list, "sceneRows")
-        const hover = findChild(section(list, 6), "fold.6")
+        picks.target = list
+        picks.clear()
 
-        mouseMove(hover, hover.width / 2, hover.height / 2)
-        tryVerify(() => findChild(hover, "overArrow.6").hovered)
-        section(list, 6).clicked()
+        const arrow = findChild(section(list, 6), "fold.6")
+        mouseClick(arrow, arrow.width / 2, arrow.height / 2)
 
         compare(rows.count, 5)
-        tryCompare(findChild(rows, "section.6"), "objectName", "section.6")
         verify(section(list, 6).Accessible.description.includes("zugeklappt"))
+        compare(picks.count, 0)
 
         const again = findChild(section(list, 6), "fold.6")
-        mouseMove(again, again.width / 2, again.height / 2)
-        tryVerify(() => findChild(again, "overArrow.6").hovered)
-        section(list, 6).clicked()
+        mouseClick(again, again.width / 2, again.height / 2)
+        compare(rows.count, 6)
+    }
+
+    // Enter shows the heading, even with the mouse resting over the arrow.
+    function test_enter_on_a_section_never_folds() {
+        const list = makeTree()
+        const rows = findChild(list, "sceneRows")
+        picks.target = list
+        picks.clear()
+
+        const arrow = findChild(section(list, 6), "fold.6")
+        mouseMove(arrow, arrow.width / 2, arrow.height / 2)
+        section(list, 6).forceActiveFocus()
+        keyClick(Qt.Key_Return)
+
+        compare(rows.count, 6)
+        compare(picks.count, 1)
+        compare(picks.signalArguments[0][0].line, 6)
+    }
+
+    function test_unfold_opens_the_sections_by_key() {
+        const list = makeTree()
+        const rows = findChild(list, "sceneRows")
+
+        section(list, 6).forceActiveFocus()
+        keyClick(Qt.Key_Left)
+        compare(rows.count, 5)
+
+        list.unfold(["2Ankunft"])
         compare(rows.count, 6)
     }
 
@@ -311,12 +358,12 @@ TestCase {
 
         // The outline moves down two lines: the section stays folded.
         const moved = treeOutline.map(e => Object.assign({}, e, { line: e.line + 2, end: e.end + 2 }))
-        list.outline = moved
+        tc.source = moved
         compare(rows.count, 5)
         verify(section(list, 8).Accessible.description.includes("zugeklappt"))
 
         // Renamed, it is open again.
-        list.outline = moved.map(e => e.text === "Ankunft" ? Object.assign({}, e, { text: "Ankommen" }) : e)
+        tc.source = moved.map(e => e.text === "Ankunft" ? Object.assign({}, e, { text: "Ankommen" }) : e)
         compare(rows.count, 6)
     }
 

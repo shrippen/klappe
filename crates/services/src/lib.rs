@@ -130,6 +130,6 @@ pub use klappe_script::{
 // The outline of a screenplay (DB-20, DB-21): the tree, what a filter or a collapsed
 // section leaves, and moving a scene or a section.
 pub use klappe_script::{
-    length_text, move_entry, outline, outline_of, visible as visible_entries,
+    length_text, move_entry, outline, outline_of, sections_around, visible as visible_entries,
     Entry as OutlineEntry, EntryKind as OutlineKind, Moved, Way as MoveWay,
 };

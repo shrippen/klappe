@@ -2,7 +2,7 @@
 //! synopses, collapsing, the filter, jumping and moving blocks.
 
 use klappe_services::{
-    length_text, move_entry, visible_entries, MoveWay, OutlineEntry, OutlineKind,
+    length_text, move_entry, sections_around, visible_entries, MoveWay, OutlineEntry, OutlineKind,
 };
 use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::layout::Rect;
@@ -286,14 +286,9 @@ impl App {
     /// on screen.
     fn unfold_around(&mut self, index: usize) {
         let entries = &self.analysis.outline;
-        let mut depth = entries[index].depth;
 
-        for entry in entries[..index].iter().rev() {
-            if !is_section(entry) || entry.depth >= depth {
-                continue;
-            }
-            self.collapsed.remove(&fold_key(entry));
-            depth = entry.depth;
+        for section in sections_around(entries, index) {
+            self.collapsed.remove(&fold_key(&entries[section]));
         }
     }
 }

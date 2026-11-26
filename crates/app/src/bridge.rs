@@ -495,11 +495,12 @@ pub mod qobject {
         fn script_breaks_json(self: Pin<&mut Self>) -> QString;
 
         /// The outline of the screenplay for the scene list: `[{ kind, level, depth, line, end,
-        /// text, number, length }]`, `kind` `section`, `scene` or `synopsis`, `length` from the last
-        /// layout (a section's the total of its scenes).
+        /// text, number, length, key, folded }]`, `kind` `section`, `scene` or `synopsis`, `length` from
+        /// the last layout (a section's the total of its scenes). `folded` is a JSON array of the
+        /// `key`s of the folded sections; what they hold is left out.
         #[qinvokable]
         #[cxx_name = "scriptOutlineJson"]
-        fn script_outline_json(self: Pin<&mut Self>) -> QString;
+        fn script_outline_json(self: Pin<&mut Self>, folded: &QString) -> QString;
 
         /// Moves the scene or section at text line `line` one place, `way` `up` or `down`
         /// (DB-21): `{ from, to, lines, line }`, the text lines `from..to` to be replaced by

@@ -47,12 +47,13 @@ RowLayout {
     /// The last layout's page starts: `{ pages, breaks: [{ page, line }], scenes: [{ line, page }] }`
     /// (`scriptBreaksJson`). Shown as lines in the flowing text, used to find a scene's page.
     property var pageMap: ({ pages: 0, breaks: [], scenes: [] })
-    /// The sections, scenes and synopses of the text (`scriptOutlineJson`) for the scene list. It
-    /// follows the session's text and the last layout, so it is read again when either changes.
+    /// The sections, scenes and synopses of the text (`scriptOutlineJson`) for the scene list,
+    /// without what the folded sections hold. It follows the session's text, the last layout and
+    /// what the list has folded, so it is read again when one changes.
     readonly property var outline: {
         controller.scriptText
         controller.projectJson
-        return JSON.parse(controller.scriptOutlineJson())
+        return JSON.parse(controller.scriptOutlineJson(JSON.stringify(Object.keys(sceneList.collapsed))))
     }
     /// Typing since the last layout: the lines and the scene lengths are of an older text (DN-02).
     property bool stale: false
@@ -198,6 +199,7 @@ RowLayout {
     }
     readonly property alias flow: flow
     readonly property alias search: search
+    readonly property alias sceneList: sceneList
     onLineLooksChanged: restyle()
 
     /// Ctrl+Z and Ctrl+Shift+Z in the text: the editor's own history, not the project's. A step
@@ -290,6 +292,8 @@ RowLayout {
             return
         }
         const m = JSON.parse(move)
+        // The block may have stepped into a folded section: open the sections around it.
+        sceneList.unfold(m.unfold)
         const from = lineStart(area.text, m.from)
         const end = lineStart(area.text, m.to)
         putText(from, end < 0 ? area.text.length : end, m.lines.join("\n") + (end < 0 ? "" : "\n"))

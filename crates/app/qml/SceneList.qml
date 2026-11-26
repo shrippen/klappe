@@ -32,9 +32,12 @@ ColumnLayout {
     required property var controller
     /// The lengths are of an older text than the one typed: shown pale (DN-02).
     property bool lengthsStale: false
-    /// The outline of the text (`scriptOutlineJson`, parsed); empty gives the flat list.
+    /// What the list shows of the text's outline (`scriptOutlineJson`, parsed, without what the
+    /// folded sections hold); empty gives the flat list. Each section has a `key` and says if it
+    /// is `folded`.
     property var outline: []
-    /// What is folded, by `fold` key: level and title of the section.
+    /// The `key`s of the folded sections, as `{ key: true }`. The owner reads it to ask for the
+    /// outline without what they hold.
     property var collapsed: ({})
     /// A row was clicked and its scene is on view: `{ id, number, heading, inBook, plans, shots }`;
     /// for a section row only `{ line }`, the line of its heading.
@@ -48,16 +51,12 @@ ColumnLayout {
     readonly property var shown: scenes.filter(s => _needle === ""
         || s.number.toLowerCase().includes(_needle) || s.heading.toLowerCase().includes(_needle))
 
+    // A tap on a section's arrow is in progress: the row's own click must not show the heading.
+    property bool _arrowTapped: false
     readonly property bool tree: outline.length > 0 && _needle === ""
     readonly property var items: tree ? treeItems() : shown.map(s => ({ kind: "scene", depth: 0, scene: s }))
 
     spacing: Kirigami.Units.smallSpacing
-
-    // What a section is remembered folded by: its level and title. Typing above it does not move
-    // it; renaming it unfolds it.
-    function foldKey(entry) {
-        return entry.level + entry.text
-    }
 
     // The row of the project for the scene whose heading is at text line `line`. Without one
     // (the register does not hold it yet) a row of the outline's own.
@@ -66,8 +65,8 @@ ColumnLayout {
                                        inBook: true, plans: 0, shots: 0, line: entry.line, length: entry.length }
     }
 
-    // The rows of the tree: the outline's sections and scenes, what a folded section holds left
-    // out, a synopsis put on the entry above it; the scenes the text does not have below.
+    // The rows of the tree: the outline's sections and scenes (it holds what is to be shown), a
+    // synopsis put on the entry above it; the scenes the text does not have below.
     function treeItems() {
         const byLine = {}
         for (const s of scenes) {
@@ -77,13 +76,8 @@ ColumnLayout {
         }
 
         const out = []
-        let hiddenTo = -1
         let above = null
         for (const e of outline) {
-            if (e.line < hiddenTo) {
-                above = null
-                continue
-            }
             if (e.kind === "synopsis") {
                 if (above) {
                     above.synopsis = above.synopsis === "" ? e.text : above.synopsis + " " + e.text
@@ -93,9 +87,8 @@ ColumnLayout {
 
             const item = { kind: e.kind, depth: e.depth, line: e.line, text: e.text, length: e.length, synopsis: "" }
             if (e.kind === "section") {
-                item.key = foldKey(e)
-                item.folded = collapsed[item.key] === true
-                hiddenTo = item.folded ? e.end : hiddenTo
+                item.key = e.key
+                item.folded = e.folded
             } else {
                 item.scene = sceneAt(e, byLine)
             }
@@ -153,6 +146,15 @@ ColumnLayout {
         }
         collapsed = next
         focusAt(item.line)
+    }
+
+    // Opens the sections with these `key`s (a block moved into them stays on screen).
+    function unfold(keys) {
+        const next = Object.assign({}, collapsed)
+        for (const key of keys) {
+            delete next[key]
+        }
+        collapsed = next
     }
 
     // Left and Right on a row: Right opens a folded section, Left folds an open one; Left on
@@ -283,9 +285,15 @@ ColumnLayout {
                     text: modelData.folded ? "\u25B8" : "\u25BE"
                     font: KanteStyle.defaultFont
                     color: KanteStyle.mutedTextColor
-                    HoverHandler {
-                        id: overArrow
-                        objectName: "overArrow." + modelData.line
+                    // Only a tap on the arrow folds; Enter on the row shows the heading.
+                    TapHandler {
+                        id: arrowTap
+                        objectName: "arrowTap." + modelData.line
+                        onTapped: {
+                            list._arrowTapped = true
+                            Qt.callLater(() => list._arrowTapped = false)
+                            list.setFolded(modelData, !modelData.folded)
+                        }
                     }
                 }
             }
@@ -309,9 +317,8 @@ ColumnLayout {
             Keys.onLeftPressed: list.foldKeyed(modelData, index, "close")
             Keys.onRightPressed: list.foldKeyed(modelData, index, "open")
             onClicked: {
-                // The arrow folds; the rest of a section row shows its heading in the text.
-                if (section && overArrow.hovered) {
-                    list.setFolded(modelData, !modelData.folded)
+                // The tap on the arrow has folded; the rest of a section row shows its heading.
+                if (list._arrowTapped) {
                     return
                 }
                 if (section) {
