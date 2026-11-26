@@ -21,8 +21,8 @@ KanteFloatingPanel {
 
     required property var texts
     required property var controller
-    /// The editor's text area, read for the text that stands now.
-    required property var area
+    /// The editor's text (ScriptDoc), read for the text that stands now.
+    required property var doc
     /// Puts text in place of `from` to `to` as one undo step of the editor.
     required property var putText
 
@@ -88,7 +88,7 @@ KanteFloatingPanel {
 
     /// What the text says, by key in the order of `values()`.
     function read() {
-        const fields = JSON.parse(controller.titleFields(area.text))
+        const fields = JSON.parse(controller.titleFields(doc.read()))
         const out = {}
         for (let i = 0; i < singles.length; i++) {
             out[singles[i].key] = fields[singles[i].key]
@@ -147,7 +147,7 @@ KanteFloatingPanel {
     /// Writes the fields into the text, folds the card and gives the keys back to the text.
     function apply() {
         follow()
-        const before = area.text
+        const before = doc.read()
         const after = controller.titleText(before, JSON.stringify(values()))
         if (after !== before) {
             const c = change(before, after)

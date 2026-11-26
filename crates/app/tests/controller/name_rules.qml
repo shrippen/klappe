@@ -32,16 +32,13 @@ Item {
         notShot: ({ place: "", place_name: "CHARLOTTENBURG-NORD" })
     }
 
-    Item {
-        id: text
-        property string text: ""
-        property int selectionStart: 0
-    }
+    TextEdit { id: text }
+    ScriptDoc { id: seam; area: text }
     ScriptSearch {
         id: search
         texts: texts
         controller: ctl
-        area: text
+        doc: seam
         showText: () => {}
         putText: () => {}
     }

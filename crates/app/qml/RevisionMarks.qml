@@ -10,6 +10,7 @@ Item {
     id: marks
 
     required property var area
+    required property var doc
     required property var texts
     /// The marked lines as text positions, `{ from, to }` (`ScreenplayView.lineRanges`).
     property var ranges: []
@@ -28,9 +29,9 @@ Item {
             // The text may have lost the line since the last layout.
             readonly property bool placed: modelData.from >= 0
             readonly property rect first: marks.area.contentHeight >= 0 && placed
-                ? marks.area.positionToRectangle(modelData.from) : Qt.rect(0, 0, 0, 0)
+                ? marks.doc.rectOf(modelData.from) : Qt.rect(0, 0, 0, 0)
             readonly property rect last: marks.area.contentHeight >= 0 && placed
-                ? marks.area.positionToRectangle(modelData.to) : Qt.rect(0, 0, 0, 0)
+                ? marks.doc.rectOf(modelData.to) : Qt.rect(0, 0, 0, 0)
             visible: placed
             x: 0
             y: first.y

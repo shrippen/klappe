@@ -116,7 +116,7 @@ RowLayout {
         revisionLines = marking ? JSON.parse(controller.revisionJson()) : []
         // Placed once per layout, like the page breaks' lines: typing moves no mark (DN-02),
         // a mark cost a text position lookup twice, on every key.
-        revisionRanges = lineRanges(revisionLines, area.text)
+        revisionRanges = lineRanges(revisionLines, doc.read())
     }
 
     /// The lines of `lines` (ascending, from 0) as text positions `{ from, to }`, `to` the end of
@@ -196,17 +196,18 @@ RowLayout {
         return marks
     }
 
-    readonly property var marks: breakMarks(pageMap.breaks, area.text)
+    readonly property var marks: breakMarks(pageMap.breaks, doc.source)
 
     /// The cursor at the start of text line `line` (from 0), that line at the top.
     function goToLine(line) {
-        const start = lineStart(area.text, line)
-        const at = start < 0 ? area.text.length : start
-        area.cursorPosition = at
+        const text = doc.read()
+        const start = lineStart(text, line)
+        const at = start < 0 ? text.length : start
+        doc.setCursor(at)
         area.forceActiveFocus()
 
         const flick = scroll.contentItem
-        const top = area.positionToRectangle(at).y
+        const top = doc.rectOf(at).y
         flick.contentY = Math.max(0, Math.min(top, flick.contentHeight - flick.height))
     }
 
@@ -274,16 +275,22 @@ RowLayout {
         if (!tools.item) {
             return
         }
-        _styled = area.text
+        _styled = doc.read()
         flow.shown = flow.withPending(controller.scriptKinds(_styled))
         tools.item.setLooks(flow.shown, lineLooks)
     }
 
+    ScriptDoc {
+        id: doc
+        area: area
+        tools: view.tools
+    }
+    readonly property alias doc: doc
+
     ScriptFlow {
         id: flow
-        area: area
+        doc: doc
         controller: view.controller
-        tools: view.tools
         onPendingMoved: view.restyle()
     }
     readonly property alias flow: flow
@@ -323,9 +330,9 @@ RowLayout {
     /// Selects `from` to `to` and scrolls it into view (a hit of the search).
     function showText(from, to) {
         showLayout("flow")
-        area.select(from, to)
+        doc.select(from, to)
         const flick = scroll.contentItem
-        const top = area.positionToRectangle(from).y
+        const top = doc.rectOf(from).y
         if (top < flick.contentY || top > flick.contentY + flick.height - metrics.height * hitMarginLines) {
             flick.contentY = Math.max(0, Math.min(top - flick.height * hitHeight, flick.contentHeight - flick.height))
         }
@@ -336,8 +343,8 @@ RowLayout {
     /// stays where it is otherwise.
     property bool searchAtBottom: false
     function dodgeSearch(from, to) {
-        const a = area.positionToRectangle(from)
-        const b = area.positionToRectangle(to)
+        const a = doc.rectOf(from)
+        const b = doc.rectOf(to)
         // A hit that wraps covers its first line up to the text's right edge.
         const right = b.y > a.y ? area.width : b.x
         const p = area.mapToItem(search, a.x, a.y)
@@ -353,7 +360,7 @@ RowLayout {
     /// so it keeps its case.
     function putText(from, to, text) {
         _replaying = true
-        flow.replace(from, to, text)
+        doc.replace(from, to, text)
         _replaying = false
     }
 
@@ -407,36 +414,34 @@ RowLayout {
         const m = JSON.parse(move)
         // The block may have stepped into a folded section: open the sections around it.
         sceneList.unfold(m.unfold)
-        const from = lineStart(area.text, m.from)
-        const end = lineStart(area.text, m.to)
-        putText(from, end < 0 ? area.text.length : end, m.lines.join("\n") + (end < 0 ? "" : "\n"))
+        const text = doc.read()
+        const from = lineStart(text, m.from)
+        const end = lineStart(text, m.to)
+        putText(from, end < 0 ? text.length : end, m.lines.join("\n") + (end < 0 ? "" : "\n"))
         flush()
         sceneList.focusAt(m.line)
     }
 
     function moveCursor(at) {
         if (at >= 0) {
-            area.cursorPosition = at
+            doc.setCursor(at)
         }
     }
 
     function send() {
-        if (area.text !== controller.scriptText) {
-            controller.editScript(area.text)
+        if (doc.read() !== controller.scriptText) {
+            controller.editScript(doc.read())
         }
     }
 
     // Import, a restored backup or another project change the text outside the editor.
     // The text area gives back other text than it got (CRLF, no-break spaces), so what load sets
     // is no typing: it must never be sent.
-    property bool _loading: false
     function load() {
-        if (area.text === controller.scriptText) {
+        if (doc.read() === controller.scriptText) {
             return
         }
-        _loading = true
-        area.text = controller.scriptText
-        _loading = false
+        doc.load(controller.scriptText)
         restyle()
         // Another text from outside (another project, an import): what is typed in the card was
         // for the old one.
@@ -475,7 +480,7 @@ RowLayout {
         id: tools
         source: view.toolsSource
         onLoaded: {
-            item.document = area.textDocument
+            item.document = doc.document
             item.mutedColor = Qt.binding(() => KanteStyle.mutedTextColor)
             view.restyle()
             item.forget()
@@ -576,7 +581,7 @@ RowLayout {
             VersionMenu {
                 id: versionMenu
                 objectName: "versionMenu"
-                enabled: area.text !== ""
+                enabled: doc.source !== ""
                 texts: view.texts
                 versions: view.versions
                 showRevisions: view.showRevisions
@@ -605,7 +610,7 @@ RowLayout {
             Layout.bottomMargin: Kirigami.Units.smallSpacing
             texts: view.texts
             controller: view.controller
-            area: area
+            doc: doc
             putText: view.putText
             onApplied: area.forceActiveFocus()
             onDismissed: area.forceActiveFocus()
@@ -632,7 +637,7 @@ RowLayout {
                                 Math.max(Kirigami.Units.gridUnit * 30, scroll.width * view.searchShare))
                 texts: view.texts
                 controller: view.controller
-                area: area
+                doc: doc
                 showText: view.showText
                 putText: view.putText
                 onClosed: area.forceActiveFocus()
@@ -643,7 +648,7 @@ RowLayout {
                 objectName: "printView"
                 anchors.fill: parent
                 z: 2
-                visible: view.layout === "print" && area.text !== ""
+                visible: view.layout === "print" && doc.source !== ""
                 controller: view.controller
                 texts: view.texts
                 // A title page comes before the pages the layout counts.
@@ -658,7 +663,7 @@ RowLayout {
                 z: 1
                 anchors.centerIn: parent
                 width: Math.min(parent.width, Kirigami.Units.gridUnit * 24)
-                visible: area.text === "" && !area.activeFocus
+                visible: doc.source === "" && !doc.focused
                 title: view.texts.t("screenplay.empty")
 
                 RowLayout {
@@ -703,7 +708,7 @@ RowLayout {
                     Keys.onPressed: event => view.keyPressed(event)
                     onTextChanged: {
                         // A new look changes no text: nothing to send or set again.
-                        if (view._loading || text === view._styled) {
+                        if (doc.loading || text === view._styled) {
                             return
                         }
                         push.restart()
@@ -727,7 +732,7 @@ RowLayout {
                             objectName: "pageBreak." + modelData.label
                             visible: at >= 0
                             readonly property real lineTop: area.contentHeight >= 0 && area.width > 0
-                                ? area.positionToRectangle(at).y : 0
+                                ? doc.rectOf(at).y : 0
                             x: area.leftPadding
                             y: lineTop - height
                             width: area.width - area.leftPadding - area.rightPadding
@@ -755,6 +760,7 @@ RowLayout {
                         objectName: "revisionMarks"
                         visible: view.layout === "flow"
                         area: area
+                        doc: doc
                         texts: view.texts
                         stale: view.stale
                         ranges: view.revisionRanges
@@ -770,6 +776,7 @@ RowLayout {
                         objectName: "scriptSuggest"
                         flow: view.flow
                         area: area
+                        doc: doc
                         texts: view.texts
                     }
                     // A leaving focus is a good moment to send: a menu or dialog may save next.

@@ -32,6 +32,7 @@ TestCase {
     }
 
     TextEdit { id: editor; text: "Title: Heimat\nContact:\n  Eva\n  Weg 1\n\nINT. SAAL\n" }
+    ScriptDoc { id: seam; area: editor }
     TestTexts { id: de; language: "de" }
     TestTexts { id: en; language: "en" }
 
@@ -40,7 +41,7 @@ TestCase {
         TitleCard {
             texts: de
             controller: fake
-            area: editor
+            doc: seam
             putText: (from, to, text) => tc.puts.push({ from: from, to: to, text: text })
             onApplied: tc.appliedCount++
             onDismissed: tc.dismissedCount++
