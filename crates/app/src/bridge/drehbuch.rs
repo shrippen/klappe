@@ -8,7 +8,7 @@ use cxx_qt_lib::QString;
 use klappe_services::{
     enter_step, error_text, tab_step, text_kinds, typed_caps, Align, EnterStep, Gap, HeaderLine,
     ImportReport, Laid, PrintFace, Revisions, SceneNumbering, SceneNumbers, ScriptLanguage,
-    ScriptPaper, ScriptPrint, ScriptSetup, ScriptWords, SheetPage, Slot, TextKind,
+    ScriptPages, ScriptPaper, ScriptPrint, ScriptSetup, ScriptWords, SheetPage, Slot, TextKind,
     SCRIPT_ASCENT_PT, SCRIPT_FONT_PT, TEXT_COLUMNS,
 };
 use serde_json::{json, Map, Value};
@@ -131,6 +131,26 @@ pub(super) fn print_json(pages: &[SheetPage]) -> String {
     json!({ "fontPt": SCRIPT_FONT_PT, "ascentPt": SCRIPT_ASCENT_PT, "pages": pages }).to_string()
 }
 
+/// The last layout for the editor: where the pages start and on which page each scene begins.
+/// Lines count from 0, pages from 1.
+pub(super) fn breaks_json(pages: Option<&ScriptPages>) -> String {
+    let Some(pages) = pages else {
+        return json!({ "pages": 0, "breaks": [], "scenes": [] }).to_string();
+    };
+    let breaks: Vec<_> = pages
+        .breaks
+        .iter()
+        .map(|b| json!({ "page": b.page, "line": b.line }))
+        .collect();
+    let scenes: Vec<_> = pages
+        .scenes
+        .iter()
+        .map(|s| json!({ "line": s.line, "page": s.page }))
+        .collect();
+
+    json!({ "pages": pages.pages, "breaks": breaks, "scenes": scenes }).to_string()
+}
+
 /// The counts of an import for the report dialog.
 fn report_json(report: &ImportReport) -> String {
     json!({
@@ -163,6 +183,14 @@ impl qobject::Controller {
         };
 
         q(&print_json(&s.print_pages(&print)))
+    }
+
+    pub(super) fn script_breaks_json(mut self: Pin<&mut Self>) -> QString {
+        let Some(s) = self.as_mut().session() else {
+            return q(&breaks_json(None));
+        };
+
+        q(&breaks_json(s.script_pages()))
     }
 
     pub(super) fn enter_step(
@@ -269,7 +297,7 @@ impl qobject::Controller {
 
 #[cfg(test)]
 mod tests {
-    use super::{enter_json, kinds_text, looks_json, print_json, tab_json};
+    use super::{breaks_json, enter_json, kinds_text, looks_json, print_json, tab_json};
 
     /// Enter at the end of a heading opens an action after a blank line; at the end of a cue
     /// the dialogue right below; in the middle of a line it is a plain break.
@@ -322,7 +350,7 @@ mod tests {
         assert_eq!(paren["col"], 1);
         assert_eq!(tab_json("Text", "a"), "");
     }
-    use klappe_services::{Placed, PrintFace, SheetPage};
+    use klappe_services::{PageBreak, Placed, PrintFace, SceneSpan, ScriptPages, SheetPage};
 
     /// Texts keep their place in points and their face.
     #[test]
@@ -345,6 +373,44 @@ mod tests {
         assert_eq!(text["x"], 108.0);
         assert_eq!(text["y"], 82.0);
         assert_eq!(text["bold"], true);
+    }
+
+    /// The layout reaches the editor as the lines the pages start at and each scene's page;
+    /// without a layout it is empty.
+    #[test]
+    fn breaks_list_pages_and_scene_pages() {
+        let pages = ScriptPages {
+            breaks: vec![PageBreak { page: 2, line: 59 }],
+            scenes: vec![
+                SceneSpan {
+                    line: 0,
+                    page: 1,
+                    eighths: 4,
+                    length: "4/8".into(),
+                },
+                SceneSpan {
+                    line: 60,
+                    page: 2,
+                    eighths: 8,
+                    length: "1".into(),
+                },
+            ],
+            pages: 2,
+            eighths: 12,
+            minutes: 1.5,
+            length: "1 4/8".into(),
+        };
+
+        let v: serde_json::Value = serde_json::from_str(&breaks_json(Some(&pages))).unwrap();
+        assert_eq!(v["pages"], 2);
+        assert_eq!(v["breaks"][0]["page"], 2);
+        assert_eq!(v["breaks"][0]["line"], 59);
+        assert_eq!(v["scenes"][1]["line"], 60);
+        assert_eq!(v["scenes"][1]["page"], 2);
+
+        let none: serde_json::Value = serde_json::from_str(&breaks_json(None)).unwrap();
+        assert_eq!(none["pages"], 0);
+        assert_eq!(none["breaks"].as_array().map(Vec::len), Some(0));
     }
 
     /// A cue and its line get their own letter, and the looks place the cue as the page does.
