@@ -727,11 +727,57 @@ mod tests {
             ServiceError::Export(klappe_export::ExportError::NoVideoProgram("ffmpeg".into())),
             ServiceError::Export(klappe_export::ExportError::Video("x".into())),
             ServiceError::Export(klappe_export::ExportError::ZipTooBig),
+            ServiceError::Export(klappe_export::ExportError::EmptyPlan),
+            ServiceError::NoPlaceAnswer(1),
+            ServiceError::NoPlan("p".to_owned()),
+            ServiceError::NoPerson("p".to_owned()),
+            ServiceError::NoVersion("v".to_owned()),
+            ServiceError::NoVersions,
+            ServiceError::EmptyVersionName,
+            ServiceError::VersionNameTaken("v".to_owned()),
+            ServiceError::CastNumberTaken(3),
+            ServiceError::CameraInUse {
+                camera: "A".to_owned(),
+                shot: "1".to_owned(),
+            },
+            ServiceError::LastPlan("p".to_owned()),
+            ServiceError::FewPoints,
+            ServiceError::PlanHasShots {
+                id: "p".to_owned(),
+                shots: 2,
+            },
+            ServiceError::PlanNameTaken("p".to_owned()),
+            ServiceError::VersionCamera("1".to_owned()),
+            ServiceError::EmptyLibrary,
+            ServiceError::BadValue {
+                field: Field::Angle,
+                value: "x".to_owned(),
+            },
+            ServiceError::BadValue {
+                field: Field::Angle,
+                value: String::new(),
+            },
+            ServiceError::Write {
+                path: PathBuf::from("/a"),
+                source: std::io::Error::from(std::io::ErrorKind::NotFound),
+            },
+            ServiceError::Store(klappe_store::StoreError::Io {
+                path: PathBuf::from("/a"),
+                source: std::io::Error::from(std::io::ErrorKind::NotFound),
+            }),
+            ServiceError::Store(klappe_store::StoreError::Conflict {
+                path: PathBuf::from("/a"),
+                line: 1,
+            }),
+            ServiceError::Store(klappe_store::StoreError::ImageName {
+                name: "x".to_owned(),
+            }),
         ];
 
         for error in &errors {
             for language in [Language::German, Language::English] {
                 let text = error_text(language, error);
+                assert!(!text.is_empty(), "{error:?}");
                 assert!(!text.starts_with("error."), "{text}");
                 assert_ne!(text, error.to_string());
             }
