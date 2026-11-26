@@ -237,3 +237,41 @@ fn scene_line(scene: &SceneDiff, language: Language) -> String {
         words.join(", ")
     )
 }
+
+#[cfg(test)]
+mod tests {
+    use super::scene_line;
+    use klappe_services::{Language, SceneDiff, ScenePlace, SceneStatus};
+
+    fn scene(status: SceneStatus, place: ScenePlace, heading: Option<&str>) -> SceneDiff {
+        SceneDiff {
+            number: Some("3".into()),
+            heading: heading.map(Into::into),
+            old_number: None,
+            old_heading: None,
+            status,
+            place,
+            lines: Vec::new(),
+        }
+    }
+
+    /// What the command line says of a scene today: a moved scene that did not change is
+    /// "unverändert, verschoben", and a scene without heading has an empty heading column.
+    #[test]
+    fn a_scene_line_words_status_and_place() {
+        let line = |s| scene_line(&s, Language::German);
+
+        assert_eq!(
+            line(scene(SceneStatus::Same, ScenePlace::Moved, Some("INT. HOF"))),
+            "3\tINT. HOF\tunverändert, verschoben"
+        );
+        assert_eq!(
+            line(scene(SceneStatus::Changed, ScenePlace::Moved, Some("INT. HOF"))),
+            "3\tINT. HOF\tgeändert, verschoben"
+        );
+        assert_eq!(
+            line(scene(SceneStatus::Same, ScenePlace::Kept, None)),
+            "3\t\tunverändert"
+        );
+    }
+}
