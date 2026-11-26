@@ -45,6 +45,9 @@ pub enum ServiceError {
     Locked(Layer),
     #[error("no character {0}")]
     NoCharacter(String),
+    /// The new name of a rename is the one the character has.
+    #[error("the character is called {0} already")]
+    NameUnchanged(String),
     #[error("no element {0}")]
     NoElement(String),
     #[error("no person {0}")]

@@ -589,6 +589,7 @@
  "field.power": "Leistung (W)",
  "field.temp": "Farbtemperatur (K)",
  "error.noCharacter": "Figur nicht gefunden: {detail}",
+ "error.nameUnchanged": "Die Figur heißt schon so: {detail}",
  "error.noElement": "Element nicht gefunden: {detail}",
  "error.noLook": "Look nicht gefunden: {detail}",
  "error.notLookElement": "Zu einem Look gehören nur Kostüm und Maskenbild: {detail}",
@@ -1490,5 +1491,7 @@
  "versions.none": "Keine gesperrten Fassungen.",
  "cli.versionLocked": "Fassung „{name}“ gesperrt ({color}, {date})",
  "cli.lockConflict": "Das Drehbuch oder das Register wurde außerhalb geändert; nichts gesperrt",
- "cli.versionRemoved": "Fassung {id} gelöscht"
+ "cli.versionRemoved": "Fassung {id} gelöscht",
+ "cli.figureRenamed": "„{from}“ heißt jetzt „{to}“ (Figurenzeilen geändert: {count})",
+ "cli.renameConflict": "Das Drehbuch oder das Register wurde außerhalb geändert; nichts umbenannt"
 }
