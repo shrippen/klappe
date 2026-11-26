@@ -287,3 +287,13 @@ fn the_next_colour_follows_the_last_version_even_after_a_delete() {
     let pdf = pdf_of(&mut s, "versions-after-delete.pdf", &PRINT);
     assert!(pdf.contains("(Yellow Revision"), "{pdf}");
 }
+
+/// The project view counts the locked versions, for the dialog that offers the revision marks.
+#[test]
+fn the_project_view_counts_the_versions() {
+    let (_dir, mut s) = session("versions-count", &book(&THREE));
+    assert_eq!(s.overview().script_versions, 0);
+
+    lock(&mut s, "Drehfassung");
+    assert_eq!(s.overview().script_versions, 1);
+}
