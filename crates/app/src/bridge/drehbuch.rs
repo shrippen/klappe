@@ -8,8 +8,9 @@ use cxx_qt_lib::QString;
 use klappe_services::{
     enter_step, error_text, length_text, move_entry, outline, sections_around, tab_step,
     text_kinds, typed_caps, visible_entries, Align, EnterStep, Gap, HeaderLine, ImportReport, Laid,
-    MoveWay, OutlineEntry, OutlineKind, PrintFace, Revisions, SceneNumbers, SceneSpan, ScriptPages,
-    ScriptPrint, SheetPage, Slot, TextKind, SCRIPT_ASCENT_PT, SCRIPT_FONT_PT, TEXT_COLUMNS,
+    MoveWay, OutlineEntry, OutlineKind, PrintFace, Revisions, SceneNumbering, SceneNumbers,
+    SceneSpan, ScriptLanguage, ScriptPages, ScriptPaper, ScriptPrint, ScriptSetup, ScriptWords,
+    SheetPage, Slot, TextKind, SCRIPT_ASCENT_PT, SCRIPT_FONT_PT, TEXT_COLUMNS,
 };
 use serde_json::{json, Map, Value};
 
@@ -140,7 +141,7 @@ pub(super) fn breaks_json(pages: Option<&ScriptPages>) -> String {
     let breaks: Vec<_> = pages
         .breaks
         .iter()
-        .map(|b| json!({ "page": b.page, "line": b.line }))
+        .map(|b| json!({ "page": b.page, "label": b.label, "line": b.line }))
         .collect();
     let scenes: Vec<_> = pages
         .scenes
@@ -390,6 +391,34 @@ impl qobject::Controller {
         self.refresh();
     }
 
+    pub(super) fn set_script_setup(
+        mut self: Pin<&mut Self>,
+        language: &QString,
+        words: &QString,
+        paper: &QString,
+        contd: &QString,
+        numbering: &QString,
+        first: i32,
+    ) -> bool {
+        let Some(s) = self.as_mut().session() else {
+            return false;
+        };
+
+        // A first number that is no number stays as it was, as in the terminal.
+        let current = s.project().script;
+        let setup = ScriptSetup {
+            language: ScriptLanguage::from_name(&language.to_string()),
+            words: ScriptWords::from(words.to_string()),
+            paper: ScriptPaper::from(paper.to_string()),
+            contd_after_action: contd.to_string() == "on",
+            scene_numbering: SceneNumbering::from(numbering.to_string()),
+            first_scene: u32::try_from(first).unwrap_or(current.first_scene),
+        };
+        let result = s.choose_script_setup(setup);
+
+        self.report(Some(result))
+    }
+
     pub(super) fn import_script(mut self: Pin<&mut Self>, path: &QString) -> bool {
         let language = self.rust().language;
         let path = fileurl::to_path(&path.to_string());
@@ -501,7 +530,11 @@ mod tests {
     #[test]
     fn breaks_list_pages_and_scene_pages() {
         let pages = ScriptPages {
-            breaks: vec![PageBreak { page: 2, line: 59 }],
+            breaks: vec![PageBreak {
+                page: 2,
+                label: "2".into(),
+                line: 59,
+            }],
             scenes: vec![
                 SceneSpan {
                     line: 0,
@@ -525,6 +558,7 @@ mod tests {
         let v: serde_json::Value = serde_json::from_str(&breaks_json(Some(&pages))).unwrap();
         assert_eq!(v["pages"], 2);
         assert_eq!(v["breaks"][0]["page"], 2);
+        assert_eq!(v["breaks"][0]["label"], "2");
         assert_eq!(v["breaks"][0]["line"], 59);
         assert_eq!(v["scenes"][1]["line"], 60);
         assert_eq!(v["scenes"][1]["page"], 2);

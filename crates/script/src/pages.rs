@@ -10,14 +10,20 @@
 
 mod block;
 mod flow;
+mod locked;
 mod wrap;
 
 #[cfg(test)]
 mod flow_tests;
 #[cfg(test)]
+mod locked_tests;
+#[cfg(test)]
 mod tests;
 
 use crate::Element;
+use klappe_model::PageStart;
+
+pub use locked::{carry, compare_labels, lines_text, page_label_after, page_starts};
 
 /// Columns of the text area: 6 inches.
 pub const TEXT_COLUMNS: usize = 60;
@@ -46,23 +52,27 @@ impl PageSize {
     }
 }
 
-/// The two words that mark a dialogue broken over a page (F-04).
+/// The words on a page of a screenplay that are not the author's (F-04, DB-34).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Words {
     /// At the foot of the page: `(MORE)`.
     pub more: &'static str,
     /// After the name on the next page: `NAME (CONT'D)`.
     pub contd: &'static str,
+    /// On the sheet that stands for struck pages: `12-13 ENTFÄLLT`.
+    pub omitted: &'static str,
 }
 
 impl Words {
     pub const ENGLISH: Words = Words {
         more: "MORE",
         contd: "CONT'D",
+        omitted: "OMITTED",
     };
     pub const GERMAN: Words = Words {
         more: "WEITER",
         contd: "FORTS.",
+        omitted: "ENTFÄLLT",
     };
 }
 
@@ -147,9 +157,14 @@ pub struct Line {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Page {
-    /// From 1. Pages from 2 show it (top right).
+    /// From 1: the place of the page among the pages of the layout.
     pub number: usize,
+    /// What the page is called: `3`, and `3A` for a page added to a locked script (DB-34). The
+    /// same as `number` while no pages are locked. Pages after the first show it (top right).
+    pub label: String,
     pub lines: Vec<Line>,
+    /// The labels of the struck pages this sheet stands for; empty for a page of text.
+    pub omitted: Vec<String>,
 }
 
 /// Where a scene starts and how long it is (DB-32).
@@ -207,5 +222,20 @@ pub fn length_text(eighths: usize) -> String {
 
 /// Pages the elements of a screenplay.
 pub fn paginate(elements: &[Element], options: &PageOptions) -> Pagination {
-    flow::run(elements, options)
+    flow::run(elements, options, &[])
+}
+
+/// Pages the elements the way a locked version had them (DB-34): a page starts at each of
+/// `starts` (from `carry`, ascending, the first at the top), the text between two starts is
+/// paged for itself, its first page carries the locked label and further ones the labels
+/// after it (`12`, `12A`, `12B`). Starts that no text follows are struck pages.
+pub fn paginate_locked(
+    elements: &[Element],
+    located: &[crate::Located],
+    options: &PageOptions,
+    starts: &[PageStart],
+) -> Pagination {
+    let spots = locked::spots(located, starts);
+
+    flow::run(elements, options, &spots)
 }

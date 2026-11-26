@@ -37,8 +37,9 @@ pub use outline::{
     move_entry, outline, outline_of, sections_around, visible, Entry, EntryKind, Moved, Way,
 };
 pub use pages::{
-    length_text, paginate, Align, ContdAfterAction, Line, Margin, Page, PageKind, PageOptions,
-    PageSize, Pagination, SceneLength, Words, TEXT_COLUMNS,
+    carry, compare_labels, length_text, lines_text, page_label_after, page_starts, paginate,
+    paginate_locked, Align, ContdAfterAction, Line, Margin, Page, PageKind, PageOptions, PageSize,
+    Pagination, SceneLength, Words, TEXT_COLUMNS,
 };
 pub use parse::{
     boneyard_lines, parse, parse_located, title_page_lines, FORCE_CHARACTER, NUMBER_MARK,

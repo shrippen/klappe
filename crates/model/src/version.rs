@@ -69,6 +69,22 @@ pub struct Version {
     /// `2026-11-25`.
     pub date: String,
     pub color: RevisionColor,
+    /// Where each page of the screenplay started when it was locked (DB-34); empty for a
+    /// version locked before pages were kept: it locks no pages.
+    pub pages: Vec<PageStart>,
+}
+
+/// Where a page of the locked text starts. Several pages may start at the same place: the
+/// ones before the last were struck.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PageStart {
+    /// The number the page carries: `12`, `12A`.
+    pub label: String,
+    /// The text line (from 0) the page starts at; the number of lines if the page was struck
+    /// at the end of the text.
+    pub line: usize,
+    /// Bytes into the element's line where it starts, 0 unless a page starts within a line.
+    pub offset: usize,
 }
 
 /// Whether `text` is a day, `YYYY-MM-DD`, that exists.

@@ -1,7 +1,7 @@
 //! The characters against the book (DB-50): the cues no character answers to, and the user's
 //! answer for each.
 
-use klappe_model::Project;
+use klappe_model::{same_character_name, Project};
 
 use super::outside::FIGURES_FILE;
 use super::questions::Answered;
@@ -11,6 +11,8 @@ use crate::answer_way::Way;
 use crate::error::ServiceError;
 use crate::figure_file::{self, FigureDelta};
 use crate::figures::{self, FigureChoice, PendingFigure};
+use crate::project_edit::ProjectEdit;
+use crate::script_refs;
 
 /// Undo step of `resolve_figure`.
 pub(super) const RESOLVE_STEP: &str = "ResolveFigure";
@@ -122,6 +124,45 @@ impl Session {
         self.rebase(FIGURES_FILE, before)?;
 
         Ok(Answered::Step)
+    }
+
+    /// Refuses the new name of an `EditCharacter` that the book would read wrongly: a cue the
+    /// book still asks about (the rename would assign it silently, DB-50), one of the
+    /// character's own other names, one that cannot be a cue (`Anna (jung)`).
+    pub(super) fn check_figure_name(&self, edit: &ProjectEdit) -> Result<(), ServiceError> {
+        let ProjectEdit::EditCharacter {
+            id, name, aliases, ..
+        } = edit
+        else {
+            return Ok(());
+        };
+        let name = name.trim();
+        let Some(character) = self.project.character(id) else {
+            return Ok(());
+        };
+        // Only a new name is checked: the one the character has stays as it is. An empty one
+        // is refused with the other values of the form.
+        if name.is_empty() || same_character_name(&character.name, name) {
+            return Ok(());
+        }
+
+        let asked = self
+            .pending_figures
+            .iter()
+            .any(|p| same_character_name(&p.name, name));
+        if asked {
+            return Err(ServiceError::NameAsked(name.to_owned()));
+        }
+        // A new list is checked against the name when it is set.
+        let own = |alias: &String| same_character_name(alias, name);
+        if aliases.is_none() && character.aliases.iter().any(own) {
+            return Err(ServiceError::NameIsOwnAlias(name.to_owned()));
+        }
+        if !script_refs::can_be_cue(name) {
+            return Err(ServiceError::NameNotCue(name.to_owned()));
+        }
+
+        Ok(())
     }
 
     /// Refuses an alias for a character the file had when the session last read it and has
