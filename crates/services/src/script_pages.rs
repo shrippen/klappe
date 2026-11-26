@@ -260,6 +260,46 @@ impl Layout {
         project_title: &str,
         revision: Option<&Revision>,
     ) -> ScriptSheet {
+        let only_changed = print.revisions == Revisions::ChangedPages && revision.is_some();
+        let pages = self.script_pages(revision, only_changed);
+
+        // The fields in the order of `TITLE_KEYS`, so a new spelling there reaches the PDF.
+        let [title, credit, author, source, draft_date, contact] =
+            TITLE_KEYS.map(|name| title_key(&self.title_page, name));
+        let header = match print.header {
+            HeaderLine::Off => None,
+            HeaderLine::Title => Some(header_text(&title, project_title, &draft_date)),
+        };
+
+        // The pages of a revision are loose sheets for the ones who have the script already.
+        let title_page = match only_changed {
+            true => TitlePage::default(),
+            false => TitlePage {
+                title,
+                credit,
+                author,
+                source,
+                draft_date,
+                contact,
+            },
+        };
+
+        ScriptSheet {
+            paper: match setup.paper {
+                ScriptPaper::A4 => Paper::A4,
+                ScriptPaper::Letter => Paper::Letter,
+            },
+            columns: TEXT_COLUMNS,
+            title_page,
+            pages,
+            scene_numbers: print.scene_numbers,
+            header,
+            revision: revision.map(|r| r.header.clone()),
+        }
+    }
+
+    /// The pages as export prints them; with `only_changed` those with a marked row.
+    fn script_pages(&self, revision: Option<&Revision>, only_changed: bool) -> Vec<ScriptPage> {
         let ordinal = |element: usize| {
             self.pagination
                 .scenes
@@ -268,8 +308,7 @@ impl Layout {
                 .map(|i| (i + 1).to_string())
         };
 
-        let pages = self
-            .pagination
+        self.pagination
             .pages
             .iter()
             .map(|page| ScriptPage {
@@ -296,35 +335,8 @@ impl Layout {
                     })
                     .collect(),
             })
-            .collect();
-
-        // The fields in the order of `TITLE_KEYS`, so a new spelling there reaches the PDF.
-        let [title, credit, author, source, draft_date, contact] =
-            TITLE_KEYS.map(|name| title_key(&self.title_page, name));
-        let header = match print.header {
-            HeaderLine::Off => None,
-            HeaderLine::Title => Some(header_text(&title, project_title, &draft_date)),
-        };
-
-        ScriptSheet {
-            paper: match setup.paper {
-                ScriptPaper::A4 => Paper::A4,
-                ScriptPaper::Letter => Paper::Letter,
-            },
-            columns: TEXT_COLUMNS,
-            title_page: TitlePage {
-                title,
-                credit,
-                author,
-                source,
-                draft_date,
-                contact,
-            },
-            pages,
-            scene_numbers: print.scene_numbers,
-            header,
-            revision: revision.map(|r| r.header.clone()),
-        }
+            .filter(|page| !only_changed || page.lines.iter().any(|l| l.revised == Revised::Yes))
+            .collect()
     }
 
     /// Whether the text line a printed row is from is new or changed. A repeated name and

@@ -1470,6 +1470,8 @@
  "export.filter.report.xlsx": "XLSX (*.xlsx)",
  "error.noVersion": "Version not found: {detail}",
  "error.noVersions": "There is no locked version yet.",
+ "error.noChangedPages": "No page has changed since the locked version.",
+ "error.noDialogue": "Character without dialogue: {detail}",
  "error.versionNameEmpty": "A version needs a name.",
  "error.versionNameTaken": "There is already a version called \"{name}\".",
  "revision.header": "{color} Revision · {date}",

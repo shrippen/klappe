@@ -26,11 +26,14 @@ pub enum Draft {
     Current,
 }
 
-/// Whether a screenplay PDF marks what changed since the last locked version (DB-41).
+/// Whether a screenplay PDF marks what changed since the last locked version (DB-41), and
+/// whether it prints only the changed pages (DB-43).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Revisions {
     Off,
     On,
+    /// The marks (DB-41), and only the pages that have one (DB-43), without a title page.
+    ChangedPages,
 }
 
 /// What the revision adds to the pages of a PDF.
@@ -147,8 +150,14 @@ impl Session {
         &self,
         print: &ScriptPrint,
     ) -> Result<Option<Revision>, ServiceError> {
-        if print.revisions == Revisions::Off || self.versions.is_empty() {
+        if print.revisions == Revisions::Off {
             return Ok(None);
+        }
+        if self.versions.is_empty() {
+            return match print.revisions {
+                Revisions::ChangedPages => Err(ServiceError::NoVersions),
+                _ => Ok(None),
+            };
         }
 
         let language = text_language(&self.project.script, print.language);

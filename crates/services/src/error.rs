@@ -114,6 +114,13 @@ pub enum ServiceError {
     /// No version is locked yet, so there is nothing to compare the book with (DB-41).
     #[error("no version is locked")]
     NoVersions,
+    /// No page carries a revision mark, so a print of the changed pages would be empty (DB-43).
+    #[error("no page has changed")]
+    NoChangedPages,
+    /// The character is in the project or the book, but speaks nowhere, so it has no sides
+    /// (DB-62).
+    #[error("{0} has no dialogue")]
+    NoDialogue(String),
     #[error("a version needs a name")]
     EmptyVersionName,
     /// Version names are unique, so the versions can be told apart.
