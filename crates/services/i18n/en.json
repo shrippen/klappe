@@ -1232,7 +1232,6 @@
  "step.EditLook": "Rename look",
  "step.RemoveLook": "Delete look",
  "step.AddElementToLook": "Add element to look",
- "step.AddLookElement": "Add element to look",
  "step.RemoveLookElement": "Take element out of look",
  "step.SetSceneLook": "Character's look in scene",
  "step.NameShot": "Name shot",

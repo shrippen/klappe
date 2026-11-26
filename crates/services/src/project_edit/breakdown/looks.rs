@@ -15,7 +15,6 @@ pub(super) fn apply(project: &mut Project, edit: &BreakdownEdit) -> Result<(), S
         BreakdownEdit::AddLook { character, name } => add_look(project, character, name),
         BreakdownEdit::EditLook { id, name } => edit_look(project, id, name),
         BreakdownEdit::RemoveLook { id } => remove_look(project, id),
-        BreakdownEdit::AddLookElement { look, element } => add_look_element(project, look, element),
         BreakdownEdit::AddElementToLook {
             look,
             category,

@@ -74,7 +74,6 @@ TestCase {
         function addLook(c, n) { return call("addLook", [c, n]) ? "l9" : "" }
         function editLook(i, n) { return call("editLook", [i, n]) }
         function removeLook(i) { return call("removeLook", [i]) }
-        function addLookElement(l, e) { return call("addLookElement", [l, e]) }
         function addElementToLook(l, c, n) { return call("addElementToLook", [l, c, n]) }
         function removeLookElement(l, e) { return call("removeLookElement", [l, e]) }
         function setSceneLook(s, c, l) { return call("setSceneLook", [s, c, l]) }

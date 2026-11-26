@@ -52,7 +52,7 @@ Item {
             }
 
             const coat = ctl.addElement("costume", "Ölmantel")
-            if (!ctl.addLookElement(look, coat)) {
+            if (!ctl.addElementToLook(look, "costume", "Ölmantel")) {
                 return root.fail("the costume did not go into the look: " + ctl.status)
             }
             const costume = project().sheet.categories.find(c => c.category === "costume")
@@ -85,8 +85,8 @@ Item {
             }
             ctl.removeLookElement(look, project().looks[0].elements[2].id)
 
-            const prop = ctl.addElement("prop", "Lampe")
-            if (ctl.addLookElement(look, prop)) {
+            ctl.addElement("prop", "Lampe")
+            if (ctl.addElementToLook(look, "prop", "Lampe")) {
                 return root.fail("a prop must not go into a look")
             }
 

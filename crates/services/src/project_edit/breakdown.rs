@@ -103,11 +103,6 @@ pub enum BreakdownEdit {
     RemoveLook {
         id: String,
     },
-    /// An element goes into the look. Refused unless it is a costume or make-up.
-    AddLookElement {
-        look: String,
-        element: String,
-    },
     /// The field with suggestions in a look: the element of that name and category, made if
     /// there is none, goes into the look. Refused unless it is a costume or make-up.
     AddElementToLook {
@@ -213,7 +208,6 @@ pub(super) fn apply(project: &mut Project, edit: &BreakdownEdit) -> Result<(), S
         BreakdownEdit::AddLook { .. }
         | BreakdownEdit::EditLook { .. }
         | BreakdownEdit::RemoveLook { .. }
-        | BreakdownEdit::AddLookElement { .. }
         | BreakdownEdit::AddElementToLook { .. }
         | BreakdownEdit::RemoveLookElement { .. }
         | BreakdownEdit::SetSceneLook { .. } => looks::apply(project, edit),
