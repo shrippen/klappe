@@ -25,6 +25,7 @@ use crate::error::ExportError;
 use crate::image::Picture;
 use crate::page::{Page, Texts};
 use crate::palette::{palette, Palette, Rgb, Theme};
+use crate::sheet_writer::title_band;
 use crate::style::{role_style, RoleStyle};
 use klappe_model::FigureColor;
 
@@ -107,11 +108,12 @@ pub(crate) fn compose(list: &DisplayList, page: &Page, theme: Theme) -> Result<D
     let legend_rows = entries.len().div_ceil(columns) + lamps.len().div_ceil(lamp_columns);
     let footer_h = SCALE_ROW_PT + legend_rows as f64 * LEGEND_ROW_PT;
 
+    let (title, title_h) = title_band(&page.title, margin, content_w, pal);
     let area = Rect {
         x: margin,
-        y: margin + TITLE_BAND_PT + GAP_PT,
+        y: margin + title_h + GAP_PT,
         w: content_w,
-        h: height_pt - 2.0 * margin - TITLE_BAND_PT - footer_h - 2.0 * GAP_PT,
+        h: height_pt - 2.0 * margin - title_h - footer_h - 2.0 * GAP_PT,
     };
     if area.w <= 0.0 || area.h <= 0.0 {
         return Err(ExportError::PageTooSmall);
@@ -130,19 +132,8 @@ pub(crate) fn compose(list: &DisplayList, page: &Page, theme: Theme) -> Result<D
     let plan = plan_prims(list, &map, page, pal)?;
 
     let footer_y = area.y + area.h + GAP_PT;
-    let mut chrome = vec![
-        frame_prim(frame, pal),
-        Prim::Text {
-            rotation_deg: 0.0,
-            class: "title".into(),
-            anchor: Anchor::Start,
-            at: (margin, margin + TITLE_PT),
-            size_pt: TITLE_PT,
-            weight: Weight::Bold,
-            rgb: pal.foreground,
-            text: page.title.clone(),
-        },
-    ];
+    let mut chrome = vec![frame_prim(frame, pal)];
+    chrome.extend(title);
     scale_bar(&map, margin, footer_y, &page.texts, pal, &mut chrome);
     let lamp_y = legend(
         &entries,

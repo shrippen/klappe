@@ -16,10 +16,11 @@ use klappe_stellprobe::{axis_jumps, ordered_shots, ShotOrder};
 
 use crate::canvas::{Anchor, Dash, Fill, Geom, Prim, Rect, Sheet, Stroke, Weight};
 use crate::error::ExportError;
-use crate::layout::{sheet_size_pt, GAP_PT, MIN_TEXT_PT, PT_PER_MM, TITLE_BAND_PT, TITLE_PT};
+use crate::layout::{sheet_size_pt, GAP_PT, MIN_TEXT_PT, PT_PER_MM};
 use crate::metrics::text_width_pt;
 use crate::page::{Page, ShotView};
 use crate::palette::Palette;
+use crate::sheet_writer::title_band;
 use crate::shots::cells;
 use crate::style::{scene_style, shaded};
 use klappe_model::Orientation;
@@ -66,7 +67,13 @@ pub(crate) fn sheets(
         Orientation::Portrait => (SHORT_SIDE, LONG_SIDE),
     };
     let margin = page.margin_mm.max(0.0) * PT_PER_MM;
-    let top = margin + TITLE_BAND_PT + GAP_PT;
+    let texts = &page.texts;
+    let title = match texts.shots.views.is_empty() {
+        true => page.title.clone(),
+        false => format!("{}{TITLE_SEPARATOR}{}", page.title, texts.shots.views),
+    };
+    let (title_prims, title_h) = title_band(&title, margin, width_pt - 2.0 * margin, pal);
+    let top = margin + title_h + GAP_PT;
     let cell_w = (width_pt - 2.0 * margin - (columns - 1) as f64 * GAP_PT) / columns as f64;
     let cell_h = (height_pt - margin - top - (rows - 1) as f64 * GAP_PT) / rows as f64;
     if cell_w <= 0.0 || cell_h <= CAPTION_BAND_PT {
@@ -74,24 +81,10 @@ pub(crate) fn sheets(
     }
 
     let jumps = axis_jumps(plan);
-    let texts = &page.texts;
-    let title = match texts.shots.views.is_empty() {
-        true => page.title.clone(),
-        false => format!("{}{TITLE_SEPARATOR}{}", page.title, texts.shots.views),
-    };
 
     let mut sheets = Vec::new();
     for group in shown.chunks(columns * rows) {
-        let mut prims = vec![Prim::Text {
-            rotation_deg: 0.0,
-            class: "title".into(),
-            anchor: Anchor::Start,
-            at: (margin, margin + TITLE_PT),
-            size_pt: TITLE_PT,
-            weight: Weight::Bold,
-            rgb: pal.foreground,
-            text: title.clone(),
-        }];
+        let mut prims = title_prims.clone();
 
         for (i, (shot, view)) in group.iter().enumerate() {
             let cell = Rect {
