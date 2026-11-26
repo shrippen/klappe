@@ -33,6 +33,7 @@ pub fn fdx_loss_text(language: Language, loss: &FdxLoss) -> String {
         ("script.fdxLyrics", loss.lyrics),
         ("script.fdxBoneyards", loss.boneyards),
         ("script.fdxBreaks", loss.page_breaks),
+        ("script.fdxStyles", loss.styles),
     ];
     let parts: Vec<String> = counted
         .iter()

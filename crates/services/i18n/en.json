@@ -315,6 +315,8 @@
  "script.fdxNotes": "notes {count}",
  "script.fdxLyrics": "lyrics (as action) {count}",
  "script.fdxBoneyards": "boneyards {count}",
+ "script.fdxStyles": "emphasis {count}",
+ "script.reportStyles": "{count} emphasis runs not kept",
  "script.fdxBreaks": "page breaks {count}",
  "script.imported": "Screenplay loaded.",
  "script.reportTitle": "Screenplay loaded",

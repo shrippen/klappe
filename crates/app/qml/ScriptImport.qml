@@ -15,8 +15,8 @@ Item {
     readonly property alias dialog: ask
     readonly property alias picker: picker
     readonly property alias report: report
-    /// The counts of the last import, `{ scenes, created, pending, notInBook }`.
-    property var counts: ({ scenes: 0, created: 0, pending: 0, notInBook: 0 })
+    /// The counts of the last import, `{ scenes, created, pending, notInBook, stylesLost }`.
+    property var counts: ({ scenes: 0, created: 0, pending: 0, notInBook: 0, stylesLost: 0 })
 
     // "14 Szenen erkannt · 3 neu · 2 Fragen", with the singular for one scene or question.
     function countsText() {
@@ -107,6 +107,14 @@ Item {
                 wrapMode: Text.WordWrap
                 color: KanteStyle.textColor
                 text: imp.texts.t("script.reportGone", { count: imp.counts.notInBook })
+            }
+            QQC2.Label {
+                objectName: "reportStyles"
+                Layout.fillWidth: true
+                visible: imp.counts.stylesLost > 0
+                wrapMode: Text.WordWrap
+                color: KanteStyle.textColor
+                text: imp.texts.t("script.reportStyles", { count: imp.counts.stylesLost })
             }
         }
     }

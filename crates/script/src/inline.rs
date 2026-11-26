@@ -212,19 +212,19 @@ pub fn plain_text(text: &str) -> String {
 }
 
 /// The runs of a line with the text a reader sees: the marks that open or close an emphasis
-/// are gone, and so is the backslash of `\*`, `\_` and `\[[`; a `*` or `_` that opens
+/// are gone, and so is the backslash of `\*`, `\_`, `\[[` and `\\`; a `*` or `_` that opens
 /// nothing is text. Notes come with their marks, for the caller to leave out.
 pub(crate) fn visible_runs(line: &str) -> Vec<(Marks, String)> {
     let chars: Vec<char> = line.chars().collect();
     let scan = scan(line, false);
+    let escapes = escape_marks(&chars);
 
     runs(&scan.marks)
         .iter()
         .map(|run| {
             let mut part = String::new();
             for i in run.start..run.end {
-                let escapes = chars[i] == ESCAPE && escapes_next(&chars, i);
-                if !scan.toggles[i] && !escapes {
+                if !scan.toggles[i] && !escapes[i] {
                     part.push(chars[i]);
                 }
             }
@@ -234,9 +234,24 @@ pub(crate) fn visible_runs(line: &str) -> Vec<(Marks, String)> {
         .collect()
 }
 
-/// Whether the backslash at `at` protects what follows: a mark or the opening of a note.
-fn escapes_next(chars: &[char], at: usize) -> bool {
-    chars.get(at + 1).is_some_and(|c| is_mark(*c)) || starts(chars, at + 1, NOTE_OPEN)
+/// Which characters are a backslash that protects what follows (a mark, the opening of a
+/// note or another backslash). The protected character is text, so `\\*` is a backslash and
+/// then a mark.
+fn escape_marks(chars: &[char]) -> Vec<bool> {
+    let mut escapes = vec![false; chars.len()];
+    let mut i = 0;
+
+    while i < chars.len() {
+        let protects = chars[i] == ESCAPE
+            && (chars
+                .get(i + 1)
+                .is_some_and(|c| is_mark(*c) || *c == ESCAPE)
+                || starts(chars, i + 1, NOTE_OPEN));
+        escapes[i] = protects;
+        i += if protects { 2 } else { 1 };
+    }
+
+    escapes
 }
 
 fn is_mark(c: char) -> bool {

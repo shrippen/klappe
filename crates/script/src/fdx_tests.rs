@@ -512,3 +512,36 @@ fn runs_that_keep_their_style_are_not_counted() {
         vec![Element::Action("**Nie** *mals*".to_owned())]
     );
 }
+
+#[test]
+fn literal_backslashes_stay_text() {
+    let cases = [
+        (run("", "C:\\_tmp\\_x"), "C:\\_tmp\\_x"),
+        (run("", "\\*a\\*"), "\\*a\\*"),
+        (run("Bold", "a\\*"), "a\\*"),
+        (run("", "a\\\\b \\[[x]]"), "a\\\\b \\[[x]]"),
+        (run("Italic", "\\\\*x"), "\\\\*x"),
+    ];
+
+    for (runs, expected) in cases {
+        assert_eq!(through_fountain(&runs), expected, "{runs}");
+    }
+}
+
+#[test]
+fn a_style_given_up_is_judged_again_against_the_run_before() {
+    let runs = format!(
+        "{}{}{}",
+        run("Bold", "aa"),
+        run("Italic", "bbb"),
+        run("Bold", "cccc")
+    );
+
+    let (script, loss) = read_fdx(&one_paragraph("Action", &runs)).unwrap();
+
+    assert_eq!(
+        script.elements,
+        vec![Element::Action("**aa**bbb**cccc**".to_owned())]
+    );
+    assert_eq!(loss.styles, 1);
+}

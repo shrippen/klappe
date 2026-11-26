@@ -14,6 +14,8 @@ const SPOILERS: [char; 2] = ['/', '\\'];
 /// One run's text on one line, escaped, and how it is set.
 struct Frag {
     style: Style,
+    /// The style the run has in the file; `style` is what is left of it.
+    wanted: Style,
     text: String,
 }
 
@@ -21,6 +23,7 @@ impl Frag {
     fn plain(text: &str) -> Frag {
         Frag {
             style: Style::default(),
+            wanted: Style::default(),
             text: text.to_owned(),
         }
     }
@@ -58,6 +61,7 @@ pub(crate) fn marked_text(par: &Node, lost: &mut usize) -> String {
                 let at = lines.len() - 1;
                 lines[at].push(Frag {
                     style,
+                    wanted: style,
                     text: escape(line),
                 });
             }
@@ -93,37 +97,50 @@ fn runs(par: &Node) -> Vec<(Style, String)> {
 }
 
 /// Takes the style off the runs whose marks would touch another mark or a character that
-/// changes them.
+/// changes them, and gives it back to a run whose neighbour gave way in the end.
 fn settle(line: Vec<Frag>, lost: &mut usize) -> Vec<Frag> {
     let mut out: Vec<Frag> = Vec::new();
-
     for frag in line {
-        for mut frag in split_tail(frag, lost) {
-            let Some(prev) = out.last_mut() else {
-                out.push(frag);
-                continue;
-            };
+        out.extend(split_tail(frag, lost));
+    }
 
-            let after_spoiler = prev.text.ends_with(SPOILERS) && frag.marked();
-            if after_spoiler && frag.touches_start() {
-                frag.style = Style::default();
-                *lost += 1;
-            }
-            if clash(prev, &frag) {
-                // The shorter run gives way; a tie costs the later one.
-                let smaller = if prev.text.len() < frag.text.len() {
-                    &mut *prev
-                } else {
-                    &mut frag
-                };
-                smaller.style = Style::default();
-                *lost += 1;
-            }
-            out.push(frag);
+    for i in 1..out.len() {
+        if !meets(&out[i - 1], &out[i]) {
+            continue;
+        }
+        // The shorter run of two stars gives way; a tie costs the later one.
+        let star_clash = clash(&out[i - 1], &out[i]);
+        let earlier = star_clash && out[i - 1].text.len() < out[i].text.len();
+        let victim = if earlier { i - 1 } else { i };
+        out[victim].style = Style::default();
+    }
+
+    for i in 0..out.len() {
+        let given_up = out[i].style != out[i].wanted;
+        if !given_up {
+            continue;
+        }
+
+        // Without the neighbour that took the clash, the run may keep its style.
+        out[i].style = out[i].wanted;
+        let before = i > 0 && meets(&out[i - 1], &out[i]);
+        let after = i + 1 < out.len() && meets(&out[i], &out[i + 1]);
+        if before || after {
+            out[i].style = Style::default();
         }
     }
 
+    *lost += out.iter().filter(|f| f.style != f.wanted).count();
+
     out
+}
+
+/// Whether `b` cannot keep its marks behind `a`: they would touch another mark, or a `\` or
+/// `/` stands before them.
+fn meets(a: &Frag, b: &Frag) -> bool {
+    let spoiled = a.text.ends_with(SPOILERS) && b.marked() && b.touches_start();
+
+    spoiled || clash(a, b)
 }
 
 /// Whether the closing stars of `a` and the opening stars of `b` would touch. An underscore
@@ -157,6 +174,7 @@ fn split_tail(frag: Frag, lost: &mut usize) -> Vec<Frag> {
     vec![
         Frag {
             style: frag.style,
+            wanted: frag.style,
             text: kept.to_owned(),
         },
         tail,
@@ -187,11 +205,16 @@ fn mark_line(line: &str, style: Style) -> String {
     format!("{lead}{under}{stars}{core}{stars}{under}{trail}")
 }
 
+/// `line` as Fountain text that reads back as itself: a backslash before a character it
+/// would escape (`*`, `_`, `[` or another backslash) is escaped too.
 fn escape(line: &str) -> String {
+    let chars: Vec<char> = line.chars().collect();
     let mut out = String::with_capacity(line.len());
 
-    for c in line.chars() {
-        if c == '*' || c == '_' {
+    for (i, &c) in chars.iter().enumerate() {
+        let next = chars.get(i + 1).copied();
+        let escapes_next = c == '\\' && matches!(next, Some('*' | '_' | '[' | '\\'));
+        if matches!(c, '*' | '_') || escapes_next {
             out.push('\\');
         }
         out.push(c);

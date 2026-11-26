@@ -106,6 +106,24 @@ TestCase {
         verify(!findChild(imp.report.contentItem, "reportGone").visible)
     }
 
+    function test_the_report_names_emphasis_an_fdx_import_lost() {
+        fake.importReport = JSON.stringify({ scenes: 1, created: 0, pending: 0, notInBook: 0, stylesLost: 2 })
+        const imp = createTemporaryObject(importComponent, tc)
+        imp.load("file:///buch.fdx")
+
+        tryVerify(() => imp.report.opened)
+        const lost = findChild(imp.report.contentItem, "reportStyles")
+        verify(lost.visible)
+        compare(lost.text, "2 Hervorhebungen nicht übernommen")
+    }
+
+    function test_the_report_hides_the_emphasis_line_without_loss() {
+        const imp = report(0, 0)
+
+        tryVerify(() => imp.report.opened)
+        verify(!findChild(imp.report.contentItem, "reportStyles").visible)
+    }
+
     function test_the_report_names_entries_not_in_the_book() {
         const imp = report(0, 4)
 

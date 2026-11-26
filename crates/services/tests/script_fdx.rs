@@ -87,6 +87,24 @@ fn runs_that_lose_their_emphasis_are_reported() {
 }
 
 #[test]
+fn lost_styles_are_worded_with_the_rest() {
+    let loss = klappe_services::FdxLoss {
+        styles: 2,
+        notes: 1,
+        ..Default::default()
+    };
+
+    assert_eq!(
+        fdx_loss_text(Language::English, &loss),
+        "Not in the FDX file: notes 1, emphasis 2"
+    );
+    assert_eq!(
+        fdx_loss_text(Language::German, &loss),
+        "Nicht in der FDX-Datei: Notizen 1, Hervorhebungen 2"
+    );
+}
+
+#[test]
 fn no_screenplay_writes_no_file() {
     let path = out("fdx-none.fdx");
     let _ = std::fs::remove_file(&path);
