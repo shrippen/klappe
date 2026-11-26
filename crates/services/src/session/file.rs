@@ -57,6 +57,7 @@ impl Session {
             pending_places: Vec::new(),
             lock: None,
             twin_numbers: 0,
+            versions: Vec::new(),
             disk,
             own: Default::default(),
             conflicts: Vec::new(),
