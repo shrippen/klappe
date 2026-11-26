@@ -1520,5 +1520,6 @@
  "palette.group.version": "Version",
  "versions.locked": "Locked version \"{name}\"",
  "versions.removed": "Version deleted",
- "version.dateFormat": "MM/dd/yyyy"
+ "version.dateFormat": "MM/dd/yyyy",
+ "version.conflict": "Nothing locked: files of the project changed outside. Answer the question about it first."
 }

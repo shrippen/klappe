@@ -8,7 +8,7 @@
 //! The versions belong to the session like the Sperrstand of the scene numbers: no undo step,
 //! no part of the project's save; locking and deleting write them at once.
 
-use klappe_model::{free_random_id, IdCase, SceneNumbering, Version};
+use klappe_model::{free_random_id, IdCase, RevisionColor, SceneNumbering, Version};
 use klappe_script::{compare, Comparison};
 
 use super::{OnOutside, Saved, Session};
@@ -45,6 +45,14 @@ impl Session {
     /// The locked versions in the order they were locked.
     pub fn versions(&self) -> &[Version] {
         &self.versions
+    }
+
+    /// The colour of the revision since the last version (DB-41), the one the next version
+    /// gets; none before the first version.
+    pub fn revision_color(&self) -> Option<RevisionColor> {
+        self.versions.last()?;
+
+        Some(next_color(&self.versions))
     }
 
     /// Locks the book as a version called `name` (DB-40): saves the project as Ctrl+S does

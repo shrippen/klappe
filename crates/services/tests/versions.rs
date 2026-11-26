@@ -95,6 +95,19 @@ fn the_colours_follow_the_order_of_locking() {
     );
 }
 
+/// The revision's colour is the one after the last version's; none before the first.
+#[test]
+fn the_revision_colour_is_the_one_after_the_last_version() {
+    let (_, mut s) = session("versions-revision-colour", &book(&THREE));
+    assert_eq!(s.revision_color(), None);
+
+    lock(&mut s, "Eins");
+    assert_eq!(s.revision_color(), Some(RevisionColor::Blue));
+
+    lock(&mut s, "Zwei");
+    assert_eq!(s.revision_color(), Some(RevisionColor::Pink));
+}
+
 #[test]
 fn an_empty_or_used_name_is_refused_and_nothing_is_written() {
     let (dir, mut s) = session("versions-names", &book(&THREE));

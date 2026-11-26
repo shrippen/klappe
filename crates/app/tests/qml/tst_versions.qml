@@ -307,6 +307,23 @@ TestCase {
         compare(fake.calls[fake.calls.length - 1], "remove:v0")
     }
 
+    // The Delete key asks like the button: the menu closes first.
+    function test_the_delete_key_closes_the_menu_and_asks() {
+        lockedTwice()
+        const view = make()
+
+        view.versionMenu.menu.popup()
+        tryCompare(view.versionMenu.menu, "visible", true)
+        const row = item(view, "version.v0")
+        row.forceActiveFocus()
+        keyClick(Qt.Key_Delete)
+
+        tryCompare(view.removeDialog, "opened", true)
+        verify(!view.versionMenu.menu.visible)
+        compare(view.removeDialog.version.id, "v0")
+        view.removeDialog.close()
+    }
+
     function test_delete_can_be_declined() {
         lockedTwice()
         const view = make()
@@ -402,6 +419,26 @@ TestCase {
         fake.revision = [2, 6]
         tryVerify(() => view.revisionLines.length === 2)
         verify(!findChild(view.area, "revisionMarks").stale)
+    }
+
+    // DN-02: the marks keep the places of the last layout while typing; a mark is not placed
+    // anew with every key (it cost 470 ms a key at 3000 marks).
+    function test_typing_does_not_place_the_marks_anew() {
+        lockedTwice()
+        fake.revision = [2]
+        const view = make()
+        const marks = findChild(view.area, "revisionMarks")
+        const at = marks.ranges[0].from
+        compare(at, view.lineStart(tc.book, 2))
+
+        view.area.forceActiveFocus()
+        view.area.cursorPosition = 0
+        view.area.insert(0, "xx")
+
+        verify(view.stale)
+        compare(marks.ranges[0].from, at)
+        tryVerify(() => !view.stale)
+        compare(marks.ranges[0].from, at + 2)
     }
 
     // A line the text no longer has gets no mark.

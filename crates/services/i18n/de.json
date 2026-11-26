@@ -1520,5 +1520,6 @@
  "palette.group.version": "Fassung",
  "versions.locked": "Fassung „{name}“ gesperrt",
  "versions.removed": "Fassung gelöscht",
- "version.dateFormat": "dd.MM.yyyy"
+ "version.dateFormat": "dd.MM.yyyy",
+ "version.conflict": "Nichts gesperrt: Dateien des Projekts wurden außerhalb geändert. Erst die Frage dazu beantworten."
 }

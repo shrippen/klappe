@@ -78,7 +78,10 @@ HeaderMenu {
             Accessible.name: chooser.texts.t("version.row", {
                 name: modelData.name, color: modelData.colorName, date: chooser.dateText(modelData.date) })
             onTriggered: chooser.compareRequested(modelData.id)
-            Keys.onDeletePressed: chooser.removeRequested(modelData)
+            Keys.onDeletePressed: {
+                chooser.menu.close()
+                chooser.removeRequested(modelData)
+            }
 
             trailing: [
                 KanteSwatch {

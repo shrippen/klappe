@@ -7,15 +7,19 @@ use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
 use klappe_services::{
-    color_text, error_text, Comparison, Draft, Edit, Language, OnOutside, Saved, ScenePlace,
-    SceneStatus, Version,
+    color_text, error_text, Comparison, Draft, Edit, Language, OnOutside, RevisionColor, Saved,
+    ScenePlace, SceneStatus, Version,
 };
 use serde_json::json;
 
 /// The versions in the order they were locked, and the colour the revision since the last one
 /// has (`next`, null before the first version): `{ versions: [{ id, name, date, color,
 /// colorName }], next: { color, colorName } | null }`.
-pub(super) fn versions_json(versions: &[Version], language: Language) -> String {
+pub(super) fn versions_json(
+    versions: &[Version],
+    next: Option<RevisionColor>,
+    language: Language,
+) -> String {
     let versions_view: Vec<_> = versions
         .iter()
         .map(|v| {
@@ -28,11 +32,8 @@ pub(super) fn versions_json(versions: &[Version], language: Language) -> String 
             })
         })
         .collect();
-    let next = versions.last().map(|v| {
-        let color = v.color.next();
-
-        json!({ "color": color.name(), "colorName": color_text(language, color) })
-    });
+    let next = next
+        .map(|color| json!({ "color": color.name(), "colorName": color_text(language, color) }));
 
     json!({ "versions": versions_view, "next": next }).to_string()
 }
@@ -95,10 +96,10 @@ impl qobject::Controller {
     pub(super) fn versions_json(mut self: Pin<&mut Self>) -> QString {
         let language = self.rust().language;
         let Some(s) = self.as_mut().session() else {
-            return q(&versions_json(&[], language));
+            return q(&versions_json(&[], None, language));
         };
 
-        q(&versions_json(s.versions(), language))
+        q(&versions_json(s.versions(), s.revision_color(), language))
     }
 
     pub(super) fn lock_version(mut self: Pin<&mut Self>, name: &QString) -> QString {
@@ -119,7 +120,7 @@ impl qobject::Controller {
             Err(text) => return q(&text),
             Ok(Saved::Conflict) => {
                 self.as_mut().outside_asked();
-                return q(&language.text("cli.lockConflict"));
+                return q(&language.text("version.conflict"));
             }
             Ok(Saved::Done) => {}
         }
@@ -188,8 +189,8 @@ mod tests {
         }
     }
 
-    /// The list names each colour in the language, and the revision after the last version
-    /// has the next colour; before the first version there is none.
+    /// The list names each colour in the language, and the revision colour the session gives
+    /// reaches QML; before the first version there is none.
     #[test]
     fn the_list_names_the_colours_and_the_next() {
         let list = [
@@ -197,15 +198,19 @@ mod tests {
             version("b", RevisionColor::Blue),
         ];
 
-        let v: serde_json::Value =
-            serde_json::from_str(&versions_json(&list, Language::German)).unwrap();
+        let v: serde_json::Value = serde_json::from_str(&versions_json(
+            &list,
+            Some(RevisionColor::Pink),
+            Language::German,
+        ))
+        .unwrap();
         assert_eq!(v["versions"][1]["color"], "blue");
         assert_eq!(v["versions"][1]["colorName"], "Blau");
         assert_eq!(v["next"]["color"], "pink");
         assert_eq!(v["next"]["colorName"], "Rosa");
 
         let none: serde_json::Value =
-            serde_json::from_str(&versions_json(&[], Language::German)).unwrap();
+            serde_json::from_str(&versions_json(&[], None, Language::German)).unwrap();
         assert_eq!(none["versions"].as_array().map(Vec::len), Some(0));
         assert!(none["next"].is_null());
     }

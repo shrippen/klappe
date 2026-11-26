@@ -58,6 +58,8 @@ RowLayout {
     /// Those lines (from 0) of the text as of the last layout; they follow it like the page
     /// breaks (DN-02).
     property var revisionLines: []
+    /// The same as text positions `{ from, to }` of the text at that layout.
+    property var revisionRanges: []
     readonly property alias versionMenu: versionMenu
     readonly property alias lockDialog: lockDialog
     readonly property alias compareDialog: compareDialog
@@ -103,6 +105,9 @@ RowLayout {
     function readRevision() {
         const marking = versions.length > 0 && showRevisions
         revisionLines = marking ? JSON.parse(controller.revisionJson()) : []
+        // Placed once per layout, like the page breaks' lines: typing moves no mark (DN-02),
+        // a mark cost a text position lookup twice, on every key.
+        revisionRanges = lineRanges(revisionLines, area.text)
     }
 
     /// The lines of `lines` (ascending, from 0) as text positions `{ from, to }`, `to` the end of
@@ -658,7 +663,7 @@ RowLayout {
                         area: area
                         texts: view.texts
                         stale: view.stale
-                        ranges: view.lineRanges(view.revisionLines, area.text)
+                        ranges: view.revisionRanges
                         ink: view.nextRevision ? ink.color(view.nextRevision.color) : KanteStyle.textColor
                         RevisionInk { id: ink }
                     }

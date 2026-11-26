@@ -21,6 +21,8 @@ const OUTSIDE_PROJECT: &str = "aussen-projekt";
 const LOOKS_PROJECT: &str = "looks-projekt";
 /// The copy of the example `versions_window.qml` locks versions of.
 const VERSIONS_PROJECT: &str = "versionen-projekt";
+/// The copy of the example `versions_outside.qml` changes from two controllers.
+const VERSIONS_OUTSIDE_PROJECT: &str = "versionen-aussen-projekt";
 /// The scripted location of the example, and the name the copy has before the scenario renames it.
 const PLACE_NAME: &str = "SÄNGERSAAL";
 const PLACE_OLD_NAME: &str = "FESTSAAL";
@@ -64,6 +66,7 @@ fn copy_example(base: &Path) {
     copy_dir(&example, &base.join(OUTSIDE_PROJECT));
     copy_dir(&example, &base.join(LOOKS_PROJECT));
     copy_dir(&example, &base.join(VERSIONS_PROJECT));
+    copy_dir(&example, &base.join(VERSIONS_OUTSIDE_PROJECT));
 
     // The heading says SÄNGERSAAL: the book renamed what the file calls FESTSAAL.
     let places = base.join(PLACE_PROJECT).join("orte.toml");
