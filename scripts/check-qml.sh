@@ -26,6 +26,9 @@ fi
 export QML_XHR_ALLOW_FILE_READ=1
 export QT_QPA_PLATFORM="${QT_QPA_PLATFORM:-offscreen}"
 export QT_FORCE_STDERR_LOGGING=1
+# Qt 6.12's incremental garbage collector crashes the runner now and then (SIGSEGV in
+# GCStateMachine during qWait; tst_modulebar.qml alone: 7 of 20 runs). 0 collects in one go.
+export QV4_GC_TIMELIMIT="${QV4_GC_TIMELIMIT:-0}"
 # Tests that keep settings (the working mode) write to a folder of their own, not the user's.
 CONFIG=$(mktemp -d)
 trap 'rm -rf "$CONFIG"' EXIT
