@@ -42,7 +42,7 @@ TestCase {
         property int layouts: 0
         function paginateScript() { layouts += 1 }
         // The last layout: page 2 starts at the text's line 6 (the second heading); two pages.
-        property var pages: ({ pages: 2, breaks: [{ page: 2, line: 6 }],
+        property var pages: ({ pages: 2, breaks: [{ page: 2, label: "2", line: 6 }],
                                scenes: [{ line: 2, page: 1 }, { line: 6, page: 2 }] })
         function scriptBreaksJson() { return JSON.stringify(pages) }
         // A heading's line is "h", every other line "a": enough to see the kinds arrive.
@@ -136,7 +136,7 @@ TestCase {
         fake.prints = 0
         fake.enters = 0
         fake.layouts = 0
-        fake.pages = { pages: 2, breaks: [{ page: 2, line: 6 }],
+        fake.pages = { pages: 2, breaks: [{ page: 2, label: "2", line: 6 }],
                        scenes: [{ line: 2, page: 1 }, { line: 6, page: 2 }] }
         fake.printLine = "INT. SAAL - TAG"
     }

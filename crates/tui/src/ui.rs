@@ -333,7 +333,12 @@ fn draw_row(frame: &mut Frame, app: &App, row: Row, band: Rect, rect: Rect) {
 /// The thin line between two pages: `─ Page 3 ───────`, in the quiet colour; italic while it
 /// belongs to an older text.
 fn draw_page_break(frame: &mut Frame, app: &App, page: usize, rect: Rect) {
-    let mut label = format!("{PAGE_RULE} {} ", app.texts.page(page));
+    // The pages may be locked (DB-34): the label is what the page is called, `3A`.
+    let name = app
+        .pages()
+        .and_then(|p| p.breaks.iter().find(|b| b.page == page))
+        .map_or_else(|| page.to_string(), |b| b.label.clone());
+    let mut label = format!("{PAGE_RULE} {} ", app.texts.page(&name));
     if app.pages_stale() {
         label.push_str(&format!("({}) ", app.texts.stale));
     }

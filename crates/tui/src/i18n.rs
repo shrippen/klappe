@@ -218,11 +218,9 @@ impl Texts {
             .replace("{count}", &count.to_string())
     }
 
-    /// "Page 3".
-    pub(crate) fn page(&self, number: usize) -> String {
-        self.lang
-            .text("tui.page")
-            .replace("{number}", &number.to_string())
+    /// "Page 3", "Page 3A".
+    pub(crate) fn page(&self, label: &str) -> String {
+        self.lang.text("tui.page").replace("{number}", label)
     }
 
     /// "2 min": the estimated running time, half a minute up (2.5 → 3); a book shorter than
@@ -352,7 +350,7 @@ mod tests {
                 &t.pdf_off,
                 &t.pdf_save_first,
                 &t.pdf_done("a.pdf"),
-                &t.page(3),
+                &t.page("3"),
                 &t.scene_of(1, 2),
                 &t.shots(1),
                 &t.figures(1),

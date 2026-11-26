@@ -6,7 +6,9 @@ use super::outside::PROJECT_FILE;
 use super::Session;
 use crate::catalog::Language;
 use crate::error::ServiceError;
-use crate::script_pages::{lay_out, ScriptPages, ScriptPrint, Source};
+use crate::script_pages::{lay_out, HeaderLine, PageLock, ScriptPages, ScriptPrint, Source};
+use crate::session::Revisions;
+use crate::sides::sides;
 use klappe_export::SheetPage;
 use klappe_model::{ScriptLanguage, ScriptPaper, ScriptSetup, ScriptWords};
 
@@ -58,7 +60,8 @@ impl Session {
     /// `paginate`, but only if text, paper or words changed since the last layout: the window
     /// calls it after 5 s without a key (DN-02) and need not show the same lengths again.
     pub fn paginate_if_changed(&mut self, fallback: Language) -> Laid {
-        let source = Source::of(self.script_text(), &self.project.script, fallback);
+        let lock = self.page_lock_id();
+        let source = Source::of(self.script_text(), &self.project.script, fallback, lock);
         if self.layout.as_ref().is_some_and(|l| l.is_for(&source)) {
             return Laid::Kept;
         }
@@ -70,7 +73,29 @@ impl Session {
     /// Like `paginate` for `text` that is not (yet) the session's: the terminal editor holds
     /// its text apart until it is saved. The session's screenplay stays as it is.
     pub fn paginate_text(&mut self, text: &str, fallback: Language) {
-        self.layout = Some(lay_out(text, &self.project.script, fallback));
+        let lock = self.page_lock();
+        self.layout = Some(lay_out(text, &self.project.script, fallback, lock.as_ref()));
+    }
+
+    /// The version whose pages the screenplay keeps (DB-34): the last one, if it kept any.
+    pub(super) fn page_lock_id(&self) -> Option<&str> {
+        let last = self.versions.last()?;
+
+        (!last.pages.is_empty()).then_some(last.id.as_str())
+    }
+
+    /// That version's text and page starts. A text that cannot be read locks no pages: the
+    /// layout is then the free one (the version itself is reported by `compare_drafts`).
+    fn page_lock(&self) -> Option<PageLock> {
+        let id = self.page_lock_id()?;
+        let text = klappe_store::load_version_text(&self.dir, id).ok()?;
+        let starts = self.versions.last()?.pages.clone();
+
+        Some(PageLock {
+            id: id.to_owned(),
+            text,
+            starts,
+        })
     }
 
     /// The result of the last `paginate`: page breaks, scene lengths, total length. `None`
@@ -148,15 +173,47 @@ impl Session {
         paper: ScriptPaper,
     ) -> Result<(), ServiceError> {
         let (before, changed) = (self.project.script, self.project_changed);
+        let (dirty, unbacked) = (self.dirty, self.unbacked);
+        let (layout, lengths) = (self.layout.clone(), self.lengths.clone());
         self.set_script_setup(ScriptSetup { paper, ..before });
 
         let result = self.export_script_pdf(path, print);
         if result.is_err() {
             self.project.script = before;
             self.project_changed = changed;
+            self.dirty = dirty;
+            self.unbacked = unbacked;
+            self.layout = layout;
+            self.lengths = lengths;
         }
 
         result
+    }
+
+    /// Writes the sides of `figure` as PDF (DB-62): the scenes it speaks in, whole, laid out
+    /// as a screenplay of its own (fresh page breaks, the page numbers of the sides), headed
+    /// with its name. No marks of a revision, no title page.
+    pub fn export_sides_pdf(
+        &mut self,
+        path: &Path,
+        figure: &str,
+        print: &ScriptPrint,
+    ) -> Result<(), ServiceError> {
+        if self.script_text().trim().is_empty() {
+            return Err(ServiceError::NoScript);
+        }
+
+        let sides = sides(self.script_text(), &self.project, figure)?;
+        let layout = lay_out(&sides.text, &self.project.script, print.language, None);
+        let plain = ScriptPrint {
+            header: HeaderLine::Off,
+            revisions: Revisions::Off,
+            ..*print
+        };
+        let mut sheet = layout.sheet(&self.project.script, &plain, &self.project.title, None);
+        sheet.header = Some(sides.name);
+
+        write_file(path, klappe_export::script_pdf(&sheet))
     }
 
     /// Writes the screenplay as PDF (DB-70) after laying it out again, so the pages are the
@@ -181,6 +238,9 @@ impl Session {
             &self.project.title,
             revision.as_ref(),
         );
+        if print.revisions == Revisions::ChangedPages && sheet.pages.is_empty() {
+            return Err(ServiceError::NoChangedPages);
+        }
 
         write_file(path, klappe_export::script_pdf(&sheet))
     }

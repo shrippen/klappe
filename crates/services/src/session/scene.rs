@@ -125,6 +125,7 @@ impl Session {
         self.check_location_use(&edit)?;
         self.check_sheet_character(&edit)?;
         self.check_cast_number(&edit)?;
+        self.check_figure_name(&edit)?;
         self.check_scene_look(&edit)?;
         let step = project_step(&edit);
         let mut next = self.project.clone();
@@ -147,6 +148,34 @@ impl Session {
         self.follow_scene(on_view, plan_on_view);
         self.end_stale_look();
         Ok(())
+    }
+
+    /// Renames the character called `from` (by name or other name) to `to` in the whole book
+    /// (DB-04): `edit_project` of `EditCharacter`, so its cues change as they do there, with
+    /// one undo step. Id, short code, colour and other names stay. Returns how many cues
+    /// changed. Refused: no such character, the name it has, and what `EditCharacter` refuses.
+    pub fn rename_figure(&mut self, from: &str, to: &str) -> Result<usize, ServiceError> {
+        let Some(c) = self.project.characters.iter().find(|c| c.is_called(from)) else {
+            return Err(ServiceError::NoCharacter(from.trim().to_owned()));
+        };
+        if c.name == to.trim() {
+            return Err(ServiceError::NameUnchanged(c.name.clone()));
+        }
+
+        let id = c.id.clone();
+        let edit = ProjectEdit::EditCharacter {
+            id: id.clone(),
+            name: to.to_owned(),
+            short: c.short.clone(),
+            color: c.color,
+            group: c.group,
+            size_m: c.size_m,
+            aliases: None,
+        };
+        let changes = script_refs::character_changes(&self.project, self.script_text(), &id, to);
+        self.edit_project(edit)?;
+
+        Ok(changes.iter().map(|change| change.count).sum())
     }
 
     /// Adds the element and returns its id; undoable. Refused like `AddElement`.
