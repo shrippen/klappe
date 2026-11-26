@@ -61,7 +61,6 @@ QQC2.Popup {
                 onClicked: {
                     pop.flow.suggestSel = index
                     pop.flow.acceptSuggest()
-                    pop.area.forceActiveFocus()
                 }
             }
         }

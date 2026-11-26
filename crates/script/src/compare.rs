@@ -50,6 +50,9 @@ pub struct LineChange {
     /// From 0, in the text of its state: the new one for `Added`, the old one for `Removed`.
     pub line: usize,
     pub text: String,
+    /// From 0 in the scene: lines with the same number lie in the same gap between common lines
+    /// (a removed and an added line replace each other), others are apart.
+    pub group: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -109,11 +112,12 @@ impl Scene {
 }
 
 impl Row {
-    fn change(&self, change: Edit) -> LineChange {
+    fn change(&self, change: Edit, group: usize) -> LineChange {
         LineChange {
             change,
             line: self.line,
             text: self.shown.clone(),
+            group,
         }
     }
 }
@@ -202,7 +206,11 @@ fn lone(scene: &Scene, status: SceneStatus) -> SceneDiff {
         old_heading: scene.heading.clone().filter(|_| old),
         status,
         place: ScenePlace::Kept,
-        lines: scene.lines.iter().map(|row| row.change(change)).collect(),
+        lines: scene
+            .lines
+            .iter()
+            .map(|row| row.change(change, 0))
+            .collect(),
     }
 }
 
@@ -225,10 +233,18 @@ fn both(old: &Scene, new: &Scene, moved: bool) -> SceneDiff {
         )
         .collect();
     changes.sort_by_key(|&(before, change, _)| (before, change == Edit::Added));
-    let lines: Vec<LineChange> = changes
-        .into_iter()
-        .map(|(_, change, row)| row.change(change))
-        .collect();
+
+    // Changes in the same gap share a number, counted up from 0 gap by gap.
+    let mut group = 0;
+    let mut last = None;
+    let mut lines: Vec<LineChange> = Vec::new();
+    for (before, change, row) in changes {
+        if last.is_some_and(|b| b != before) {
+            group += 1;
+        }
+        last = Some(before);
+        lines.push(row.change(change, group));
+    }
 
     SceneDiff {
         number: new.number.clone(),

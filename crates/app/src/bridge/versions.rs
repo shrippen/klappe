@@ -38,7 +38,7 @@ pub(super) fn versions_json(
     json!({ "versions": versions_view, "next": next }).to_string()
 }
 
-/// The comparison as `[{ number, heading, status, place, lines: [{ change, line, text }] }]`;
+/// The comparison as `[{ number, heading, status, place, lines: [{ change, line, text, group }] }]`;
 /// `status` is `new`, `removed`, `changed` or `same`, `place` `kept` or `moved`, `change`
 /// `added` or `removed`.
 pub(super) fn compare_json(comparison: &Comparison) -> String {
@@ -55,7 +55,7 @@ pub(super) fn compare_json(comparison: &Comparison) -> String {
                         Edit::Removed => "removed",
                     };
 
-                    json!({ "change": change, "line": l.line, "text": l.text })
+                    json!({ "change": change, "line": l.line, "text": l.text, "group": l.group })
                 })
                 .collect();
             let status = match scene.status {
@@ -239,11 +239,13 @@ mod tests {
                         change: Edit::Removed,
                         line: 4,
                         text: "alt".into(),
+                        group: 0,
                     },
                     LineChange {
                         change: Edit::Added,
                         line: 5,
                         text: "neu".into(),
+                        group: 1,
                     },
                 ],
             }],
@@ -257,5 +259,6 @@ mod tests {
         assert_eq!(v[0]["lines"][0]["change"], "removed");
         assert_eq!(v[0]["lines"][1]["text"], "neu");
         assert_eq!(v[0]["lines"][1]["line"], 5);
+        assert_eq!(v[0]["lines"][1]["group"], 1);
     }
 }
