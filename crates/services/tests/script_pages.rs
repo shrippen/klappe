@@ -350,3 +350,17 @@ fn a_refused_output_keeps_the_papers_of_the_project() {
         .unwrap();
     assert_eq!(s.project().script.paper, ScriptPaper::Letter);
 }
+
+/// A refused output leaves the session as it was: saved stays saved, nothing to back up.
+#[test]
+fn a_refused_output_leaves_a_saved_project_clean() {
+    let mut s = session("pages-paper-clean", "");
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
+    assert!(!s.is_dirty());
+
+    let none = s.export_script_on(&out("pages-paper-clean.pdf"), &PRINT, ScriptPaper::Letter);
+
+    assert!(matches!(none, Err(ServiceError::NoScript)));
+    assert!(!s.is_dirty());
+    assert_eq!(s.autosave().unwrap(), klappe_services::Autosave::Clean);
+}
