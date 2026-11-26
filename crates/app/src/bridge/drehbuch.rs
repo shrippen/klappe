@@ -6,9 +6,10 @@ use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
 use klappe_services::{
-    enter_step, error_text, tab_step, text_kinds, typed_caps, Align, EnterStep, Gap, HeaderLine,
-    ImportReport, Laid, PrintFace, SceneNumbers, ScriptPages, ScriptPrint, SheetPage, Slot,
-    TextKind, SCRIPT_ASCENT_PT, SCRIPT_FONT_PT, TEXT_COLUMNS,
+    enter_step, error_text, length_text, move_entry, outline, tab_step, text_kinds, typed_caps,
+    Align, EnterStep, Gap, HeaderLine, ImportReport, Laid, MoveWay, OutlineEntry, OutlineKind,
+    PrintFace, SceneNumbers, SceneSpan, ScriptPages, ScriptPrint, SheetPage, Slot, TextKind,
+    SCRIPT_ASCENT_PT, SCRIPT_FONT_PT, TEXT_COLUMNS,
 };
 use serde_json::{json, Map, Value};
 
@@ -150,6 +151,100 @@ pub(super) fn breaks_json(pages: Option<&ScriptPages>) -> String {
     json!({ "pages": pages.pages, "breaks": breaks, "scenes": scenes }).to_string()
 }
 
+/// The page span of the scene `index` of `entries` in the last layout: by position while the
+/// layout has as many scenes as the text, else by the heading's line (typing since).
+fn span_of<'a>(
+    pages: &'a ScriptPages,
+    scenes: usize,
+    entry: &OutlineEntry,
+) -> Option<&'a SceneSpan> {
+    if pages.scenes.len() == scenes {
+        return pages.scenes.get(entry.scene?);
+    }
+
+    pages.scenes.iter().find(|s| s.line == entry.line)
+}
+
+/// The outline of the screenplay for the scene list: `[{ kind: section | scene | synopsis,
+/// level (sections: 1 for `#`), depth, line, end, text, number, length }]` in text order. A
+/// section's `length` is the total of its scenes, a scene's its own, both from the last layout.
+pub(super) fn outline_json(text: &str, pages: Option<&ScriptPages>) -> String {
+    let entries = outline(text);
+    let scenes = entries.iter().filter(|e| e.scene.is_some()).count();
+    let eighths = |e: &OutlineEntry| -> usize {
+        let Some(span) = pages.and_then(|p| span_of(p, scenes, e)) else {
+            return 0;
+        };
+        span.eighths
+    };
+
+    let rows: Vec<_> = entries
+        .iter()
+        .map(|e| {
+            let (kind, level, length) = match e.kind {
+                OutlineKind::Section(level) => {
+                    let total: usize = entries
+                        .iter()
+                        .filter(|n| n.scene.is_some() && n.line > e.line && n.line < e.end)
+                        .map(eighths)
+                        .sum();
+                    let length = if total > 0 {
+                        length_text(total)
+                    } else {
+                        String::new()
+                    };
+                    ("section", level, length)
+                }
+                OutlineKind::Scene => {
+                    let length = pages
+                        .and_then(|p| span_of(p, scenes, e))
+                        .map(|s| s.length.clone())
+                        .unwrap_or_default();
+                    ("scene", 0, length)
+                }
+                OutlineKind::Synopsis => ("synopsis", 0, String::new()),
+            };
+            json!({
+                "kind": kind,
+                "level": level,
+                "depth": e.depth,
+                "line": e.line,
+                "end": e.end,
+                "text": e.text,
+                "number": e.number,
+                "length": length,
+            })
+        })
+        .collect();
+
+    Value::Array(rows).to_string()
+}
+
+/// Moving the scene or section at text line `line` one place (`up` or `down`), as `moveOutline`
+/// describes it: `{ from, to, lines, line }`, the text lines `from..to` replaced by `lines`,
+/// the block at `line` now; empty where it cannot move.
+pub(super) fn move_json(text: &str, line: usize, way: &str) -> String {
+    let way = match way {
+        "up" => MoveWay::Up,
+        "down" => MoveWay::Down,
+        _ => return String::new(),
+    };
+    let entries = outline(text);
+    let lines: Vec<String> = text.lines().map(str::to_owned).collect();
+    let Some(index) = entries
+        .iter()
+        .position(|e| e.line == line && e.kind != OutlineKind::Synopsis)
+    else {
+        return String::new();
+    };
+    let Some(moved) = move_entry(&lines, &entries, index, way) else {
+        return String::new();
+    };
+
+    json!({ "from": moved.from, "to": moved.to, "lines": moved.lines, "line": moved.line })
+        .to_string()
+}
+
 /// The counts of an import for the report dialog.
 fn report_json(report: &ImportReport) -> String {
     json!({
@@ -189,6 +284,23 @@ impl qobject::Controller {
         };
 
         q(&breaks_json(s.script_pages()))
+    }
+
+    pub(super) fn script_outline_json(mut self: Pin<&mut Self>) -> QString {
+        let Some(s) = self.as_mut().session() else {
+            return q("[]");
+        };
+
+        q(&outline_json(s.script_text(), s.script_pages()))
+    }
+
+    pub(super) fn move_outline(mut self: Pin<&mut Self>, line: i32, way: &QString) -> QString {
+        let Some(s) = self.as_mut().session() else {
+            return QString::default();
+        };
+        let line = usize::try_from(line).unwrap_or_default();
+
+        q(&move_json(s.script_text(), line, &way.to_string()))
     }
 
     pub(super) fn enter_step(
@@ -267,7 +379,10 @@ impl qobject::Controller {
 
 #[cfg(test)]
 mod tests {
-    use super::{breaks_json, enter_json, kinds_text, looks_json, print_json, tab_json};
+    use super::{
+        breaks_json, enter_json, kinds_text, looks_json, move_json, outline_json, print_json,
+        tab_json,
+    };
 
     /// Enter at the end of a heading opens an action after a blank line; at the end of a cue
     /// the dialogue right below; in the middle of a line it is a plain break.
@@ -397,5 +512,90 @@ mod tests {
         assert_eq!(v["letters"]["blank"], " ");
         assert_eq!(v["letters"]["action"], "a");
         assert_eq!(v["letters"]["heading"], "h");
+    }
+
+    const BOOK: &str = "# Akt I\n\n= Es beginnt.\n\nINT. SAAL - TAG\n\nSie kommt an.\n\nEXT. HOF - NACHT\n\nEr geht.\n";
+
+    fn span(line: usize, eighths: usize, length: &str) -> SceneSpan {
+        SceneSpan {
+            line,
+            page: 1,
+            eighths,
+            length: length.into(),
+        }
+    }
+
+    /// The outline lists section, synopsis and scenes in text order; a section's length is the
+    /// total of its scenes.
+    #[test]
+    fn outline_lists_the_tree_with_lengths() {
+        let pages = ScriptPages {
+            breaks: vec![],
+            scenes: vec![span(4, 4, "4/8"), span(8, 5, "5/8")],
+            pages: 1,
+            eighths: 9,
+            minutes: 1.0,
+            length: "1 1/8".into(),
+        };
+
+        let v: serde_json::Value = serde_json::from_str(&outline_json(BOOK, Some(&pages))).unwrap();
+        let kinds: Vec<_> = v
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|e| e["kind"].clone())
+            .collect();
+        assert_eq!(kinds, ["section", "synopsis", "scene", "scene"]);
+        assert_eq!(v[0]["level"], 1);
+        assert_eq!(v[0]["text"], "Akt I");
+        assert_eq!(v[0]["length"], "1 1/8");
+        assert_eq!(v[2]["line"], 4);
+        assert_eq!(v[2]["depth"], 1);
+        assert_eq!(v[3]["length"], "5/8");
+
+        let none: serde_json::Value = serde_json::from_str(&outline_json(BOOK, None)).unwrap();
+        assert_eq!(none[0]["length"], "");
+        assert_eq!(none[2]["length"], "");
+    }
+
+    /// Typing since the layout changed the scene count: lengths are found by heading line.
+    #[test]
+    fn outline_matches_a_stale_layout_by_line() {
+        let pages = ScriptPages {
+            breaks: vec![],
+            scenes: vec![span(8, 5, "5/8")],
+            pages: 1,
+            eighths: 5,
+            minutes: 1.0,
+            length: "5/8".into(),
+        };
+
+        let v: serde_json::Value = serde_json::from_str(&outline_json(BOOK, Some(&pages))).unwrap();
+        assert_eq!(v[2]["length"], "");
+        assert_eq!(v[3]["length"], "5/8");
+        assert_eq!(v[0]["length"], "5/8");
+    }
+
+    /// A scene moves down past its neighbour; the answer names the lines to replace and where
+    /// the block stands then. A last scene, a synopsis and a way that is none do not move.
+    #[test]
+    fn a_move_names_the_lines_to_replace() {
+        let v: serde_json::Value = serde_json::from_str(&move_json(BOOK, 4, "down")).unwrap();
+        assert_eq!(v["from"], 4);
+        assert_eq!(v["to"], 11);
+        assert_eq!(v["line"], 8);
+        let lines: Vec<_> = v["lines"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|l| l.as_str().unwrap())
+            .collect();
+        assert_eq!(lines[0], "EXT. HOF - NACHT");
+        assert_eq!(lines[4], "INT. SAAL - TAG");
+
+        assert_eq!(move_json(BOOK, 8, "down"), "");
+        assert_eq!(move_json(BOOK, 2, "up"), "");
+        assert_eq!(move_json(BOOK, 4, "left"), "");
+        assert_eq!(move_json(BOOK, 3, "up"), "");
     }
 }
