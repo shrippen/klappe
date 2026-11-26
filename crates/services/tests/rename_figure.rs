@@ -5,7 +5,7 @@
 use std::path::{Path, PathBuf};
 
 use klappe_model::{Character, FigureColor, Project, Scene};
-use klappe_services::{Field, OnOutside, ServiceError, Session};
+use klappe_services::{Field, OnOutside, ProjectEdit, ServiceError, Session};
 
 const BOOK: &str = "INT. SAAL – TAG #1#\n\nANNA\nHallo.\n\nANNI\nLange her.\n\n\
 BERT\nIch bin nicht Anna.\n\nANNA (V.O.)\nNoch einmal.\n\n@Anni ^\nUnd noch einmal.\n\n";
@@ -24,6 +24,10 @@ fn character(id: &str, name: &str, aliases: &[&str]) -> Character {
 
 /// A saved project: Anna (also called ANNI) and Bert.
 fn make(name: &str) -> PathBuf {
+    make_book(name, BOOK)
+}
+
+fn make_book(name: &str, book: &str) -> PathBuf {
     let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join(name);
     let _ = std::fs::remove_dir_all(&dir);
     let mut project = Project::new("Test");
@@ -37,7 +41,7 @@ fn make(name: &str) -> PathBuf {
         heading: "INT. SAAL – TAG".into(),
         ..Scene::default()
     }];
-    klappe_store::save(&dir, &project, Some(BOOK)).unwrap();
+    klappe_store::save(&dir, &project, Some(book)).unwrap();
 
     dir
 }
@@ -201,4 +205,77 @@ fn links_from_the_plans_to_the_script_stay_valid() {
         (cue.text.as_str(), cue.character.as_str()),
         ("ELISE", "elisabeth")
     );
+}
+
+/// The same rename by the form's edit: the rules hold for both ways.
+fn edit_name(name: &str) -> ProjectEdit {
+    ProjectEdit::EditCharacter {
+        id: "anna".into(),
+        name: name.into(),
+        short: "AN".into(),
+        color: FigureColor::Green,
+        group: None,
+        size_m: None,
+        aliases: None,
+    }
+}
+
+fn is_name_error(err: ServiceError) -> bool {
+    matches!(
+        err,
+        ServiceError::BadValue {
+            field: Field::Name,
+            ..
+        }
+    )
+}
+
+/// A cue the book asks about stays unknown: no rename takes it silently.
+#[test]
+fn a_name_the_book_asks_about_is_refused() {
+    let book = "INT. SAAL – TAG #1#\n\nANNA\nHallo.\n\nEVA\nIch bin jemand anderes.\n\n";
+    let mut s = Session::open(&make_book("rename-fig-pending", book)).unwrap();
+    assert_eq!(s.pending_figures()[0].name, "EVA");
+
+    assert!(is_name_error(s.rename_figure("Anna", "Eva").unwrap_err()));
+    assert!(is_name_error(s.edit_project(edit_name("Eva")).unwrap_err()));
+
+    assert_eq!(s.script_text(), book);
+    assert_eq!(s.pending_figures().len(), 1);
+}
+
+#[test]
+fn the_figures_own_other_name_is_refused() {
+    let mut s = Session::open(&make("rename-fig-own-alias")).unwrap();
+
+    assert!(is_name_error(s.rename_figure("Anna", "Anni").unwrap_err()));
+    assert!(is_name_error(
+        s.edit_project(edit_name("Anni")).unwrap_err()
+    ));
+    assert!(!s.can_undo());
+}
+
+/// The new cue must read as a cue of the new name: `Ext. Agentin` would read as a heading and
+/// is forced with `@`; `Anna (jung)` reads as a cue with an extension in any spelling.
+#[test]
+fn a_name_that_would_not_read_as_a_cue_is_forced_or_refused() {
+    let mut s = Session::open(&make("rename-fig-reads")).unwrap();
+
+    assert!(is_name_error(
+        s.rename_figure("Anna", "Anna (jung)").unwrap_err()
+    ));
+    assert!(is_name_error(
+        s.edit_project(edit_name("Anna (jung)")).unwrap_err()
+    ));
+    assert_eq!(s.script_text(), BOOK);
+
+    s.rename_figure("Anna", "Ext. Agentin").unwrap();
+    assert!(s.script_text().contains("@EXT. AGENTIN\nHallo."));
+    assert!(s.pending_figures().is_empty());
+    assert_eq!(s.project().scenes.len(), 1);
+
+    s.undo();
+    s.edit_project(edit_name("Ext. Agentin")).unwrap();
+    assert!(s.script_text().contains("@EXT. AGENTIN (V.O.)"));
+    assert!(s.pending_figures().is_empty());
 }

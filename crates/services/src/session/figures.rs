@@ -1,7 +1,7 @@
 //! The characters against the book (DB-50): the cues no character answers to, and the user's
 //! answer for each.
 
-use klappe_model::Project;
+use klappe_model::{same_character_name, Project};
 
 use super::outside::FIGURES_FILE;
 use super::questions::Answered;
@@ -9,8 +9,11 @@ use super::undo::AnswerDelta;
 use super::Session;
 use crate::answer_way::Way;
 use crate::error::ServiceError;
+use crate::field::Field;
 use crate::figure_file::{self, FigureDelta};
 use crate::figures::{self, FigureChoice, PendingFigure};
+use crate::project_edit::ProjectEdit;
+use crate::script_refs;
 
 /// Undo step of `resolve_figure`.
 pub(super) const RESOLVE_STEP: &str = "ResolveFigure";
@@ -122,6 +125,37 @@ impl Session {
         self.rebase(FIGURES_FILE, before)?;
 
         Ok(Answered::Step)
+    }
+
+    /// Refuses the new name of an `EditCharacter` that the book would read wrongly: a cue the
+    /// book still asks about (the rename would assign it silently, DB-50), one of the
+    /// character's own other names, one that cannot be a cue (`Anna (jung)`).
+    pub(super) fn check_figure_name(&self, edit: &ProjectEdit) -> Result<(), ServiceError> {
+        let ProjectEdit::EditCharacter {
+            id, name, aliases, ..
+        } = edit
+        else {
+            return Ok(());
+        };
+        let name = name.trim();
+        let own = |alias: &String| same_character_name(alias, name);
+        // A new list is checked against the name when it is set.
+        let own_alias = match (aliases, self.project.character(id)) {
+            (None, Some(character)) => character.aliases.iter().any(own),
+            _ => false,
+        };
+        let asked = self
+            .pending_figures
+            .iter()
+            .any(|p| same_character_name(&p.name, name));
+        if !asked && !own_alias && script_refs::can_be_cue(name) {
+            return Ok(());
+        }
+
+        Err(ServiceError::BadValue {
+            field: Field::Name,
+            value: name.to_owned(),
+        })
     }
 
     /// Refuses an alias for a character the file had when the session last read it and has

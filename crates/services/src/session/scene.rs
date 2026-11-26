@@ -125,6 +125,7 @@ impl Session {
         self.check_location_use(&edit)?;
         self.check_sheet_character(&edit)?;
         self.check_cast_number(&edit)?;
+        self.check_figure_name(&edit)?;
         self.check_scene_look(&edit)?;
         let step = project_step(&edit);
         let mut next = self.project.clone();
