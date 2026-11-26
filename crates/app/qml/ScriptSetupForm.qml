@@ -37,7 +37,7 @@ ColumnLayout {
         const next = Object.assign({}, script)
         next[key] = value
         return controller.setScriptSetup(next.language, next.words, next.paper,
-            next.contd_after_action, next.scene_numbering, next.first_scene)
+            next.contd_after_action ? "on" : "off", next.scene_numbering, next.first_scene)
     }
 
     spacing: Kirigami.Units.smallSpacing

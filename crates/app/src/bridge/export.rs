@@ -267,9 +267,9 @@ impl qobject::Controller {
     pub(super) fn export_script(
         mut self: Pin<&mut Self>,
         paper: &QString,
-        numbers: bool,
-        header: bool,
-        revisions: bool,
+        numbers: &QString,
+        header: &QString,
+        revisions: &QString,
         path: &QString,
     ) -> bool {
         let language = self.rust().language;
@@ -281,30 +281,24 @@ impl qobject::Controller {
             return false;
         };
 
-        // The paper stays in the project, as the plan's does; an unknown one is the project's.
-        let mut setup = s.project().script;
-        setup.paper = ScriptPaper::from_name(&paper.to_string()).unwrap_or(setup.paper);
-        s.set_script_setup(setup);
-
+        // An unknown paper is the project's.
+        let paper = ScriptPaper::from_name(&paper.to_string()).unwrap_or(s.project().script.paper);
         let print = ScriptPrint {
-            scene_numbers: if numbers {
-                SceneNumbers::Shown
-            } else {
-                SceneNumbers::Hidden
+            scene_numbers: match numbers.to_string().as_str() {
+                "shown" => SceneNumbers::Shown,
+                _ => SceneNumbers::Hidden,
             },
-            header: if header {
-                HeaderLine::Title
-            } else {
-                HeaderLine::Off
+            header: match header.to_string().as_str() {
+                "title" => HeaderLine::Title,
+                _ => HeaderLine::Off,
             },
             language,
-            revisions: if revisions {
-                Revisions::On
-            } else {
-                Revisions::Off
+            revisions: match revisions.to_string().as_str() {
+                "on" => Revisions::On,
+                _ => Revisions::Off,
             },
         };
-        let result = s.export_script_pdf(&path, &print);
+        let result = s.export_script_on(&path, &print, paper);
         let ok = result.is_ok();
         let message = match result {
             Ok(()) => language

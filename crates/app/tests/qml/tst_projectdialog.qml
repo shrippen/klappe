@@ -705,6 +705,6 @@ TestCase {
         compare(findChild(form, "paperBox").currentIndex, 1)
 
         findChild(form, "paperBox").activated(0)
-        compare(fake.calls, [["setScriptSetup", "de", "local", "a4", false, "locked", 1]])
+        compare(fake.calls, [["setScriptSetup", "de", "local", "a4", "off", "locked", 1]])
     }
 }

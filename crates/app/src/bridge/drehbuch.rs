@@ -249,7 +249,7 @@ impl qobject::Controller {
         language: &QString,
         words: &QString,
         paper: &QString,
-        contd: bool,
+        contd: &QString,
         numbering: &QString,
         first: i32,
     ) -> bool {
@@ -263,7 +263,7 @@ impl qobject::Controller {
             language: ScriptLanguage::from_name(&language.to_string()),
             words: ScriptWords::from(words.to_string()),
             paper: ScriptPaper::from(paper.to_string()),
-            contd_after_action: contd,
+            contd_after_action: contd.to_string() == "on",
             scene_numbering: SceneNumbering::from(numbering.to_string()),
             first_scene: u32::try_from(first).unwrap_or(current.first_scene),
         };

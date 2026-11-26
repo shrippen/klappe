@@ -73,7 +73,7 @@ TestCase {
         dialog.revisions = false
         dialog.save("file:///work/Mein Drehbuch.pdf")
 
-        compare(fake.calls, [["exportScript", "a4", false, true, false, "file:///work/Mein Drehbuch.pdf"]])
+        compare(fake.calls, [["exportScript", "a4", "hidden", "title", "off", "file:///work/Mein Drehbuch.pdf"]])
     }
 
     function test_the_folder_stays_for_the_next_suggestion() {
@@ -107,11 +107,29 @@ TestCase {
         verify(marks.checked)
 
         dialog.save("file:///work/A.pdf")
-        compare(fake.calls[0][4], true)
+        compare(fake.calls[0][4], "on")
 
         dialog.versions = 0
         verify(!marks.visible)
         dialog.save("file:///work/B.pdf")
-        compare(fake.calls[1][4], false)
+        compare(fake.calls[1][4], "off")
+    }
+
+    // Choosing another paper and cancelling must not leave it as the start of the next opening.
+    function test_the_paper_starts_from_the_projects_again() {
+        const dialog = make()
+        dialog.request()
+        tryCompare(dialog, "opened", true)
+        const paper = findChild(dialog.contentItem, "paper")
+
+        paper.select(0)
+        compare(dialog.paper, "a4")
+        dialog.close()
+        tryCompare(dialog, "opened", false)
+
+        dialog.request()
+        tryCompare(dialog, "opened", true)
+        compare(dialog.paper, "letter")
+        compare(paper.currentIndex, 1)
     }
 }

@@ -57,7 +57,8 @@ FormDialog {
     // The file was chosen: remembers the folder and writes.
     function save(url) {
         dialog.folder = url.substring(0, url.lastIndexOf("/"))
-        return controller.exportScript(paper, numbers, headerLine, revisions && versions > 0, url)
+        return controller.exportScript(paper, numbers ? "shown" : "hidden", headerLine ? "title" : "off",
+            revisions && versions > 0 ? "on" : "off", url)
     }
 
     submit: function () {
@@ -70,7 +71,12 @@ FormDialog {
         objectName: "paper"
         model: dialog.papers.map(p => p.label)
         currentIndex: dialog.papers.findIndex(p => p.id === dialog.paper)
-        onActivated: index => dialog.paper = dialog.papers[index].id
+        onActivated: index => {
+            dialog.paper = dialog.papers[index].id
+            // The segment control assigns its index and so drops the binding; the next
+            // opening would show the paper chosen last time, not the project's.
+            currentIndex = Qt.binding(() => dialog.papers.findIndex(p => p.id === dialog.paper))
+        }
     }
     KanteSwitch {
         objectName: "numbers"

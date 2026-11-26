@@ -5,8 +5,8 @@
 use std::path::{Path, PathBuf};
 
 use klappe_services::{
-    HeaderLine, Language, Revisions, SceneNumbering, SceneNumbers, ScriptLanguage, ScriptPaper,
-    ScriptPrint, ScriptSetup, ScriptWords, ServiceError, Session,
+    HeaderLine, Language, Numbering, ProjectEdit, Revisions, SceneNumbering, SceneNumbers,
+    ScriptLanguage, ScriptPaper, ScriptPrint, ScriptSetup, ScriptWords, ServiceError, Session,
 };
 
 const PRINT: ScriptPrint = ScriptPrint {
@@ -300,4 +300,53 @@ fn german_words_may_be_international() {
     .unwrap();
 
     assert_eq!(s.project().script.words, ScriptWords::International);
+}
+
+/// The setup is a setting like the plan's paper: undo and redo of an edit keep it, the
+/// numbering that is on disk included.
+#[test]
+fn undo_and_redo_keep_the_script_setup() {
+    let mut s = session("pages-undo", &scene(1, 3));
+    let dir = s.dir().to_path_buf();
+
+    s.edit_project(ProjectEdit::SetNumbering {
+        numbering: Numbering::Camera,
+    })
+    .unwrap();
+    s.choose_script_setup(ScriptSetup {
+        paper: ScriptPaper::Letter,
+        scene_numbering: SceneNumbering::Locked,
+        first_scene: 7,
+        ..ScriptSetup::default()
+    })
+    .unwrap();
+    let chosen = s.project().script;
+
+    s.undo();
+    assert_eq!(s.project().script, chosen);
+    s.redo();
+    assert_eq!(s.project().script, chosen);
+
+    // Nothing was written back from the old state: the file has the numbering chosen.
+    s.undo();
+    s.save(klappe_services::OnOutside::Overwrite).unwrap();
+    let on_disk = Session::open(&dir).unwrap().project().script;
+    assert_eq!(on_disk.first_scene, 7);
+    assert_eq!(on_disk.scene_numbering, SceneNumbering::Locked);
+}
+
+/// A paper chosen for the output becomes the project's only when the file was written.
+#[test]
+fn a_refused_output_keeps_the_papers_of_the_project() {
+    let mut s = session("pages-paper-refused", "");
+    let path = out("pages-paper-refused.pdf");
+
+    let none = s.export_script_on(&path, &PRINT, ScriptPaper::Letter);
+    assert!(matches!(none, Err(ServiceError::NoScript)));
+    assert_eq!(s.project().script.paper, ScriptPaper::A4);
+
+    s.set_script_text(&scene(1, 3));
+    s.export_script_on(&path, &PRINT, ScriptPaper::Letter)
+        .unwrap();
+    assert_eq!(s.project().script.paper, ScriptPaper::Letter);
 }

@@ -22,7 +22,7 @@ TestCase {
 
         function setScriptSetup(language, words, paper, contd, numbering, first) {
             calls.push([language, words, paper, contd, numbering, first])
-            script = { language: language, words: words, paper: paper, contd_after_action: contd,
+            script = { language: language, words: words, paper: paper, contd_after_action: contd === "on",
                        scene_numbering: numbering, first_scene: first }
             return true
         }
@@ -73,9 +73,9 @@ TestCase {
         findChild(form, "languageBox").activated(1)
 
         compare(fake.calls, [
-            ["de", "local", "letter", false, "locked", 1],
-            ["de", "international", "letter", false, "locked", 1],
-            ["en", "international", "letter", false, "locked", 1]
+            ["de", "local", "letter", "off", "locked", 1],
+            ["de", "international", "letter", "off", "locked", 1],
+            ["en", "international", "letter", "off", "locked", 1]
         ])
     }
 
@@ -86,7 +86,7 @@ TestCase {
         box.toggle()
         box.toggled()
 
-        compare(fake.calls, [["de", "local", "a4", true, "locked", 1]])
+        compare(fake.calls, [["de", "local", "a4", "on", "locked", 1]])
     }
 
     // The words are German ones: only a German project chooses.
@@ -111,8 +111,8 @@ TestCase {
         first.valueModified()
 
         compare(fake.calls, [
-            ["de", "local", "a4", false, "automatic", 1],
-            ["de", "local", "a4", false, "automatic", 12]
+            ["de", "local", "a4", "off", "automatic", 1],
+            ["de", "local", "a4", "off", "automatic", 12]
         ])
     }
 

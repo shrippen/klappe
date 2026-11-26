@@ -990,17 +990,18 @@ pub mod qobject {
         #[cxx_name = "reportFile"]
         fn report_file(self: Pin<&mut Self>, report: &QString) -> QString;
 
-        /// Writes the screenplay as PDF to `path` (DB-70) on the project's `paper` (`a4`,
-        /// `letter`, kept in the project, no undo step), with the scene numbers, the header
-        /// line and the revision marks (DB-41) as asked; the result goes to `status`.
+        /// Writes the screenplay as PDF to `path` (DB-70) on `paper` (`a4`,
+        /// `letter`; the project keeps it once the file is written), with the scene `numbers`
+        /// (`shown`, `hidden`), the `header` line (`title`, `off`) and the `revisions` marks
+        /// (DB-41; `on`, `off`) as asked; the result goes to `status`.
         #[qinvokable]
         #[cxx_name = "exportScript"]
         fn export_script(
             self: Pin<&mut Self>,
             paper: &QString,
-            numbers: bool,
-            header: bool,
-            revisions: bool,
+            numbers: &QString,
+            header: &QString,
+            revisions: &QString,
             path: &QString,
         ) -> bool;
 
@@ -1012,7 +1013,7 @@ pub mod qobject {
 
         /// Sets how the screenplay is paged and numbered (`[script]` of the project; `Overview.script`
         /// shows it): `language` (`de`, `en`, empty for not chosen), `words` (`local`,
-        /// `international`), `paper`, `contd` ("(CONT'D) after action"), `numbering` (`automatic`,
+        /// `international`), `paper`, `contd` ("(CONT'D) after action"; `on`, `off`), `numbering` (`automatic`,
         /// `locked`) and the number of the `first` scene. The paper and the rest are no undo step.
         /// False if refused.
         #[qinvokable]
@@ -1022,7 +1023,7 @@ pub mod qobject {
             language: &QString,
             words: &QString,
             paper: &QString,
-            contd: bool,
+            contd: &QString,
             numbering: &QString,
             first: i32,
         ) -> bool;

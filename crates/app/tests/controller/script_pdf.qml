@@ -41,12 +41,15 @@ Item {
                 return root.fail("the file offered is " + ctl.scriptFile())
             }
 
-            if (ctl.exportScript("a4", true, false, false, base + "/Leer.pdf") || size(base + "/Leer.pdf") !== -1) {
+            if (ctl.exportScript("letter", "shown", "off", "off", base + "/Leer.pdf") || size(base + "/Leer.pdf") !== -1) {
                 return root.fail("a project without screenplay wrote a PDF")
+            }
+            if (script().paper !== "a4") {
+                return root.fail("a refused output changed the paper: " + ctl.projectJson)
             }
 
             ctl.editScript("INT. SAAL - TAG\n\nAnna tritt ein.\n")
-            if (!ctl.exportScript("letter", true, true, false, base + "/Buch Ärger")) {
+            if (!ctl.exportScript("letter", "shown", "title", "off", base + "/Buch Ärger")) {
                 return root.fail("export failed: " + ctl.status)
             }
             if (size(base + "/Buch Ärger.pdf") <= 0) {
@@ -60,7 +63,7 @@ Item {
             }
 
             // Typing the name without the extension does not replace the file under it.
-            if (ctl.exportScript("a4", true, true, false, base + "/Buch Ärger")) {
+            if (ctl.exportScript("a4", "shown", "title", "off", base + "/Buch Ärger")) {
                 return root.fail("export over an existing file by typing its name reported success")
             }
             if (script().paper !== "letter") {
@@ -68,7 +71,7 @@ Item {
             }
 
             // The form: the setup is kept whole, English words are never international.
-            if (!ctl.setScriptSetup("de", "international", "a4", true, "automatic", 5)) {
+            if (!ctl.setScriptSetup("de", "international", "a4", "on", "automatic", 5)) {
                 return root.fail("the setup was refused: " + ctl.status)
             }
             let kept = script()
@@ -76,7 +79,7 @@ Item {
                     || kept.scene_numbering !== "automatic" || kept.first_scene !== 5) {
                 return root.fail("the setup is not kept: " + JSON.stringify(kept))
             }
-            if (!ctl.setScriptSetup("en", "international", "a4", true, "automatic", 5)) {
+            if (!ctl.setScriptSetup("en", "international", "a4", "on", "automatic", 5)) {
                 return root.fail("the english setup was refused: " + ctl.status)
             }
             if (script().words !== "local" || script().language !== "en") {

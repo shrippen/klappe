@@ -8,7 +8,7 @@ use crate::catalog::Language;
 use crate::error::ServiceError;
 use crate::script_pages::{lay_out, ScriptPages, ScriptPrint, Source};
 use klappe_export::SheetPage;
-use klappe_model::{ScriptLanguage, ScriptSetup, ScriptWords};
+use klappe_model::{ScriptLanguage, ScriptPaper, ScriptSetup, ScriptWords};
 
 /// Whether `paginate_if_changed` laid the screenplay out.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -136,6 +136,27 @@ impl Session {
         );
 
         klappe_export::script_sheet_pages(&sheet)
+    }
+
+    /// `export_script_pdf` on `paper`, which becomes the project's once the file is written:
+    /// a refused output (no screenplay, a file that cannot be written) leaves the project as
+    /// it was.
+    pub fn export_script_on(
+        &mut self,
+        path: &Path,
+        print: &ScriptPrint,
+        paper: ScriptPaper,
+    ) -> Result<(), ServiceError> {
+        let (before, changed) = (self.project.script, self.project_changed);
+        self.set_script_setup(ScriptSetup { paper, ..before });
+
+        let result = self.export_script_pdf(path, print);
+        if result.is_err() {
+            self.project.script = before;
+            self.project_changed = changed;
+        }
+
+        result
     }
 
     /// Writes the screenplay as PDF (DB-70) after laying it out again, so the pages are the
