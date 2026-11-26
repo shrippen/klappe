@@ -6,133 +6,113 @@ use crate::field::Field;
 use crate::session::OutsideFile;
 
 /// The service's error in the given language; details (path, value) appended where they help.
+///
+/// One arm for every variant and no catch-all: a new error does not build until it has its
+/// text here.
 pub fn error_text(language: Language, error: &ServiceError) -> String {
-    if let ServiceError::NoDecision(_) = error {
-        return language.text("error.noDecision");
-    }
-    if let ServiceError::NoPlaceAnswer(_) = error {
-        return language.text("error.noPlaceAnswer");
-    }
+    let with = |key: &str, pairs: &[(&str, &str)]| fill(language, key, pairs);
+    let named = |key: &str, id: &str| fill(language, key, &[("{detail}", id)]);
+    let plain = |key: &str| language.text(key);
 
-    // Wraps another error: its text first, then where the old example copy went.
-    let ServiceError::ExampleAside { aside, source } = error else {
-        return own_text(language, error);
-    };
-
-    language
-        .text("error.exampleAside")
-        .replace("{reason}", &error_text(language, source))
-        .replace("{aside}", &aside.to_string_lossy())
-}
-
-/// The text key and id of a lookup that found nothing.
-fn missing(error: &ServiceError) -> Option<(&'static str, String)> {
-    let found = match error {
-        ServiceError::NoScene(id) => ("error.noScene", id),
-        ServiceError::NoPlan(id) => ("error.noPlan", id),
-        ServiceError::NoShot(id) => ("error.noShot", id),
-        ServiceError::NoLocation(id) => ("error.noLocation", id),
-        ServiceError::NoCharacter(id) => ("error.noCharacter", id),
-        ServiceError::NoElement(id) => ("error.noElement", id),
-        ServiceError::NoPerson(id) => ("error.noPerson", id),
-        ServiceError::NoVersion(id) => ("error.noVersion", id),
-        ServiceError::NoDialogue(name) => ("error.noDialogue", name),
-        ServiceError::NoLook(id) => ("error.noLook", id),
-        ServiceError::NotLookElement(id) => ("error.notLookElement", id),
-        ServiceError::BadFdx(why) => ("error.badFdx", why),
-        _ => return None,
-    };
-
-    Some((found.0, found.1.clone()))
-}
-
-/// The text key and name of a refused character name (e.g. one the book still asks about).
-fn refused_name(error: &ServiceError) -> Option<(&'static str, String)> {
-    let found = match error {
-        ServiceError::NameUnchanged(name) => ("error.nameUnchanged", name),
-        ServiceError::NameAsked(name) => ("error.nameAsked", name),
-        ServiceError::NameIsOwnAlias(name) => ("error.nameIsOwnAlias", name),
-        ServiceError::NameNotCue(name) => ("error.nameNotCue", name),
-        _ => return None,
-    };
-
-    Some((found.0, found.1.clone()))
-}
-
-/// A number already in use: a shot's (e.g. "12.3") or a role's cast number; a version's name.
-fn taken_text(language: Language, error: &ServiceError) -> Option<String> {
-    if let ServiceError::VersionNameTaken(name) = error {
-        return Some(
-            language
-                .text("error.versionNameTaken")
-                .replace("{name}", name),
-        );
-    }
-
-    let (key, number) = match error {
-        ServiceError::CastNumberTaken(number) => ("error.castNumberTaken", number.to_string()),
-        ServiceError::NumberTaken(number) => ("error.numberTaken", number.clone()),
-        _ => return None,
-    };
-
-    Some(language.text(key).replace("{number}", &number))
-}
-
-fn own_text(language: Language, error: &ServiceError) -> String {
-    if let Some((key, id)) = missing(error).or_else(|| refused_name(error)) {
-        return language.text(key).replace("{detail}", &id);
-    }
-    if let Some(text) = taken_text(language, error) {
-        return text;
-    }
-
-    let (key, detail) = match error {
-        ServiceError::NotEmpty(path) => ("error.notEmpty", path.to_string_lossy().into_owned()),
-        ServiceError::CameraInUse { camera, shot } => {
-            return language
-                .text("error.cameraInUse")
-                .replace("{camera}", camera)
-                .replace("{shot}", shot);
-        }
+    match error {
+        ServiceError::NoScene(id) => named("error.noScene", id),
+        ServiceError::NoPlan(id) => named("error.noPlan", id),
+        ServiceError::NoShot(id) => named("error.noShot", id),
+        ServiceError::NoLocation(id) => named("error.noLocation", id),
+        ServiceError::NoCharacter(id) => named("error.noCharacter", id),
+        ServiceError::NoElement(id) => named("error.noElement", id),
+        ServiceError::NoPerson(id) => named("error.noPerson", id),
+        ServiceError::NoVersion(id) => named("error.noVersion", id),
+        ServiceError::NoDialogue(name) => named("error.noDialogue", name),
+        ServiceError::NoLook(id) => named("error.noLook", id),
+        ServiceError::NotLookElement(id) => named("error.notLookElement", id),
+        ServiceError::BadFdx(why) => named("error.badFdx", why),
+        ServiceError::NameUnchanged(name) => named("error.nameUnchanged", name),
+        ServiceError::NameAsked(name) => named("error.nameAsked", name),
+        ServiceError::NameIsOwnAlias(name) => named("error.nameIsOwnAlias", name),
+        ServiceError::NameNotCue(name) => named("error.nameNotCue", name),
+        ServiceError::NotEmpty(path) => named("error.notEmpty", &path.to_string_lossy()),
+        ServiceError::NoDecision(_) => plain("error.noDecision"),
+        ServiceError::NoPlaceAnswer(_) => plain("error.noPlaceAnswer"),
+        ServiceError::VersionNameTaken(name) => with("error.versionNameTaken", &[("{name}", name)]),
+        ServiceError::PlanNameTaken(name) => with("error.planNameTaken", &[("{name}", name)]),
+        ServiceError::CastNumberTaken(number) => with(
+            "error.castNumberTaken",
+            &[("{number}", &number.to_string())],
+        ),
+        ServiceError::NumberTaken(number) => with("error.numberTaken", &[("{number}", number)]),
+        ServiceError::CameraInUse { camera, shot } => with(
+            "error.cameraInUse",
+            &[("{camera}", camera), ("{shot}", shot)],
+        ),
         ServiceError::LocationInUse { scenes, .. } => {
-            return language
-                .text("error.locationInUse")
-                .replace("{count}", &scenes.to_string());
+            with("error.locationInUse", &[("{count}", &scenes.to_string())])
         }
         ServiceError::PlaceInUse { headings } => {
-            return language
-                .text("error.placeInUse")
-                .replace("{count}", &headings.to_string());
+            with("error.placeInUse", &[("{count}", &headings.to_string())])
         }
         ServiceError::CharacterInUse { plans, .. } => {
-            return language
-                .text("error.characterInUse")
-                .replace("{count}", &plans.to_string());
+            with("error.characterInUse", &[("{count}", &plans.to_string())])
         }
         ServiceError::PlanHasShots { shots, .. } => {
-            return language
-                .text("error.planHasShots")
-                .replace("{count}", &shots.to_string());
-        }
-        ServiceError::PlanNameTaken(name) => {
-            return language.text("error.planNameTaken").replace("{name}", name);
+            with("error.planHasShots", &[("{count}", &shots.to_string())])
         }
         ServiceError::Locked(layer) => {
             let name = language.text(&format!("layer.{}", layer.name()));
-            return language.text("error.locked").replace("{layer}", &name);
+            with("error.locked", &[("{layer}", &name)])
         }
-        ServiceError::BadValue { field, value } => return bad_value(language, field, value),
-        ServiceError::Store(e) => store_text(language, e),
-        ServiceError::Export(e) => (export_key(e), e.to_string()),
+        ServiceError::BadValue { field, value } => bad_value(language, field, value),
+        ServiceError::Store(e) => {
+            let (key, detail) = store_text(language, e);
+            named(key, &detail)
+        }
+        ServiceError::Export(e) => named(export_key(e), &e.to_string()),
         // The path and why the system refused, e.g. "/a/b.pdf: Datei fehlt".
-        ServiceError::Write { path, source } => (
-            "error.write",
-            format!("{}: {}", path.display(), io_reason(language, source)),
+        ServiceError::Write { path, source } => {
+            let why = format!("{}: {}", path.display(), io_reason(language, source));
+            named("error.write", &why)
+        }
+        // Wraps another error: its text first, then where the old example copy went.
+        ServiceError::ExampleAside { aside, source } => with(
+            "error.exampleAside",
+            &[
+                ("{reason}", &error_text(language, source)),
+                ("{aside}", &aside.to_string_lossy()),
+            ],
         ),
-        other => (plain_key(other).unwrap_or_default(), String::new()),
-    };
+        ServiceError::Gone => plain("error.gone"),
+        ServiceError::NoFreeCamera => plain("error.noFreeCamera"),
+        ServiceError::NotShot => plain("error.notShot"),
+        ServiceError::NoCamera => plain("error.noCamera"),
+        ServiceError::NoBackup => plain("error.noBackup"),
+        ServiceError::EmptyLibrary => plain("error.emptyLibrary"),
+        ServiceError::EmptyTemplate => plain("error.emptyTemplate"),
+        ServiceError::NoMarks => plain("error.noMarks"),
+        ServiceError::NoDuration => plain("error.noDuration"),
+        ServiceError::Cancelled => plain("error.cancelled"),
+        ServiceError::NoPicture => plain("error.noPicture"),
+        ServiceError::NoScript => plain("error.noScript"),
+        ServiceError::NoChangedPages => plain("error.noChangedPages"),
+        ServiceError::NoLockedPages => plain("error.noLockedPages"),
+        ServiceError::NoBookScenes => plain("error.noBookScenes"),
+        ServiceError::NoPages => plain("error.noPages"),
+        ServiceError::LastPlan(_) => plain("error.lastPlan"),
+        ServiceError::FewPoints => plain("error.fewPoints"),
+        ServiceError::NotCopyable => plain("error.notCopyable"),
+        ServiceError::NoVersions => plain("error.noVersions"),
+        ServiceError::EmptyVersionName => plain("error.versionNameEmpty"),
+        ServiceError::VersionCamera(_) => plain("error.versionCamera"),
+    }
+}
 
-    language.text(key).replace("{detail}", &detail)
+/// The text of `key` with each placeholder of `pairs` replaced, e.g. `{count}` by "3".
+fn fill(language: Language, key: &str, pairs: &[(&str, &str)]) -> String {
+    let mut text = language.text(key);
+    for (placeholder, value) in pairs {
+        text = text.replace(placeholder, value);
+    }
+
+    text
 }
 
 /// A store error: a merge conflict and the format versions have their own text, naming the
@@ -204,85 +184,6 @@ fn bad_value(language: Language, field: &Field, value: &str) -> String {
         .text(key)
         .replace("{field}", &name)
         .replace("{value}", value)
-}
-
-/// The catalogue key of an error that has no detail to add.
-fn plain_key(error: &ServiceError) -> Option<&'static str> {
-    match error {
-        ServiceError::Gone => Some("error.gone"),
-        ServiceError::NoFreeCamera => Some("error.noFreeCamera"),
-        ServiceError::NotShot => Some("error.notShot"),
-        ServiceError::NoCamera => Some("error.noCamera"),
-        ServiceError::NoBackup => Some("error.noBackup"),
-        ServiceError::EmptyLibrary => Some("error.emptyLibrary"),
-        ServiceError::EmptyTemplate => Some("error.emptyTemplate"),
-        ServiceError::NoMarks
-        | ServiceError::NoDuration
-        | ServiceError::Cancelled
-        | ServiceError::NoPicture
-        | ServiceError::NoScript
-        | ServiceError::NoChangedPages
-        | ServiceError::NoLockedPages
-        | ServiceError::NoBookScenes
-        | ServiceError::NoPages => nothing_key(error),
-        ServiceError::LastPlan(_) => Some("error.lastPlan"),
-        ServiceError::FewPoints => Some("error.fewPoints"),
-        ServiceError::NotCopyable => Some("error.notCopyable"),
-        ServiceError::NoVersions => Some("error.noVersions"),
-        ServiceError::EmptyVersionName => Some("error.versionNameEmpty"),
-        ServiceError::VersionCamera(_) => Some("error.versionCamera"),
-        // Listed so a new variant must be placed: `error_text` words these itself.
-        ServiceError::NoScene(_)
-        | ServiceError::NoDecision(_)
-        | ServiceError::NoPlaceAnswer(_)
-        | ServiceError::NoPlan(_)
-        | ServiceError::NoShot(_)
-        | ServiceError::NoLocation(_)
-        | ServiceError::NoCharacter(_)
-        | ServiceError::NameUnchanged(_)
-        | ServiceError::NameAsked(_)
-        | ServiceError::NameIsOwnAlias(_)
-        | ServiceError::NameNotCue(_)
-        | ServiceError::NoElement(_)
-        | ServiceError::NoPerson(_)
-        | ServiceError::NoVersion(_)
-        | ServiceError::NoDialogue(_)
-        | ServiceError::VersionNameTaken(_)
-        | ServiceError::CastNumberTaken(_)
-        | ServiceError::NoLook(_)
-        | ServiceError::NotLookElement(_)
-        | ServiceError::BadFdx(_)
-        | ServiceError::NotEmpty(_)
-        | ServiceError::CameraInUse { .. }
-        | ServiceError::NumberTaken(_)
-        | ServiceError::LocationInUse { .. }
-        | ServiceError::PlaceInUse { .. }
-        | ServiceError::CharacterInUse { .. }
-        | ServiceError::PlanHasShots { .. }
-        | ServiceError::PlanNameTaken(_)
-        | ServiceError::Locked(_)
-        | ServiceError::BadValue { .. }
-        | ServiceError::ExampleAside { .. }
-        | ServiceError::Store(_)
-        | ServiceError::Export(_)
-        | ServiceError::Write { .. } => None,
-    }
-}
-
-/// The key of an error that says an output has nothing to write.
-fn nothing_key(error: &ServiceError) -> Option<&'static str> {
-    match error {
-        ServiceError::NoMarks => Some("error.noMarks"),
-        ServiceError::NoDuration => Some("error.noDuration"),
-        ServiceError::Cancelled => Some("error.cancelled"),
-        ServiceError::NoPicture => Some("error.noPicture"),
-        ServiceError::NoScript => Some("error.noScript"),
-        ServiceError::NoChangedPages => Some("error.noChangedPages"),
-        ServiceError::NoLockedPages => Some("error.noLockedPages"),
-        ServiceError::NoBookScenes => Some("error.noBookScenes"),
-        ServiceError::NoPages => Some("error.noPages"),
-        _ => None,
-    }
 }
 
 /// The kinds of `files` as words, each once, in the order they first come ("Drehbuch, Pläne").
@@ -676,9 +577,9 @@ mod tests {
         }
     }
 
-    #[test]
-    fn every_error_kind_has_a_text_in_both_languages() {
-        let errors = [
+    /// The errors without a detail to word, and the ones that wrap another.
+    fn bare_errors() -> Vec<ServiceError> {
+        vec![
             ServiceError::NoScene("s".to_owned()),
             ServiceError::NoDecision("s".to_owned()),
             ServiceError::NoShot("x".to_owned()),
@@ -728,6 +629,12 @@ mod tests {
             ServiceError::Export(klappe_export::ExportError::Video("x".into())),
             ServiceError::Export(klappe_export::ExportError::ZipTooBig),
             ServiceError::Export(klappe_export::ExportError::EmptyPlan),
+        ]
+    }
+
+    /// The errors that name an id, a number, a count or a path.
+    fn named_errors() -> Vec<ServiceError> {
+        vec![
             ServiceError::NoPlaceAnswer(1),
             ServiceError::NoPlan("p".to_owned()),
             ServiceError::NoPerson("p".to_owned()),
@@ -772,7 +679,12 @@ mod tests {
             ServiceError::Store(klappe_store::StoreError::ImageName {
                 name: "x".to_owned(),
             }),
-        ];
+        ]
+    }
+
+    #[test]
+    fn every_error_kind_has_a_text_in_both_languages() {
+        let errors: Vec<_> = bare_errors().into_iter().chain(named_errors()).collect();
 
         for error in &errors {
             for language in [Language::German, Language::English] {
