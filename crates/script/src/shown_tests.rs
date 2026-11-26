@@ -80,12 +80,12 @@ fn typed(source: &str, text: &str) -> String {
     edit_line(source, shown.kind, shown.shape, &ALL, text, &[])
 }
 
-/// Every line of `source` shown and written again. The first count is the lines written in
-/// another way, the second those that then read as another kind of line: a mark around
-/// nothing (`__>`) is not text and cannot be written.
-fn round_trip(source: &str) -> (usize, usize) {
+/// Every line of `source` shown and written again; the count is the lines written in another
+/// way. Every line and its neighbours must read as the kind they were.
+fn round_trip(source: &str) -> usize {
     let lines: Vec<&str> = source.split('\n').collect();
-    let (mut changed, mut moved) = (0, 0);
+    let kinds = text_kinds(source);
+    let mut changed = 0;
 
     for (at, shown) in shown_lines(source, &ALL).iter().enumerate() {
         let again = same_again(lines[at], shown.kind, shown);
@@ -97,29 +97,26 @@ fn round_trip(source: &str) -> (usize, usize) {
         changed += 1;
         let mut edited = lines.clone();
         edited[at] = &again;
-        let after = shown_lines(&edited.join("\n"), &ALL).remove(at);
         let said = format!("{:?} -> {again:?} in {source:?}", lines[at]);
-        if after.kind != shown.kind {
-            moved += 1;
-            continue;
-        }
+        assert_eq!(text_kinds(&edited.join("\n")), kinds, "{said}");
+        let after = shown_lines(&edited.join("\n"), &ALL).remove(at);
         assert_eq!(after.text, shown.text, "{said}");
         assert_eq!(after.runs, shown.runs, "{said}");
         assert_eq!(after.notes, shown.notes, "{said}");
         assert_eq!(after.number, shown.number, "{said}");
     }
 
-    (changed, moved)
+    changed
 }
 
 #[test]
 fn every_line_of_the_example_comes_back() {
-    assert_eq!(round_trip(EXAMPLE), (0, 0));
+    assert_eq!(round_trip(EXAMPLE), 0);
 }
 
 #[test]
 fn a_canonical_screenplay_comes_back_unchanged() {
-    assert_eq!(round_trip(CANON), (0, 0));
+    assert_eq!(round_trip(CANON), 0);
 }
 
 #[test]
@@ -390,22 +387,16 @@ impl Gen {
 #[test]
 fn fuzz_a_line_without_change_reads_the_same() {
     let mut gen = Gen(1);
-    let (mut changed, mut moved, mut lines) = (0, 0, 0);
+    let (mut changed, mut lines) = (0, 0);
 
     for _ in 0..SEEDS {
         let source = gen.text();
         lines += source.split('\n').count();
-        let (more, other) = round_trip(&source);
-        changed += more;
-        moved += other;
+        changed += round_trip(&source);
     }
 
     // Only a line with marks around nothing or marks that touch is written differently.
     assert!(changed * 50 < lines, "{changed} of {lines} lines changed");
-    assert!(
-        moved * 100 < lines,
-        "{moved} of {lines} lines changed their kind"
-    );
 }
 
 const WORDS: [&str; 4] = ["Anna", "ÄÖÜ", "🎬", " "];
@@ -438,11 +429,20 @@ fn fuzz_an_edit_changes_only_its_line() {
             assert_eq!(line, &lines[i], "line {i} of {source:?}");
         }
 
-        let after = shown_lines(&edited.join("\n"), &ALL).remove(at);
+        let all_after = shown_lines(&edited.join("\n"), &ALL);
+        let after = all_after[at].clone();
         if after.kind != one.kind || after.shape != one.shape {
             moved += 1;
             continue;
         }
+        // The lines around it read as they did.
+        let kinds = |l: &[ShownLine]| l.iter().map(|s| s.kind).collect::<Vec<_>>();
+        assert_eq!(
+            kinds(&all_after),
+            kinds(&shown),
+            "{:?} -> {new:?} in {source:?}",
+            lines[at]
+        );
         // The number, the notes and the forcing mark of the line stay.
         let texts = |l: &ShownLine| l.notes.iter().map(|n| n.text.clone()).collect::<Vec<_>>();
         assert_eq!(after.number, one.number, "{:?} -> {new:?}", lines[at]);
@@ -628,4 +628,61 @@ fn every_choice_of_what_to_hide_comes_back() {
             assert_eq!(&again, line, "{hide:?}");
         }
     }
+}
+
+// --- a written line reads as the kind it was ---
+
+/// The line `source` with `text` typed in, then the whole text read again: the kinds, and the
+/// shown text of the line.
+fn kinds_after(source: &str, below: &str, text: &str) -> (Vec<TextKind>, String) {
+    let shown = shown_one(source);
+    let new = edit_line(source, shown.kind, shown.shape, &ALL, text, &[]);
+    let all = format!("{new}{below}");
+    let read = shown_lines(&all, &ALL);
+
+    (read.iter().map(|s| s.kind).collect(), read[0].text.clone())
+}
+
+#[test]
+fn a_line_stays_what_it_was_when_its_marks_go() {
+    use TextKind::*;
+    let cases = [
+        ("*!* ist wichtig.", "! ist wichtig.", "", vec![Action]),
+        ("*#1* Hit", "#1 Hit", "", vec![Action]),
+        ("*>* Hallo", "> Hallo", "", vec![Action]),
+        ("*INT.* KÜCHE", "INT. KÜCHE", "", vec![Action]),
+        ("__>Text", ">Text!", "", vec![Action]),
+        ("__!INT.", "!INT.", "\nhallo", vec![Character, Dialogue]),
+    ];
+
+    for (source, text, below, kinds) in cases {
+        let (read, shown) = kinds_after(source, below, text);
+
+        assert_eq!(read, kinds, "{source:?}");
+        assert_eq!(shown, text, "{source:?}");
+    }
+}
+
+#[test]
+fn a_typed_start_may_change_the_kind() {
+    let (read, _) = kinds_after("Es ist spät.", "", "INT. SAAL - TAG");
+
+    assert_eq!(read, [TextKind::Heading]);
+}
+
+#[test]
+fn a_long_line_with_two_far_changes_is_quick() {
+    let word = "Anna geht *langsam* über den Hof. ";
+    let line = word.repeat(12000 / word.len());
+    let shown = shown_one(&line);
+    let mut text = shown.text.clone();
+    text.replace_range(0..4, "Eva");
+    let end = text.len() - 10;
+    text.replace_range(end..end + 4, "Eve");
+
+    let start = std::time::Instant::now();
+    let new = edit_line(&line, shown.kind, shown.shape, &ALL, &text, &shown.runs);
+
+    assert!(start.elapsed().as_secs() < 2, "{:?}", start.elapsed());
+    assert_eq!(shown_one(&new).text, text);
 }

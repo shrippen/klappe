@@ -25,6 +25,8 @@ use crate::parse::{
 use crate::{text_kinds, Marks, Run, Splice, TextKind};
 
 const SLASH: char = '/';
+/// Most cells of the table that pairs two texts; a longer middle pairs only the equal ends.
+const MAX_TABLE: usize = 4_000_000;
 
 /// What the editor leaves out of the text of a line; what a line does not hide stays in the
 /// text as typed. Step by step the editor hides more.
@@ -377,7 +379,7 @@ pub(crate) fn edit(
         };
     }
 
-    rewrite(old, &split, &before, &after, &marks, hide)
+    rewrite(old, &split, &before, &after, &marks, (kind, hide))
 }
 
 /// The line `old` written again for the text `after` with `marks`.
@@ -387,7 +389,7 @@ fn rewrite(
     before: &Body,
     after: &[char],
     marks: &[Marks],
-    hide: &[Hide],
+    (kind, hide): (TextKind, &[Hide]),
 ) -> String {
     let pairs = pairs(&before.chars, after);
     let escaped: Vec<bool> = pairs
@@ -420,23 +422,91 @@ fn rewrite(
         body.ends_with(char::is_whitespace) && tail.starts_with(|c: char| !c.is_whitespace());
     let gap = if apart { " " } else { "" };
 
-    format!("{}{body}{gap}{tail}", &old[..split.start])
+    let line = format!("{}{body}{gap}{tail}", &old[..split.start]);
+
+    // Marks that went from the start of the line hid what would make it another element.
+    let start_same = after.is_empty() || pairs.first() == Some(&Some(0));
+    let marked_start = before.cols[0] > split.start;
+    match hide.contains(&Hide::Forcing) && start_same && marked_start {
+        true => keep_kind(line, split.start, (kind, after.iter().collect(), hide)),
+        false => line,
+    }
+}
+
+/// The character that forces a line to be of `kind`, where Fountain has one.
+fn forcing_char(kind: TextKind) -> Option<char> {
+    match kind {
+        TextKind::Action => Some(FORCE_ACTION),
+        TextKind::Character => Some(FORCE_CHARACTER),
+        TextKind::Heading => Some(FORCE_HEADING),
+        TextKind::Transition => Some(FORCE_TRANSITION),
+        TextKind::Lyrics => Some(LYRICS),
+        _ => None,
+    }
+}
+
+/// `line` with the forcing character of `kind` at `start` if it reads as another kind or
+/// shows another text than `text`: a cue has a line of speech below it, anything else stands
+/// alone.
+///
+/// Example: `*!* ist wichtig.` without its marks is `! ist wichtig.`, which prints without
+/// the `!`; `!! ist wichtig.` prints it.
+fn keep_kind(
+    line: String,
+    start: usize,
+    (kind, text, hide): (TextKind, String, &[Hide]),
+) -> String {
+    let context = match kind {
+        TextKind::Character => format!("{line}\nx"),
+        _ => line.clone(),
+    };
+    let read = &shown_lines(&context, hide)[0];
+    let reads_as = read.kind == kind && read.text == text;
+    let Some(force) = forcing_char(kind).filter(|_| !reads_as) else {
+        return line;
+    };
+
+    format!("{}{force}{}", &line[..start], &line[start..])
 }
 
 /// For each character of `new` the character of `old` it is, or none for a new one: the
 /// characters both texts share in a longest common subsequence, so a change in two places
 /// keeps what lies between.
 fn pairs(old: &[char], new: &[char]) -> Vec<Option<usize>> {
+    let head = old.iter().zip(new).take_while(|(a, b)| a == b).count();
+    let tail = old[head..]
+        .iter()
+        .rev()
+        .zip(new[head..].iter().rev())
+        .take_while(|(a, b)| a == b)
+        .count();
+    let mut pairs: Vec<Option<usize>> = vec![None; new.len()];
+
+    // Between equal ends a table pairs the rest; a long middle costs too much for it.
+    let middle = (old.len() - head - tail) * (new.len() - head - tail);
+    if middle > MAX_TABLE {
+        for (at, pair) in pairs.iter_mut().enumerate().take(head) {
+            *pair = Some(at);
+        }
+        for back in 1..=tail {
+            pairs[new.len() - back] = Some(old.len() - back);
+        }
+
+        return pairs;
+    }
+
     let keys = |text: &[char]| text.iter().map(char::to_string).collect::<Vec<_>>();
     let (removed, added) = unpaired(&keys(old), &keys(new));
-    let mut kept = (0..old.len()).filter(|at| !removed.contains(at));
+    let (mut gone, mut new_one) = (vec![false; old.len()], vec![false; new.len()]);
+    removed.iter().for_each(|&at| gone[at] = true);
+    added.iter().for_each(|&at| new_one[at] = true);
 
-    (0..new.len())
-        .map(|at| match added.contains(&at) {
-            true => None,
-            false => kept.next(),
-        })
-        .collect()
+    let mut kept = (0..old.len()).filter(|&at| !gone[at]);
+    for (pair, _) in pairs.iter_mut().zip(&new_one).filter(|(_, new)| !**new) {
+        *pair = kept.next();
+    }
+
+    pairs
 }
 
 /// The notes of `before` in the new text of `len` characters: a note stays before the
