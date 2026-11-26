@@ -707,3 +707,88 @@ fn random_runs_keep_their_text_and_count_lost_style() {
         assert!(!blank_run_lost || lost > 0, "{runs:?}");
     }
 }
+
+/// Kinds whose text Klappe shows as it stands, with the paragraph type of each.
+const RAW_KINDS: [(&str, &str); 3] = [
+    ("Scene Heading", "INT. HAUS [1987] B_RO *2* \\ 3"),
+    ("Character", "MAX_M *[V.O.]* \\ X"),
+    ("Transition", "CUT_TO *[1]* \\"),
+];
+
+#[test]
+fn heading_cue_and_transition_keep_their_text() {
+    for (kind, text) in RAW_KINDS {
+        let xml = one_paragraph(kind, &format!("<Text>{text}</Text>"));
+        let script = read(&xml).unwrap();
+
+        let shown = match &script.elements[0] {
+            Element::SceneHeading { text, .. } | Element::Transition(text) => text.clone(),
+            Element::Character { name, .. } => name.clone(),
+            other => panic!("{other:?}"),
+        };
+        assert_eq!(shown, text, "{kind}");
+    }
+}
+
+#[test]
+fn heading_cue_and_transition_read_through_fountain() {
+    for (kind, text) in RAW_KINDS {
+        let xml = one_paragraph(kind, &format!("<Text>{text}</Text>"));
+        let script = read(&xml).unwrap();
+
+        let again = parse(&write(&script));
+
+        assert_eq!(again.elements, script.elements, "{kind}");
+    }
+}
+
+#[test]
+fn raw_kinds_keep_their_text_through_fdx() {
+    for (kind, text) in RAW_KINDS {
+        let xml = one_paragraph(kind, &format!("<Text>{text}</Text>"));
+        let script = read(&xml).unwrap();
+
+        let (written, loss) = write_fdx(&script);
+
+        assert_eq!(read(&written).unwrap().elements, script.elements, "{kind}");
+        assert_eq!(loss, FdxLoss::default(), "{kind}");
+    }
+}
+
+#[test]
+fn a_name_that_fountain_would_force_stays_a_cue() {
+    for name in ["@MAX", ".MAX", "!MAX", ">MAX", "~MAX"] {
+        let xml = one_paragraph("Character", &format!("<Text>{name}</Text>"));
+        let script = read(&xml).unwrap();
+
+        assert_eq!(parse(&write(&script)).elements, script.elements, "{name}");
+    }
+}
+
+#[test]
+fn a_heading_that_fountain_would_misread_stays_a_heading() {
+    for text in ["@INT. HAUS", "= INT. HAUS"] {
+        let xml = one_paragraph("Scene Heading", &format!("<Text>{text}</Text>"));
+        let script = read(&xml).unwrap();
+
+        assert_eq!(parse(&write(&script)).elements, script.elements, "{text}");
+    }
+}
+
+#[test]
+fn a_style_on_a_heading_or_a_name_is_counted() {
+    let runs = [
+        ("Scene Heading", "<Text Style=\"Bold\">INT. HAUS</Text>"),
+        ("Character", "<Text Style=\"Underline\">MAX</Text>"),
+        (
+            "Transition",
+            "<Text Style=\"Italic\">CUT</Text><Text>X</Text>",
+        ),
+    ];
+
+    for (kind, runs) in runs {
+        let (_, loss) = read_fdx(&one_paragraph(kind, runs)).unwrap();
+
+        assert_eq!(loss.styles, 1, "{kind}");
+    }
+}

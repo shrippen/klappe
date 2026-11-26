@@ -6,7 +6,7 @@ use crate::fdx::{
     self, paragraphs, FdxLoss, ALIGNMENT, CENTER, CONTENT, DUAL, KEY, NEW_PAGE, NUMBER, RIGHT,
     ROOT, TEXT, TITLE_PAGE, TYPE, YES,
 };
-use crate::fdx_marks::marked_text;
+use crate::fdx_marks::{marked_text, Reading};
 use crate::xml::{parse_xml, FdxError, Node};
 use crate::{Element, Script};
 
@@ -85,13 +85,18 @@ fn read_paragraph(par: &Node, dual: bool, out: &mut Out) {
         out.elements.push(Element::PageBreak);
     }
 
-    let text = marked_text(par, &mut out.styles);
+    let kind = par.attr(TYPE).unwrap_or_default();
+    let reading = match kind {
+        fdx::HEADING | fdx::CHARACTER | fdx::TRANSITION => Reading::Literal,
+        _ => Reading::Inline,
+    };
+    let text = marked_text(par, reading, &mut out.styles);
     let text = text.trim();
     if text.is_empty() {
         return;
     }
 
-    let element = match par.attr(TYPE).unwrap_or_default() {
+    let element = match kind {
         fdx::HEADING => Element::SceneHeading {
             text: text.to_owned(),
             number: par
