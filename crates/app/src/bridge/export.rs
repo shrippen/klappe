@@ -8,8 +8,8 @@ use cxx_qt::{CxxQtType, Threading};
 use cxx_qt_lib::QString;
 use klappe_services::error_text;
 use klappe_services::{
-    ExportFormat, ExportOptions, HeaderLine, Laid, PaperSetup, Report, ReportFormat, SceneNumbers,
-    ScriptPaper, ScriptPrint, Session, ShotOrder, Source, Texts, FFMPEG,
+    ExportFormat, ExportOptions, HeaderLine, Laid, PaperSetup, Report, ReportFormat, Revisions,
+    SceneNumbers, ScriptPaper, ScriptPrint, Session, ShotOrder, Source, Texts, FFMPEG,
 };
 use std::ops::ControlFlow;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -269,6 +269,7 @@ impl qobject::Controller {
         paper: &QString,
         numbers: bool,
         header: bool,
+        revisions: bool,
         path: &QString,
     ) -> bool {
         let language = self.rust().language;
@@ -297,6 +298,11 @@ impl qobject::Controller {
                 HeaderLine::Off
             },
             language,
+            revisions: if revisions {
+                Revisions::On
+            } else {
+                Revisions::Off
+            },
         };
         let result = s.export_script_pdf(&path, &print);
         let ok = result.is_ok();

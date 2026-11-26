@@ -6,8 +6,7 @@ use std::path::{Path, PathBuf};
 
 use klappe_services::{
     HeaderLine, Language, Revisions, SceneNumbering, SceneNumbers, ScriptLanguage, ScriptPaper,
-    ScriptPrint,
-    ScriptSetup, ScriptWords, ServiceError, Session,
+    ScriptPrint, ScriptSetup, ScriptWords, ServiceError, Session,
 };
 
 const PRINT: ScriptPrint = ScriptPrint {

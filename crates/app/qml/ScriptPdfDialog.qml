@@ -20,6 +20,10 @@ FormDialog {
     property string paper: "a4"
     property bool numbers: true
     property bool headerLine: false
+    /// Mark the revisions (DB-41); asked only while a version is locked, else never sent.
+    property bool revisions: true
+    /// How many versions are locked; the switch shows from one.
+    property int versions: 0
     /// The folder of the last output, as a `file://` URL; empty before the first one.
     property string folder: ""
 
@@ -53,7 +57,7 @@ FormDialog {
     // The file was chosen: remembers the folder and writes.
     function save(url) {
         dialog.folder = url.substring(0, url.lastIndexOf("/"))
-        return controller.exportScript(paper, numbers, headerLine, url)
+        return controller.exportScript(paper, numbers, headerLine, revisions && versions > 0, url)
     }
 
     submit: function () {
@@ -79,6 +83,13 @@ FormDialog {
         text: dialog.texts.t("script.header")
         checked: dialog.headerLine
         onToggled: dialog.headerLine = checked
+    }
+    KanteSwitch {
+        objectName: "revisions"
+        visible: dialog.versions > 0
+        text: dialog.texts.t("script.revisions")
+        checked: dialog.revisions
+        onToggled: dialog.revisions = checked
     }
 
     // The file dialog is a window of its own; without a window manager nobody hands the keys

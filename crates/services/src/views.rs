@@ -474,6 +474,8 @@ pub struct Overview {
     pub script: ScriptRow,
     /// The papers the screenplay can be paged for, as `a4`; the labels are those of `papers`.
     pub script_papers: Vec<&'static str>,
+    /// How many versions of the screenplay are locked (DB-40).
+    pub script_versions: usize,
 }
 
 /// One element of the breakdown with the scenes that need it.

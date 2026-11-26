@@ -375,6 +375,7 @@ RowLayout {
         controller: header.controller
         papers: (header.project.papers || []).filter(p => (header.project.script_papers || []).includes(p.id))
         projectPaper: header.project.script ? header.project.script.paper : ""
+        versions: header.project.script_versions || 0
     }
 
     ExportDialog {

@@ -41,12 +41,12 @@ Item {
                 return root.fail("the file offered is " + ctl.scriptFile())
             }
 
-            if (ctl.exportScript("a4", true, false, base + "/Leer.pdf") || size(base + "/Leer.pdf") !== -1) {
+            if (ctl.exportScript("a4", true, false, false, base + "/Leer.pdf") || size(base + "/Leer.pdf") !== -1) {
                 return root.fail("a project without screenplay wrote a PDF")
             }
 
             ctl.editScript("INT. SAAL - TAG\n\nAnna tritt ein.\n")
-            if (!ctl.exportScript("letter", true, true, base + "/Buch Ärger")) {
+            if (!ctl.exportScript("letter", true, true, false, base + "/Buch Ärger")) {
                 return root.fail("export failed: " + ctl.status)
             }
             if (size(base + "/Buch Ärger.pdf") <= 0) {
@@ -60,7 +60,7 @@ Item {
             }
 
             // Typing the name without the extension does not replace the file under it.
-            if (ctl.exportScript("a4", true, true, base + "/Buch Ärger")) {
+            if (ctl.exportScript("a4", true, true, false, base + "/Buch Ärger")) {
                 return root.fail("export over an existing file by typing its name reported success")
             }
             if (script().paper !== "letter") {

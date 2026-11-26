@@ -179,6 +179,7 @@ impl Session {
             numbers_locked: project.team.numbers_locked,
             script: ScriptRow::from(&project.script),
             script_papers: ScriptPaper::ALL.map(ScriptPaper::name).into(),
+            script_versions: self.versions().len(),
         }
     }
 

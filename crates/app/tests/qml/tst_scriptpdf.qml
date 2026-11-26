@@ -20,8 +20,8 @@ TestCase {
 
         function clearStatus() {}
         function scriptFile() { return "file:///work/Wartburg.pdf" }
-        function exportScript(paper, numbers, header, path) {
-            calls.push(["exportScript", paper, numbers, header, path])
+        function exportScript(paper, numbers, header, revisions, path) {
+            calls.push(["exportScript", paper, numbers, header, revisions, path])
             return true
         }
     }
@@ -35,6 +35,7 @@ TestCase {
             controller: fake
             papers: [{ id: "a4", label: "A4" }, { id: "letter", label: "Letter" }]
             projectPaper: "letter"
+            versions: 1
         }
     }
 
@@ -69,9 +70,10 @@ TestCase {
         findChild(dialog.contentItem, "paper").activated(0)
         dialog.numbers = false
         dialog.headerLine = true
+        dialog.revisions = false
         dialog.save("file:///work/Mein Drehbuch.pdf")
 
-        compare(fake.calls, [["exportScript", "a4", false, true, "file:///work/Mein Drehbuch.pdf"]])
+        compare(fake.calls, [["exportScript", "a4", false, true, false, "file:///work/Mein Drehbuch.pdf"]])
     }
 
     function test_the_folder_stays_for_the_next_suggestion() {
@@ -92,5 +94,24 @@ TestCase {
         dialog.close()
 
         compare(fake.calls, [])
+    }
+
+    // DB-41: the switch is for a project with a locked version, on by default; without one
+    // nothing is marked, whatever the switch was.
+    function test_revisions_are_asked_only_with_a_locked_version() {
+        const dialog = make()
+        dialog.request()
+        tryCompare(dialog, "opened", true)
+        const marks = findChild(dialog.contentItem, "revisions")
+        verify(marks.visible)
+        verify(marks.checked)
+
+        dialog.save("file:///work/A.pdf")
+        compare(fake.calls[0][4], true)
+
+        dialog.versions = 0
+        verify(!marks.visible)
+        dialog.save("file:///work/B.pdf")
+        compare(fake.calls[1][4], false)
     }
 }

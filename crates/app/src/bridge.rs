@@ -984,8 +984,8 @@ pub mod qobject {
         fn report_file(self: Pin<&mut Self>, report: &QString) -> QString;
 
         /// Writes the screenplay as PDF to `path` (DB-70) on the project's `paper` (`a4`,
-        /// `letter`, kept in the project, no undo step), with the scene numbers and the header
-        /// line as asked; the result goes to `status`.
+        /// `letter`, kept in the project, no undo step), with the scene numbers, the header
+        /// line and the revision marks (DB-41) as asked; the result goes to `status`.
         #[qinvokable]
         #[cxx_name = "exportScript"]
         fn export_script(
@@ -993,6 +993,7 @@ pub mod qobject {
             paper: &QString,
             numbers: bool,
             header: bool,
+            revisions: bool,
             path: &QString,
         ) -> bool;
 
