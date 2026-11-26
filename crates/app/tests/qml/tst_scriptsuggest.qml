@@ -37,6 +37,7 @@ TestCase {
         }
         function tabStep(line, kind) { return "" }
         function typedCaps(text, at, pending) { return "" }
+        function titleFields(text) { return JSON.stringify({ "Title": "", "Credit": "", "Author": "", "Source": "", "Draft date": "", "Contact": "" }) }
         function scriptSpeakers(text) { return "[]" }
         function sameFigureName(a, b) { return a === b }
         function scriptLooks() {
