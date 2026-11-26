@@ -167,3 +167,40 @@ fn a_version_is_removed_and_the_next_colour_follows_the_last() {
         .collect();
     assert_eq!(colours, ["Blue", "Pink"]);
 }
+
+#[test]
+fn changed_pages_need_a_version_and_a_change() {
+    let dir = project("cli-changed-pages");
+    let out = Path::new(env!("CARGO_TARGET_TMPDIR")).join("cli-changed-pages.pdf");
+    let _ = std::fs::remove_file(&out);
+    let args = [
+        "script-pdf",
+        "--changed-pages",
+        "--out",
+        out.to_str().unwrap(),
+    ];
+
+    let early = cli(&args, &dir);
+    assert!(!early.status.success());
+    assert!(String::from_utf8_lossy(&early.stderr).contains("no locked version"));
+
+    stdout(&cli(&["lock-version", "--name", "Drehfassung"], &dir));
+    let same = cli(&args, &dir);
+    assert!(!same.status.success());
+    assert!(String::from_utf8_lossy(&same.stderr).contains("No page has changed"));
+    assert!(!out.exists());
+
+    let mut s = Session::open(&dir).unwrap();
+    let text = s
+        .script_text()
+        .replace("Alpha geht durch den Raum und tut Ding 1.", "Alpha ruht.");
+    s.set_script_text(&text);
+    s.save(klappe_services::OnOutside::Ask).unwrap();
+
+    stdout(&cli(&args, &dir));
+    let pdf = String::from_utf8_lossy(&std::fs::read(&out).unwrap()).into_owned();
+    assert!(
+        pdf.contains("(*) Tj") && pdf.contains("(Blue Revision"),
+        "{pdf}"
+    );
+}

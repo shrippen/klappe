@@ -4,7 +4,7 @@
 //! meant differently.
 
 use klappe_model::{same_character_name, Character, Project, Scene};
-use klappe_script::{parse, parse_located, Element, Located};
+use klappe_script::{parse, parse_located, Element, Located, FORCE_CHARACTER};
 use serde::Serialize;
 
 const NUMBER_MARK: char = '#';
@@ -265,6 +265,23 @@ fn scene_lines(
         .collect()
 }
 
+/// Whether the line, with a dialogue under it, reads as a cue of `name`, not as a heading or
+/// a cue of another name (`Anna (jung)` is `Anna` with an extension).
+fn reads_as_cue(line: &str, name: &str) -> bool {
+    let probe = format!("{}\nx\n", line.trim_end());
+
+    matches!(
+        parse(&probe).elements.first(),
+        Some(Element::Character { name: n, .. }) if same_character_name(n, name)
+    )
+}
+
+/// Whether `name` can be a cue at all, forced with `@` if need be: `Anna (jung)` cannot, it
+/// reads as `Anna` with the extension `jung` in any spelling.
+pub(crate) fn can_be_cue(name: &str) -> bool {
+    reads_as_cue(&format!("{FORCE_CHARACTER}{name}"), name)
+}
+
 fn mark(number: &str) -> String {
     format!("{NUMBER_MARK}{number}{NUMBER_MARK}")
 }
@@ -309,9 +326,14 @@ fn cue_lines(project: &Project, text: &str, id: &str, name: &str) -> Vec<LineCha
         if to == *cue {
             continue;
         }
-        let Some(new_line) = lines.get(line).and_then(|raw| replace_once(raw, cue, &to)) else {
+        let Some(mut new_line) = lines.get(line).and_then(|raw| replace_once(raw, cue, &to)) else {
             continue;
         };
+        // `Ext. Agentin` would read as a heading: forced with `@`, as a heading with `.`.
+        if !reads_as_cue(&new_line, &to) {
+            let indent = new_line.len() - new_line.trim_start().len();
+            new_line.insert(indent, FORCE_CHARACTER);
+        }
         changes.push(LineChange {
             line,
             kind: ChangeKind::Cue,

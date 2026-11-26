@@ -40,6 +40,7 @@ mod script_refs;
 mod session;
 mod sheet_time;
 mod shot_edit;
+mod sides;
 mod start;
 mod sun_input;
 mod templates;

@@ -598,6 +598,10 @@
  "field.power": "Power (W)",
  "field.temp": "Colour temperature (K)",
  "error.noCharacter": "Character not found: {detail}",
+ "error.nameUnchanged": "The character is called that already: {detail}",
+ "error.nameAsked": "The book asks about {detail}; assign it in the book dialog.",
+ "error.nameIsOwnAlias": "{detail} is already another name of this character.",
+ "error.nameNotCue": "{detail} cannot be a cue.",
  "error.noElement": "Element not found: {detail}",
  "error.noLook": "Look not found: {detail}",
  "error.notLookElement": "Only costume and make-up belong to a look: {detail}",
@@ -1479,6 +1483,9 @@
  "export.filter.report.xlsx": "XLSX (*.xlsx)",
  "error.noVersion": "Version not found: {detail}",
  "error.noVersions": "There is no locked version yet.",
+ "error.noChangedPages": "No page has changed since the locked version.",
+ "error.noLockedPages": "The version has no locked pages; print the whole book.",
+ "error.noDialogue": "Character without dialogue: {detail}",
  "error.versionNameEmpty": "A version needs a name.",
  "error.versionNameTaken": "There is already a version called \"{name}\".",
  "revision.header": "{color} Revision · {date}",
@@ -1499,5 +1506,7 @@
  "versions.none": "No locked versions.",
  "cli.versionLocked": "Locked version \"{name}\" ({color}, {date})",
  "cli.lockConflict": "The script or the register changed outside; nothing locked",
- "cli.versionRemoved": "Removed version {id}"
+ "cli.versionRemoved": "Removed version {id}",
+ "cli.figureRenamed": "“{from}” is now “{to}” (cues changed: {count})",
+ "cli.renameConflict": "The screenplay or the register was changed outside; nothing renamed"
 }
