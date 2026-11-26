@@ -185,6 +185,22 @@ TestCase {
         compare(view.doc.lineStart(0), 0)
     }
 
+    // The page marks follow the text without a new layout: the binding reads the text.
+    function test_the_page_marks_follow_the_text() {
+        const view = make()
+        fake.pages = { pages: 2, breaks: [{ page: 2, label: "2", line: 1 }], scenes: [] }
+        view.readLayout()
+
+        view.doc.load("a\nb")
+        compare(view.marks[0].at, 2)
+        view.doc.load("aaaa\nb")
+        compare(view.marks[0].at, 5)
+        view.doc.insert(0, "xx")
+        compare(view.marks[0].at, 7)
+        view.doc.load("abc")
+        compare(view.marks[0].at, -1)
+    }
+
     // Where a line starts, at and past the end of the text: the jump lands at the end of the
     // text for a line the text does not have; a page break there has no place (-1).
     function test_the_ends_of_the_text_for_a_line() {
