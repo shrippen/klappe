@@ -241,11 +241,22 @@ pub(crate) struct Seen {
     pub marks: Marks,
     /// A backslash stood before it in the line: `\*` is the text `*`.
     pub escaped: bool,
+    pub is_mark: bool,
 }
 
 /// The characters of a line as a reader sees them, like `visible_runs` but one by one. A note
 /// (and a `/*` that the parser left) stays as typed, marks and backslashes included.
 pub(crate) fn seen_chars(line: &str) -> Vec<Seen> {
+    let mut all = all_chars(line);
+    all.retain(|seen| !seen.is_mark);
+
+    all
+}
+
+/// Every character of a line with what the reader makes of it; `is_mark` tells the ones that
+/// only open or close an emphasis or protect a character (`*`, `_`, `\`), which the reader
+/// does not say.
+pub(crate) fn all_chars(line: &str) -> Vec<Seen> {
     let chars: Vec<(usize, char)> = line.char_indices().collect();
     let scan = scan(line, false);
     let plain: Vec<char> = chars.iter().map(|(_, c)| *c).collect();
@@ -254,21 +265,17 @@ pub(crate) fn seen_chars(line: &str) -> Vec<Seen> {
     chars
         .iter()
         .enumerate()
-        .filter_map(|(i, &(at, ch))| {
+        .map(|(i, &(at, ch))| {
             let marks = scan.marks[i];
             let typed = marks.note || marks.boneyard;
-            if !typed && (scan.toggles[i] || escapes[i]) {
-                return None;
-            }
 
-            let escaped = i > 0 && escapes[i - 1];
-
-            Some(Seen {
+            Seen {
                 ch,
                 at,
                 marks,
-                escaped,
-            })
+                escaped: i > 0 && escapes[i - 1],
+                is_mark: !typed && (scan.toggles[i] || escapes[i]),
+            }
         })
         .collect()
 }

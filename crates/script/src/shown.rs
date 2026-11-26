@@ -16,7 +16,8 @@
 
 use std::ops::Range;
 
-use crate::inline::{runs, seen_chars, NOTE_BRACKET, UNDERLINE};
+use crate::inline::{all_chars, runs, NOTE_BRACKET, UNDERLINE};
+use crate::lcs::unpaired;
 use crate::parse::{
     boneyard_lines, split_number, CENTER_END, DUAL_MARK, ESCAPE, FORCE_ACTION, FORCE_CHARACTER,
     FORCE_HEADING, FORCE_TRANSITION, LYRICS, NOTE_CLOSE, NOTE_OPEN, NUMBER_MARK, STAR,
@@ -24,6 +25,23 @@ use crate::parse::{
 use crate::{text_kinds, Marks, Run, Splice, TextKind};
 
 const SLASH: char = '/';
+
+/// What the editor leaves out of the text of a line; what a line does not hide stays in the
+/// text as typed. Step by step the editor hides more.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Hide {
+    /// The marks of emphasis (`*`, `_`) and the backslash of `\*`.
+    Emphasis,
+    /// The character that forces an element (`.`, `!`, `@`, `~`, `>`) and the `^` or `<`
+    /// that ends a line.
+    Forcing,
+    /// The scene number `#12A#` of a heading.
+    Number,
+    /// Notes `[[…]]` inside a line.
+    Notes,
+    /// The lines of the title page.
+    TitlePage,
+}
 
 /// Whether the editor shows the line without its marks or as it is typed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -88,8 +106,9 @@ struct Body {
     boneyard: bool,
 }
 
-/// The lines of `source` (split at `\n`) as the editor shows them.
-pub fn shown_lines(source: &str) -> Vec<ShownLine> {
+/// The lines of `source` (split at `\n`) as the editor shows them, with what `hide` names
+/// left out of the text.
+pub fn shown_lines(source: &str, hide: &[Hide]) -> Vec<ShownLine> {
     let kinds = text_kinds(source);
     let inside = boneyard_lines(source);
 
@@ -100,18 +119,20 @@ pub fn shown_lines(source: &str) -> Vec<ShownLine> {
         .map(|(at, (line, kind))| {
             let in_boneyard = inside.get(at).copied().unwrap_or(false);
 
-            shown_line(line, kind, in_boneyard)
+            shown_line(line, kind, in_boneyard, hide)
         })
         .collect()
 }
 
-fn shown_line(line: &str, kind: TextKind, in_boneyard: bool) -> ShownLine {
-    let hidden = match kind {
-        TextKind::Title => Hidden::TitlePage,
-        _ => Hidden::No,
+fn shown_line(line: &str, kind: TextKind, in_boneyard: bool, hide: &[Hide]) -> ShownLine {
+    let hidden = match kind == TextKind::Title && hide.contains(&Hide::TitlePage) {
+        true => Hidden::TitlePage,
+        false => Hidden::No,
     };
-    let split = split_line(line, kind).filter(|_| !in_boneyard);
-    let body = split.as_ref().map(|s| read_body(line, s.start..s.end));
+    let split = split_line(line, kind, hide).filter(|_| !in_boneyard);
+    let body = split
+        .as_ref()
+        .map(|s| read_body(line, s.start..s.end, hide));
 
     let (Some(split), Some(body)) = (split, body.filter(|b| !b.boneyard)) else {
         return typed_line(line, kind, hidden);
@@ -157,12 +178,13 @@ fn typed_line(line: &str, kind: TextKind, hidden: Hidden) -> ShownLine {
 /// forced cue       @mcClane ^                   hidden: `@` and ` ^`
 /// centered         >ENDE<                       hidden: `>` and `<`
 /// ```
-fn split_line(line: &str, kind: TextKind) -> Option<Split> {
+fn split_line(line: &str, kind: TextKind, hide: &[Hide]) -> Option<Split> {
     let end = line.trim_end().len();
     let lead = (line.len() - line.trim_start().len()).min(end);
     let text = &line[lead..end];
     // The byte behind `mark` when it opens the line, else 0.
-    let after = |mark: char| match text.starts_with(mark) {
+    let forcing = hide.contains(&Hide::Forcing);
+    let after = |mark: char| match forcing && text.starts_with(mark) {
         true => lead + mark.len_utf8(),
         false => 0,
     };
@@ -174,24 +196,26 @@ fn split_line(line: &str, kind: TextKind) -> Option<Split> {
 
     match kind {
         TextKind::Heading => {
-            if text.starts_with(FORCE_HEADING) && !text.starts_with("..") {
+            if !text.starts_with("..") {
                 split.start = after(FORCE_HEADING);
             }
             if let (_, Some(number)) = split_number(&line[split.start..end]) {
                 let token = number.len() + 2 * NUMBER_MARK.len_utf8();
-                split.end = gap_start(line, split.start, end - token);
+                if hide.contains(&Hide::Number) {
+                    split.end = gap_start(line, split.start, end - token);
+                }
                 split.number = Some(number.to_owned());
             }
         }
         TextKind::Action => split.start = after(FORCE_ACTION),
         TextKind::Character => {
             split.start = after(FORCE_CHARACTER);
-            split.end = before_mark(line, split.start, end, DUAL_MARK);
+            split.end = before_mark(line, split.start, end, DUAL_MARK, forcing);
         }
         TextKind::Transition => split.start = after(FORCE_TRANSITION),
         TextKind::Centered => {
             split.start = after(FORCE_TRANSITION);
-            split.end = before_mark(line, split.start, end, CENTER_END);
+            split.end = before_mark(line, split.start, end, CENTER_END, forcing);
         }
         TextKind::Lyrics => split.start = after(LYRICS),
         TextKind::Parenthetical | TextKind::Dialogue => {}
@@ -216,32 +240,40 @@ fn gap_start(line: &str, start: usize, at: usize) -> usize {
 }
 
 /// Where the text ends when `mark` closes the line (`ANNA ^`); the end of the line without it.
-fn before_mark(line: &str, start: usize, end: usize, mark: char) -> usize {
-    match line[start..end].ends_with(mark) {
+fn before_mark(line: &str, start: usize, end: usize, mark: char, forcing: bool) -> usize {
+    match forcing && line[start..end].ends_with(mark) {
         true => gap_start(line, start, end - mark.len_utf8()),
         false => line.len(),
     }
 }
 
-/// The characters of `line[range]` as a reader sees them, notes taken out.
-fn read_body(line: &str, range: Range<usize>) -> Body {
+/// The characters of `line[range]` as a reader sees them, with what `hide` names taken out.
+fn read_body(line: &str, range: Range<usize>, hide: &[Hide]) -> Body {
     let base = range.start;
+    let (emphasis_hidden, notes_hidden) =
+        (hide.contains(&Hide::Emphasis), hide.contains(&Hide::Notes));
     let mut body = Body::default();
     let mut note = String::new();
 
-    for seen in seen_chars(&line[range.clone()]) {
+    for seen in all_chars(&line[range.clone()]) {
         if seen.marks.boneyard {
             body.boneyard = true;
         }
-        if seen.marks.note {
+        if seen.marks.note && notes_hidden {
             note.push(seen.ch);
             continue;
         }
         take_notes(&mut note, body.chars.len(), &mut body.notes);
+        if seen.is_mark && emphasis_hidden {
+            continue;
+        }
 
         body.chars.push(seen.ch);
-        body.marks.push(emphasis(seen.marks));
-        body.escaped.push(seen.escaped);
+        body.marks.push(match emphasis_hidden {
+            true => emphasis(seen.marks),
+            false => Marks::default(),
+        });
+        body.escaped.push(emphasis_hidden && seen.escaped);
         body.cols.push(base + seen.at);
     }
     take_notes(&mut note, body.chars.len(), &mut body.notes);
@@ -288,89 +320,146 @@ fn take_notes(raw: &mut String, at: usize, notes: &mut Vec<ShownNote>) {
 /// later run is written without emphasis. Clearing the whole text clears the line, so an
 /// emptied heading does not keep its number; to remove a line, use [`splice_lines`].
 ///
+/// `hide` is the set the line was shown with. Notes stay at their characters when text is
+/// added or removed anywhere in the line, and a character that is not new keeps its backslash.
+///
 /// `text` is one line.
-pub fn edit_line(old: &str, kind: TextKind, shape: Shape, text: &str, runs: &[Run]) -> String {
-    let split = split_line(old, kind).filter(|_| shape == Shape::Shown);
+pub fn edit_line(
+    old: &str,
+    kind: TextKind,
+    shape: Shape,
+    hide: &[Hide],
+    text: &str,
+    runs: &[Run],
+) -> String {
+    edit(old, kind, shape, hide, text, runs, Untouched::Keep)
+}
+
+/// Whether an edit that changes nothing gives the line back as it is, or writes it again.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Untouched {
+    Keep,
+    /// Only the tests write a line that is not touched again.
+    #[cfg_attr(not(test), allow(dead_code))]
+    Rewrite,
+}
+
+pub(crate) fn edit(
+    old: &str,
+    kind: TextKind,
+    shape: Shape,
+    hide: &[Hide],
+    text: &str,
+    runs: &[Run],
+    untouched: Untouched,
+) -> String {
+    let split = split_line(old, kind, hide).filter(|_| shape == Shape::Shown);
     let Some(split) = split else {
         return text.to_owned();
     };
 
-    let before = read_body(old, split.start..split.end);
+    let before = read_body(old, split.start..split.end, hide);
     let after: Vec<char> = text.chars().collect();
-    let marks = marks_of(runs, after.len());
+    let marks = match hide.contains(&Hide::Emphasis) {
+        true => marks_of(runs, after.len()),
+        false => vec![Marks::default(); after.len()],
+    };
 
     // The line is not touched: it stays as it is, even if it is not canonical.
-    if after == before.chars && marks == before.marks {
+    if untouched == Untouched::Keep && after == before.chars && marks == before.marks {
         return old.to_owned();
     }
     if after.is_empty() && before.notes.is_empty() {
-        return String::new();
+        // Marks around nothing (`__`) and a forcing mark alone have no text to write.
+        return match before.chars.is_empty() {
+            true => old.to_owned(),
+            false => String::new(),
+        };
     }
 
-    rewrite(old, &split, &before, &after, &marks)
+    rewrite(old, &split, &before, &after, &marks, hide)
 }
 
 /// The line `old` written again for the text `after` with `marks`.
-fn rewrite(old: &str, split: &Split, before: &Body, after: &[char], marks: &[Marks]) -> String {
-    let (kept_start, kept_end) = common_ends(&before.chars, after);
-    let tail = after.len() - kept_end;
-    let escaped: Vec<bool> = (0..after.len())
-        .map(|i| match i {
-            _ if i < kept_start => before.escaped[i],
-            _ if i >= tail => before.escaped[before.chars.len() - (after.len() - i)],
-            _ => false,
-        })
+fn rewrite(
+    old: &str,
+    split: &Split,
+    before: &Body,
+    after: &[char],
+    marks: &[Marks],
+    hide: &[Hide],
+) -> String {
+    let pairs = pairs(&before.chars, after);
+    let escaped: Vec<bool> = pairs
+        .iter()
+        .map(|old| old.is_some_and(|at| before.escaped[at]))
         .collect();
-    let same_text = kept_start + kept_end >= before.chars.len().max(after.len());
-
     let part = Part {
         chars: after,
         marks,
         escaped: &escaped,
-        notes: &moved_notes(before, after.len(), kept_start, kept_end),
+        notes: &moved_notes(before, &pairs, after.len()),
     };
-    let mut body = write_body(&part);
+    let (mut body, mut effective) = write_body(&part);
 
     // Text that is not new reads as it is shown, whatever the marks do to each other.
-    if same_text && !reads_as(&body, &part) {
-        body = write_body(&Part {
-            marks: &vec![Marks::default(); after.len()],
+    let same_text = after == before.chars;
+    let emphasis_hidden = hide.contains(&Hide::Emphasis);
+    if same_text && emphasis_hidden && !reads_as(&body, &part, &effective, hide) {
+        effective = vec![Marks::default(); after.len()];
+        (body, _) = write_body(&Part {
+            marks: &effective,
             escaped: &vec![true; after.len()],
             ..part
         });
     }
 
-    format!("{}{body}{}", &old[..split.start], &old[split.end..])
+    // A blank typed at the end must not become the blank that leads up to a mark behind it.
+    let tail = &old[split.end..];
+    let apart =
+        body.ends_with(char::is_whitespace) && tail.starts_with(|c: char| !c.is_whitespace());
+    let gap = if apart { " " } else { "" };
+
+    format!("{}{body}{gap}{tail}", &old[..split.start])
 }
 
-/// How many characters at the start and at the end `a` and `b` share; they do not overlap.
-fn common_ends(a: &[char], b: &[char]) -> (usize, usize) {
-    let most = a.len().min(b.len());
-    let start = a.iter().zip(b).take_while(|(x, y)| x == y).count();
-    let end = a
-        .iter()
-        .rev()
-        .zip(b.iter().rev())
-        .take(most - start)
-        .take_while(|(x, y)| x == y)
-        .count();
+/// For each character of `new` the character of `old` it is, or none for a new one: the
+/// characters both texts share in a longest common subsequence, so a change in two places
+/// keeps what lies between.
+fn pairs(old: &[char], new: &[char]) -> Vec<Option<usize>> {
+    let keys = |text: &[char]| text.iter().map(char::to_string).collect::<Vec<_>>();
+    let (removed, added) = unpaired(&keys(old), &keys(new));
+    let mut kept = (0..old.len()).filter(|at| !removed.contains(at));
 
-    (start, end)
+    (0..new.len())
+        .map(|at| match added.contains(&at) {
+            true => None,
+            false => kept.next(),
+        })
+        .collect()
 }
 
-/// The notes of `before` in the text that has `len` characters now: one in the unchanged end
-/// goes with it, one in the unchanged start stays, one in what changed goes to its start.
-fn moved_notes(before: &Body, len: usize, kept_start: usize, kept_end: usize) -> Vec<ShownNote> {
+/// The notes of `before` in the new text of `len` characters: a note stays before the
+/// character it stood before; where that is gone, behind the character before it; one at the
+/// end stays at the end.
+fn moved_notes(before: &Body, pairs: &[Option<usize>], len: usize) -> Vec<ShownNote> {
     let old_len = before.chars.len();
 
     before
         .notes
         .iter()
         .map(|note| {
-            let at = match note.at {
-                at if at >= old_len - kept_end => len - (old_len - at),
-                at if at <= kept_start => at,
-                _ => kept_start,
+            let next = pairs
+                .iter()
+                .position(|old| old.is_some_and(|at| at >= note.at));
+            let last = pairs
+                .iter()
+                .rposition(|old| old.is_some_and(|at| at < note.at));
+            let at = match (next, last) {
+                _ if note.at >= old_len => len,
+                (Some(next), _) => next,
+                (None, Some(last)) => last + 1,
+                (None, None) => 0,
             };
 
             ShownNote {
@@ -402,13 +491,14 @@ struct Part<'a> {
     notes: &'a [ShownNote],
 }
 
-/// Whether `body` read again gives the text, emphasis and notes of `part`.
-fn reads_as(body: &str, part: &Part) -> bool {
-    let again = read_body(body, 0..body.len());
+/// Whether `body` read again gives the text and notes of `part` and `marks`, the emphasis
+/// that was written.
+fn reads_as(body: &str, part: &Part, marks: &[Marks], hide: &[Hide]) -> bool {
+    let again = read_body(body, 0..body.len(), hide);
 
     !again.boneyard
         && again.chars == part.chars
-        && again.marks == part.marks
+        && again.marks == marks
         && again.notes == part.notes
 }
 
@@ -428,8 +518,10 @@ const PLAIN: Marks = Marks {
 };
 
 /// The text of `part` as Fountain, with a mark around every stretch of emphasis.
-fn write_body(part: &Part) -> String {
+/// The emphasis it wrote comes with it: a stretch that could not be marked is plain there.
+fn write_body(part: &Part) -> (String, Vec<Marks>) {
     let mut out = String::new();
+    let mut written = part.marks.to_vec();
     let mut tail = Tail::Free;
     let mut now = Emphasis {
         marks: PLAIN,
@@ -462,6 +554,9 @@ fn write_body(part: &Part) -> String {
         let Some(&ch) = part.chars.get(i) else {
             break;
         };
+        if now.marks != PLAIN && !now.applied {
+            written[i] = PLAIN;
+        }
         let protected = part.escaped[i] && is_protected(ch);
         if protected {
             out.push(ESCAPE);
@@ -474,7 +569,7 @@ fn write_body(part: &Part) -> String {
         };
     }
 
-    out
+    (out, written)
 }
 
 /// What the written text ends with, as far as a mark that follows cares.
@@ -568,67 +663,5 @@ pub fn splice_lines(source: &str, lines: Range<usize>, new: &[String]) -> Splice
         from: from + head,
         to: to - tail,
         lines: new[head..new.len() - tail].to_vec(),
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    const LCG_MUL: u64 = 6_364_136_223_846_793_005;
-    const LCG_ADD: u64 = 1_442_695_040_888_963_407;
-    const CASES: u64 = 3000;
-    const PARTS: [&str; 20] = [
-        "Anna", "geht", "ÄÖÜ", "🎬", "ANNA", "INT.", " ", " ", "*", "**", "_", "\\*", "\\", "#1#",
-        "[[n]]", ".", "@", "^", "/", ">",
-    ];
-
-    fn line(seed: &mut u64) -> String {
-        let mut next = |below: usize| {
-            *seed = seed.wrapping_mul(LCG_MUL).wrapping_add(LCG_ADD);
-
-            ((*seed >> 33) as usize) % below
-        };
-        let count = 1 + next(7);
-
-        (0..count).map(|_| PARTS[next(PARTS.len())]).collect()
-    }
-
-    /// The writer without the early return for a line that is not touched: every line it
-    /// writes again says what it said, as far as the line alone shows.
-    #[test]
-    fn the_writer_keeps_what_a_line_says() {
-        let mut seed = 7;
-        let mut lines = 0;
-        let mut differs = 0;
-
-        for _ in 0..CASES {
-            let line = line(&mut seed);
-            let kind = text_kinds(&line)[0];
-            let shown = shown_line(&line, kind, false);
-            let Some(split) = split_line(&line, kind).filter(|_| shown.shape == Shape::Shown)
-            else {
-                continue;
-            };
-
-            let before = read_body(&line, split.start..split.end);
-            let chars: Vec<char> = shown.text.chars().collect();
-            let marks = marks_of(&shown.runs, chars.len());
-            let again = rewrite(&line, &split, &before, &chars, &marks);
-            let reread = shown_line(&again, kind, false);
-
-            lines += 1;
-            assert_eq!(reread.notes, shown.notes, "{line:?} -> {again:?}");
-            if reread.kind == kind && reread.shape == Shape::Shown {
-                assert_eq!(reread.text, shown.text, "{line:?} -> {again:?}");
-            }
-            if reread.runs != shown.runs || reread.kind != kind {
-                differs += 1;
-            }
-        }
-
-        // A mark around nothing, or marks that touch, are written another way.
-        assert!(lines > CASES as usize / 2, "{lines} lines");
-        assert!(differs * 20 < lines, "{differs} of {lines} differ");
     }
 }

@@ -58,7 +58,7 @@ pub use parse::{
 };
 pub use quote::{find_quote, find_quotes, quote_at, Found, LineKind, Quote};
 pub use search::{find_all, replace_hits, Case, Hit, Query, Splice};
-pub use shown::{edit_line, shown_lines, splice_lines, Hidden, Shape, ShownLine, ShownNote};
+pub use shown::{edit_line, shown_lines, splice_lines, Hidden, Hide, Shape, ShownLine, ShownNote};
 pub use text::normal;
 pub use title::{set_title_fields, title_fields, TITLE_KEYS};
 pub use write::write;
@@ -176,3 +176,6 @@ mod tests;
 
 #[cfg(test)]
 mod outline_tests;
+
+#[cfg(test)]
+mod shown_tests;
