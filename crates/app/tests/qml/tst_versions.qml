@@ -459,7 +459,7 @@ TestCase {
         tryCompare(dialog, "opened", true)
 
         compare(findChild(dialog, "fromBox").currentText, "Drehfassung")
-        compare(findChild(dialog, "toBox").currentText, "Jetzt")
+        compare(findChild(dialog, "toBox").currentText, "Aktuelles Buch")
         compare(fake.calls[fake.calls.length - 1], "compare:v0>")
         compare(dialog.rows.count, 4)
         compare(row(dialog, 0).meta, "geändert")
@@ -469,76 +469,102 @@ TestCase {
         dialog.close()
     }
 
-    // New lines are underlined, removed ones struck through; both say so in words too.
-    function test_the_text_shows_new_and_removed_lines() {
+    // The old state is the left column, the new one the right: removed lines left and struck
+    // through, added lines right and underlined, level with each other; both say so in words.
+    function test_removed_lines_stand_left_and_added_lines_right_on_one_level() {
         lockedTwice()
         const view = make()
         view.askCompare("v0")
         const dialog = view.compareDialog
         tryCompare(dialog, "opened", true)
 
-        // The first scene that changed shows first.
-        compare(dialog.rows.currentIndex, 0)
-        compare(findChild(dialog, "compareHeading").text, "INT. SAAL - TAG")
-        const removed = findChild(findChild(dialog, "compareText"), "line.removed")
-        const added = findChild(findChild(dialog, "compareText"), "line.added")
+        const first = row(dialog, 0)
+        const removed = findChild(findChild(first, "half.old"), "line.old")
+        const added = findChild(findChild(first, "half.new"), "line.new")
         verify(removed && added)
         compare(removed.Accessible.name, "gestrichen Er kommt an.")
         compare(added.Accessible.name, "neu Sie kommt an.")
         verify(removed.children[1].font.strikeout)
         verify(added.children[1].font.underline)
         verify(!added.children[1].font.strikeout)
+
+        tryVerify(() => removed.mapToItem(first, 0, 0).x < added.mapToItem(first, 0, 0).x)
+        const left = removed.mapToItem(first, 0, 0)
+        const right = added.mapToItem(first, 0, 0)
+        compare(left.y, right.y)
         dialog.close()
     }
 
-    // The lines use the whole column, so a long one wraps only at its end.
-    function test_the_text_uses_the_whole_column() {
+    // A removed scene has a gap on the right, a new one on the left.
+    function test_removed_and_new_scenes_leave_a_gap_on_the_other_side() {
         lockedTwice()
         const view = make()
         view.askCompare("v0")
         const dialog = view.compareDialog
         tryCompare(dialog, "opened", true)
 
-        const column = findChild(dialog, "compareText")
-        const scroll = findChild(dialog, "compareView")
-        tryCompare(column, "width", scroll.availableWidth)
-        tryVerify(() => column.width > 300)
-        const added = findChild(column, "line.added")
-        compare(added.width, column.width)
+        const gone = row(dialog, 2)
+        verify(findChild(gone, "half.head.old").visible)
+        verify(!findChild(gone, "half.head.new").visible)
+        compare(findChild(gone, "half.new").Accessible.name, "Nicht in dieser Fassung")
+        verify(findChild(findChild(gone, "half.old"), "line.old") !== null)
+        verify(findChild(findChild(gone, "half.new"), "line.new") === null)
+
+        const came = row(dialog, 3)
+        verify(!findChild(came, "half.head.old").visible)
+        verify(findChild(came, "half.head.new").visible)
+        verify(findChild(findChild(came, "half.old"), "line.old") === null)
         dialog.close()
     }
 
-    // A moved scene's text is not marked (DB-44): it says nothing changed.
-    function test_a_moved_scene_has_no_marked_text() {
+    // A moved scene says so in words in both columns (DB-44), and marks no line.
+    function test_a_moved_scene_says_so_in_both_columns() {
         lockedTwice()
         const view = make()
         view.askCompare("v0")
         const dialog = view.compareDialog
         tryCompare(dialog, "opened", true)
 
-        mouseClick(row(dialog, 1))
-
-        compare(dialog.rows.currentIndex, 1)
-        verify(findChild(dialog, "compareNoChange").visible)
-        compare(findChild(dialog, "compareNoChange").text, "Keine Zeile geändert.")
-        verify(findChild(findChild(dialog, "compareText"), "line.added") === null)
+        const moved = row(dialog, 1)
+        compare(findChild(moved, "half.head.old").text, "2 EXT. HOF - NACHT · verschoben")
+        compare(findChild(moved, "half.head.new").text, "2 EXT. HOF - NACHT · verschoben")
+        verify(findChild(moved, "line.old") === null)
+        verify(findChild(moved, "line.new") === null)
         dialog.close()
     }
 
-    function test_the_arrow_keys_change_the_scene() {
+    // One list holds both columns: they scroll together, each half is as wide as the other.
+    function test_both_columns_share_one_list_and_one_width() {
+        lockedTwice()
+        const view = make()
+        view.askCompare("v0")
+        const dialog = view.compareDialog
+        tryCompare(dialog, "opened", true)
+
+        const first = row(dialog, 0)
+        tryVerify(() => findChild(first, "half.old").width > 150)
+        compare(findChild(first, "half.old").width, findChild(first, "half.new").width)
+        compare(findChild(first, "half.old").parent, findChild(first, "half.new").parent)
+        dialog.close()
+    }
+
+    function test_clicking_or_the_arrow_keys_change_the_scene() {
         lockedTwice()
         const view = make()
         view.askCompare("v0")
         const dialog = view.compareDialog
         tryCompare(dialog, "opened", true)
         dialog.rows.forceActiveFocus()
+        compare(dialog.rows.currentIndex, 0)
 
         keyClick(Qt.Key_Down)
         compare(dialog.rows.currentIndex, 1)
         keyClick(Qt.Key_Down)
-        compare(findChild(dialog, "compareHeading").text, "INT. KELLER")
+        compare(dialog.rows.currentIndex, 2)
         keyClick(Qt.Key_Up)
         compare(dialog.rows.currentIndex, 1)
+        mouseClick(row(dialog, 3))
+        compare(dialog.rows.currentIndex, 3)
         dialog.close()
     }
 

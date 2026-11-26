@@ -186,6 +186,7 @@ mod tests {
             name: format!("Fassung {id}"),
             date: "2026-11-25".into(),
             color,
+            pages: Vec::new(),
         }
     }
 
