@@ -298,6 +298,7 @@ ColumnLayout {
                     visible: figure !== ""
                     text: figure
                     color: KanteStyle.mutedTextColor
+                    font: KanteStyle.monoFont(KanteStyle.labelFont().pointSize, false)
                     opacity: list.lengthsStale ? KanteStyle.dimOpacity : 1
                 }
             ]

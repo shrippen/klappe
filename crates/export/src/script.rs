@@ -41,6 +41,19 @@ const TITLE_GAP_ROWS: usize = 2;
 const FOOT_PT: f64 = 72.0;
 /// A scene number stands this many columns away from the text.
 const NUMBER_GAP_COLUMNS: usize = 1;
+/// The revision mark ends this far (10 mm) from the paper's right edge, where a printer
+/// still reaches.
+const REVISION_MARK_EDGE_PT: f64 = 10.0 * PT_PER_MM;
+/// What marks a line of a revision in the margin.
+const REVISION_MARK: &str = "*";
+
+/// Whether a line is new or changed in the revision (DB-41): it gets a mark in the right margin.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Revised {
+    #[default]
+    No,
+    Yes,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Face {
@@ -60,6 +73,7 @@ pub struct ScriptLine {
     pub face: Face,
     /// The number of the scene a heading starts: printed at both sides if asked for.
     pub scene_number: Option<String>,
+    pub revised: Revised,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -103,6 +117,8 @@ pub struct ScriptSheet {
     pub scene_numbers: SceneNumbers,
     /// A line at the top left of every page but the title page, e.g. the title and draft.
     pub header: Option<String>,
+    /// A line above the page number of every page but the title page, e.g. `Revision Blau`.
+    pub revision: Option<String>,
 }
 
 /// A text on a page: `x_pt` from the left edge, its baseline `baseline_pt` below the top.
@@ -219,11 +235,32 @@ fn right_pt(columns: usize) -> f64 {
     LEFT_PT + columns as f64 * COLUMN_PT
 }
 
+/// Where a revision mark stands: right of the text, and of the scene number if the line has
+/// one. Where that would end within 10 mm of the paper's edge, it stands left of the number
+/// on the left instead, so it is printed and covers nothing.
+fn mark_x_pt(sheet: &ScriptSheet, number: Option<&String>) -> f64 {
+    let gap_pt = NUMBER_GAP_COLUMNS as f64 * COLUMN_PT;
+    let beside_pt = right_pt(sheet.columns) + gap_pt + number.map_or(0.0, |n| width_pt(n) + gap_pt);
+    let limit_pt = size_pt(sheet.paper).0 - REVISION_MARK_EDGE_PT;
+
+    match number {
+        Some(n) if beside_pt + COLUMN_PT > limit_pt => {
+            LEFT_PT - gap_pt - width_pt(n) - gap_pt - COLUMN_PT
+        }
+        _ => beside_pt,
+    }
+}
+
 fn page_texts(sheet: &ScriptSheet, page: &ScriptPage) -> Vec<Placed> {
     let mut out = Vec::new();
 
     if let Some(header) = &sheet.header {
         place(&mut out, Face::Regular, LEFT_PT, HEADER_BASELINE_PT, header);
+    }
+    if let Some(revision) = &sheet.revision {
+        let x_pt = right_pt(sheet.columns) - width_pt(revision);
+        let at_pt = HEADER_BASELINE_PT - ROW_PT;
+        place(&mut out, Face::Regular, x_pt, at_pt, revision);
     }
     if let Some(label) = &page.label {
         let x_pt = right_pt(sheet.columns) - width_pt(label);
@@ -235,11 +272,16 @@ fn page_texts(sheet: &ScriptSheet, page: &ScriptPage) -> Vec<Placed> {
         let x_pt = LEFT_PT + line.col as f64 * COLUMN_PT;
         place(&mut out, line.face, x_pt, at_pt, &line.text);
 
-        let Some(number) = line
+        let number = line
             .scene_number
             .as_ref()
-            .filter(|_| sheet.scene_numbers == SceneNumbers::Shown)
-        else {
+            .filter(|_| sheet.scene_numbers == SceneNumbers::Shown);
+        if line.revised == Revised::Yes {
+            let mark_pt = mark_x_pt(sheet, number);
+            place(&mut out, Face::Regular, mark_pt, at_pt, REVISION_MARK);
+        }
+
+        let Some(number) = number else {
             continue;
         };
         let gap_pt = NUMBER_GAP_COLUMNS as f64 * COLUMN_PT;

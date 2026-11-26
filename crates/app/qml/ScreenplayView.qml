@@ -331,6 +331,13 @@ RowLayout {
     Component.onCompleted: load()
     Connections {
         target: view.controller
+        // Another project with the same text, or another paper, changes the project but not the
+        // text: lay out again, unless typing is pending (DN-02: typing never lays out).
+        function onProjectJsonChanged() {
+            if (!view.stale) {
+                view.layOut()
+            }
+        }
         function onScriptTextChanged() {
             view.load()
             if (view.layout === "print") {
@@ -544,7 +551,7 @@ RowLayout {
                             Rectangle {
                                 anchors.bottom: parent.bottom
                                 width: parent.width
-                                height: 1
+                                height: KanteStyle.borderWidth
                                 color: KanteStyle.ruleColor
                             }
                             QQC2.Label {
@@ -552,7 +559,7 @@ RowLayout {
                                 anchors.right: parent.right
                                 text: modelData.page + "."
                                 color: KanteStyle.mutedTextColor
-                                font.pixelSize: Math.round(area.font.pixelSize * 0.8)
+                                font: KanteStyle.smallFont
                                 Accessible.name: view.texts.t("screenplay.pageNumber", { page: modelData.page })
                             }
                         }

@@ -1,7 +1,7 @@
 //! The script as PDF (`Ctrl+E`): scene numbers, header and the (CONT'D) setting of the
 //! project, then the file next to the screenplay (DB-70, DB-31).
 
-use klappe_services::{error_text, HeaderLine, SceneNumbers, ScriptPrint};
+use klappe_services::{error_text, HeaderLine, Revisions, SceneNumbers, ScriptPrint};
 use ratatui::crossterm::event::{KeyCode, KeyEvent};
 
 use super::{App, Flow, Mode, Notice};
@@ -115,6 +115,7 @@ impl App {
             scene_numbers: form.numbers,
             header: form.header,
             language: self.lang,
+            revisions: Revisions::Off,
         };
         let done = match changed {
             true => self.session.keep_contd(form.contd),
