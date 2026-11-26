@@ -212,3 +212,38 @@ fn notes_and_boneyards_are_not_compared() {
     assert_eq!(statuses(&c), vec![(SceneStatus::Same, ScenePlace::Kept); 3]);
     assert!(c.marked_lines().is_empty());
 }
+
+/// Two edits in one scene read as two hunks: each removed line stands right above the line
+/// that replaces it, not all removed lines first.
+#[test]
+fn each_removed_line_stands_above_its_replacement() {
+    let old = book(&THREE);
+    let new = old
+        .replace("tut Ding 2 Beta.", "tut etwas anderes.")
+        .replace("tut Ding 4 Beta.", "schläft.");
+    let c = compare(&old, &new);
+
+    let changes: Vec<_> = c.scenes[1]
+        .lines
+        .iter()
+        .map(|l| (l.change, l.text.as_str()))
+        .collect();
+    assert_eq!(
+        changes,
+        vec![
+            (
+                Edit::Removed,
+                "Beta geht durch den Raum und tut Ding 2 Beta."
+            ),
+            (
+                Edit::Added,
+                "Beta geht durch den Raum und tut etwas anderes."
+            ),
+            (
+                Edit::Removed,
+                "Beta geht durch den Raum und tut Ding 4 Beta."
+            ),
+            (Edit::Added, "Beta geht durch den Raum und schläft."),
+        ]
+    );
+}

@@ -59,7 +59,7 @@ pub struct SceneDiff {
     pub heading: Option<String>,
     pub status: SceneStatus,
     pub place: ScenePlace,
-    /// Removed lines first, then added ones, each in text order. A new scene has all its
+    /// In text order, a removed line above the added line that replaces it. A new scene has all its
     /// lines added, a removed one has all its lines removed.
     pub lines: Vec<LineChange>,
 }
@@ -203,13 +203,24 @@ fn both(old: &Scene, new: &Scene, moved: bool) -> SceneDiff {
     let keys = |s: &Scene| s.lines.iter().map(|r| r.key.clone()).collect::<Vec<_>>();
     let (removed, added) = unpaired(&keys(old), &keys(new));
 
-    let mut lines: Vec<LineChange> = removed
+    // Each change by the common lines before it, so a hunk's removed lines come right above
+    // its added ones: `Removed < Added` breaks the tie. (Line `i` has `i - k` common lines
+    // before it when `k` lines before it are unpaired.)
+    let common = |at: usize, unpaired: &[usize]| at - unpaired.iter().filter(|&&u| u < at).count();
+    let mut changes: Vec<(usize, Edit, &Row)> = removed
         .iter()
-        .map(|&i| (Edit::Removed, &old.lines[i]))
-        .chain(added.iter().map(|&i| (Edit::Added, &new.lines[i])))
-        .map(|(change, row)| row.change(change))
+        .map(|&i| (common(i, &removed), Edit::Removed, &old.lines[i]))
+        .chain(
+            added
+                .iter()
+                .map(|&j| (common(j, &added), Edit::Added, &new.lines[j])),
+        )
         .collect();
-    lines.sort_by_key(|l| l.change == Edit::Added);
+    changes.sort_by_key(|&(before, change, _)| (before, change == Edit::Added));
+    let lines: Vec<LineChange> = changes
+        .into_iter()
+        .map(|(_, change, row)| row.change(change))
+        .collect();
 
     SceneDiff {
         number: new.number.clone(),

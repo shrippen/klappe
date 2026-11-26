@@ -1496,5 +1496,6 @@
  "version.noHeading": "(no heading)",
  "palette.group.version": "Version",
  "versions.locked": "Locked version \"{name}\"",
- "versions.removed": "Version deleted"
+ "versions.removed": "Version deleted",
+ "version.dateFormat": "MM/dd/yyyy"
 }

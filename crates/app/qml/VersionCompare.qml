@@ -161,6 +161,8 @@ KanteDialog {
             Kirigami.Separator { Layout.fillHeight: true }
 
             QQC2.ScrollView {
+                id: textView
+                objectName: "compareView"
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 clip: true
@@ -168,7 +170,8 @@ KanteDialog {
 
                 ColumnLayout {
                     objectName: "compareText"
-                    width: parent ? parent.width : implicitWidth
+                    // The whole column, not the width the text would have on one line.
+                    width: textView.availableWidth
                     spacing: Kirigami.Units.smallSpacing
 
                     QQC2.Label {

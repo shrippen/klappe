@@ -198,8 +198,8 @@ TestCase {
         const row = item(view, "version.v1")
         verify(row)
         compare(row.text, "Nachdreh")
-        compare(row.valueText, "2026-11-25")
-        compare(row.Accessible.name, "Nachdreh, Blau, 2026-11-25")
+        compare(row.valueText, "25.11.2026")
+        compare(row.Accessible.name, "Nachdreh, Blau, 25.11.2026")
         verify(findChild(row, "swatch.v1"))
         verify(item(view, "compareVersions").enabled)
         compare(item(view, "removeVersion.v0").text, "Löschen …")
@@ -440,6 +440,23 @@ TestCase {
         dialog.close()
     }
 
+    // The lines use the whole column, so a long one wraps only at its end.
+    function test_the_text_uses_the_whole_column() {
+        lockedTwice()
+        const view = make()
+        view.askCompare("v0")
+        const dialog = view.compareDialog
+        tryCompare(dialog, "opened", true)
+
+        const column = findChild(dialog, "compareText")
+        const scroll = findChild(dialog, "compareView")
+        tryCompare(column, "width", scroll.availableWidth)
+        tryVerify(() => column.width > 300)
+        const added = findChild(column, "line.added")
+        compare(added.width, column.width)
+        dialog.close()
+    }
+
     // A moved scene's text is not marked (DB-44): it says nothing changed.
     function test_a_moved_scene_has_no_marked_text() {
         lockedTwice()
@@ -518,6 +535,7 @@ TestCase {
         view.versionMenu.menu.popup()
         tryCompare(view.versionMenu.menu, "visible", true)
         compare(item(view, "lockVersion").text, "Lock version …")
+        compare(item(view, "version.v1").valueText, "11/25/2026")
         compare(item(view, "showRevisions").text, "Show revisions")
         view.versionMenu.menu.close()
     }

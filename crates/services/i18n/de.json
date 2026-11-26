@@ -1496,5 +1496,6 @@
  "version.noHeading": "(ohne Überschrift)",
  "palette.group.version": "Fassung",
  "versions.locked": "Fassung „{name}“ gesperrt",
- "versions.removed": "Fassung gelöscht"
+ "versions.removed": "Fassung gelöscht",
+ "version.dateFormat": "dd.MM.yyyy"
 }

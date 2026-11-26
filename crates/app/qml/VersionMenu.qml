@@ -36,6 +36,12 @@ HeaderMenu {
 
     RevisionInk { id: revisionInk }
 
+    /// A version's day (`2026-11-26`) in the surface's language: `26.11.2026`.
+    function dateText(day) {
+        const [year, month, date] = day.split("-").map(Number)
+        return Qt.formatDate(new Date(year, month - 1, date), texts.t("version.dateFormat"))
+    }
+
     KanteMenuItem {
         objectName: "lockVersion"
         text: chooser.texts.t("version.lock")
@@ -68,9 +74,9 @@ HeaderMenu {
             required property var modelData
             objectName: "version." + modelData.id
             text: modelData.name
-            valueText: modelData.date
+            valueText: chooser.dateText(modelData.date)
             Accessible.name: chooser.texts.t("version.row", {
-                name: modelData.name, color: modelData.colorName, date: modelData.date })
+                name: modelData.name, color: modelData.colorName, date: chooser.dateText(modelData.date) })
             onTriggered: chooser.compareRequested(modelData.id)
             Keys.onDeletePressed: chooser.removeRequested(modelData)
 
