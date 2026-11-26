@@ -5,7 +5,10 @@
 use std::fmt::Write;
 use std::time::{Duration, Instant};
 
-use klappe_script::{paginate, parse, text_kinds, PageOptions, PageSize, Words};
+use klappe_script::{
+    carry, page_starts, paginate, paginate_locked, parse, parse_located, text_kinds, PageOptions,
+    PageSize, Words,
+};
 
 const PAGES: usize = 120;
 /// The target of DN-02.
@@ -77,4 +80,36 @@ fn the_kinds_of_120_pages_take_a_frame() {
         slowest <= KEYSTROKE_BUDGET,
         "{slowest:?} is over {KEYSTROKE_BUDGET:?}"
     );
+}
+
+/// DB-34: a locked script of 120 pages, edited in 30 places, is mapped onto its locked pages
+/// and paged within the same budget.
+#[test]
+#[ignore = "timing, run by `make perf` in release"]
+fn a_locked_script_of_120_pages_is_carried_and_paged_in_a_second() {
+    let text = screenplay();
+    let options = PageOptions::new(PageSize::A4, Words::ENGLISH);
+    let located = parse_located(&text);
+    let elements: Vec<_> = located.iter().map(|l| l.element.clone()).collect();
+    let free = paginate(&elements, &options);
+    let starts = page_starts(&free, &located, text.matches('\n').count() + 1);
+    let edited = text.replacen("Rain taps on", "Rain taps hard on", 30);
+    assert_ne!(edited, text);
+
+    let mut slowest = Duration::ZERO;
+    let mut pages = 0;
+    for _ in 0..RUNS {
+        let start = Instant::now();
+        let located = parse_located(&edited);
+        let elements: Vec<_> = located.iter().map(|l| l.element.clone()).collect();
+        let carried = carry(&text, &edited, &starts);
+        pages = paginate_locked(&elements, &located, &options, &carried)
+            .pages
+            .len();
+        slowest = slowest.max(start.elapsed());
+    }
+
+    println!("{pages} pages, slowest of {RUNS} runs: {slowest:?} (budget {BUDGET:?})");
+    assert!(pages >= PAGES);
+    assert!(slowest <= BUDGET, "{slowest:?} is over {BUDGET:?}");
 }

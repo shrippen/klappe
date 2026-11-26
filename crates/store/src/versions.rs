@@ -5,7 +5,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use klappe_model::{is_version_date, RevisionColor, Version};
+use klappe_model::{is_version_date, PageStart, RevisionColor, Version};
 use serde::{Deserialize, Serialize};
 
 use crate::files;
@@ -27,6 +27,23 @@ struct Entry {
     name: String,
     datum: String,
     farbe: RevisionColor,
+    /// Where each page started (DB-34); none for a version locked before pages were kept.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    seiten: Vec<Page>,
+}
+
+/// One `[[fassung.seiten]]`: a page and where it starts.
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Page {
+    nummer: String,
+    zeile: usize,
+    #[serde(default, skip_serializing_if = "is_zero")]
+    spalte: usize,
+}
+
+fn is_zero(n: &usize) -> bool {
+    *n == 0
 }
 
 /// The versions of `dir` in the order they were locked; none when the file is missing. A file
@@ -51,6 +68,15 @@ pub fn load_versions(dir: &Path) -> Result<Vec<Version>, StoreError> {
         name: e.name,
         date: e.datum,
         color: e.farbe,
+        pages: e
+            .seiten
+            .into_iter()
+            .map(|p| PageStart {
+                label: p.nummer,
+                line: p.zeile,
+                offset: p.spalte,
+            })
+            .collect(),
     });
 
     Ok(versions.collect())
@@ -69,6 +95,15 @@ pub fn save_versions(dir: &Path, versions: &[Version]) -> Result<(), StoreError>
                 name: v.name.clone(),
                 datum: v.date.clone(),
                 farbe: v.color,
+                seiten: v
+                    .pages
+                    .iter()
+                    .map(|p| Page {
+                        nummer: p.label.clone(),
+                        zeile: p.line,
+                        spalte: p.offset,
+                    })
+                    .collect(),
             })
             .collect(),
     };

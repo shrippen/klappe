@@ -98,6 +98,7 @@ mod tests {
             name: name.into(),
             date: "2026-11-25".into(),
             color: RevisionColor::White,
+            pages: Vec::new(),
         }
     }
 

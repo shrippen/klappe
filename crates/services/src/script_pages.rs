@@ -7,10 +7,11 @@
 //! ```
 
 use klappe_export::{Face, Paper, Revised, ScriptLine, ScriptPage, ScriptSheet, TitlePage};
-use klappe_model::{ScriptLanguage, ScriptPaper, ScriptSetup, ScriptWords};
+use klappe_model::{PageStart, ScriptLanguage, ScriptPaper, ScriptSetup, ScriptWords};
 use klappe_script::{
-    length_text, paginate, parse_located, title_fields, ContdAfterAction, Element, Located,
-    PageKind, PageOptions, PageSize, Pagination, Words, TEXT_COLUMNS, TITLE_KEYS,
+    carry, length_text, lines_text, page_starts, paginate_locked, parse_located, title_fields,
+    ContdAfterAction, Element, Located, PageKind, PageOptions, PageSize, Pagination, Words,
+    TEXT_COLUMNS, TITLE_KEYS,
 };
 
 pub use klappe_export::SceneNumbers;
@@ -19,10 +20,12 @@ use crate::catalog::Language;
 use crate::session::{Revision, Revisions};
 
 /// The first line of a page after the first (DB-30).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PageBreak {
-    /// The page that starts here, from 2.
+    /// The page that starts here, from 2 (its place among the pages, struck ones counted).
     pub page: usize,
+    /// What the page is called: `3`, or `3A` once the pages are locked (DB-34).
+    pub label: String,
     /// The text line (from 0) the page starts at; the break is above it.
     pub line: usize,
 }
@@ -80,8 +83,17 @@ pub(crate) struct Layout {
     located: Vec<Located>,
     title_page: Vec<(String, String)>,
     pub(crate) view: ScriptPages,
-    /// What it was laid out from: the text (as a hash), the setup and the fallback language.
+    /// What it was laid out from: the text (as a hash), the setup, the fallback language and
+    /// the locked version.
     made_for: Source,
+}
+
+/// The pages of the last locked version (DB-34): its text and where each page started.
+#[derive(Debug, Clone)]
+pub(crate) struct PageLock {
+    pub(crate) id: String,
+    pub(crate) text: String,
+    pub(crate) starts: Vec<PageStart>,
 }
 
 /// The input of a layout, to see whether it is still the one for the text.
@@ -90,10 +102,16 @@ pub(crate) struct Source {
     text: u64,
     setup: ScriptSetup,
     fallback: Language,
+    lock: Option<String>,
 }
 
 impl Source {
-    pub(crate) fn of(text: &str, setup: &ScriptSetup, fallback: Language) -> Self {
+    pub(crate) fn of(
+        text: &str,
+        setup: &ScriptSetup,
+        fallback: Language,
+        lock: Option<&str>,
+    ) -> Self {
         let mut hasher = std::collections::hash_map::DefaultHasher::new();
         std::hash::Hash::hash(text, &mut hasher);
 
@@ -101,6 +119,7 @@ impl Source {
             text: std::hash::Hasher::finish(&hasher),
             setup: *setup,
             fallback,
+            lock: lock.map(str::to_owned),
         }
     }
 }
@@ -125,15 +144,22 @@ fn size(setup: &ScriptSetup) -> PageSize {
     }
 }
 
-/// Pages `text`: parse, lay out, find where each page starts in the text.
-pub(crate) fn lay_out(text: &str, setup: &ScriptSetup, fallback: Language) -> Layout {
+/// Pages `text`: parse, lay out (on the pages of `lock`, if the script is locked), find where
+/// each page starts in the text.
+pub(crate) fn lay_out(
+    text: &str,
+    setup: &ScriptSetup,
+    fallback: Language,
+    lock: Option<&PageLock>,
+) -> Layout {
     let located = parse_located(text);
     let elements: Vec<Element> = located.iter().map(|l| l.element.clone()).collect();
     let mut options = PageOptions::new(size(setup), words(setup, fallback));
     if setup.contd_after_action {
         options.contd_after_action = ContdAfterAction::On;
     }
-    let pagination = paginate(&elements, &options);
+    let starts = lock.map(|l| carry(&l.text, text, &l.starts));
+    let pagination = paginate_locked(&elements, &located, &options, &starts.unwrap_or_default());
 
     let view = ScriptPages {
         breaks: breaks(&pagination, &located),
@@ -145,7 +171,7 @@ pub(crate) fn lay_out(text: &str, setup: &ScriptSetup, fallback: Language) -> La
     };
 
     Layout {
-        made_for: Source::of(text, setup, fallback),
+        made_for: Source::of(text, setup, fallback, lock.map(|l| l.id.as_str())),
         pagination,
         located,
         title_page: title_fields(text),
@@ -156,10 +182,7 @@ pub(crate) fn lay_out(text: &str, setup: &ScriptSetup, fallback: Language) -> La
 /// Bytes of the text before `at`, as the line of the element it falls on.
 fn text_line(located: &[Located], element: usize, offset: usize) -> Option<usize> {
     let located = located.get(element)?;
-    let text = match &located.element {
-        Element::Action(t) | Element::Dialogue(t) => t.as_str(),
-        _ => "",
-    };
+    let text = lines_text(&located.element);
     let before = text.get(..offset).unwrap_or_default();
     let nth = before.matches('\n').count();
 
@@ -178,6 +201,7 @@ fn breaks(pagination: &Pagination, located: &[Located]) -> Vec<PageBreak> {
 
             Some(PageBreak {
                 page: page.number,
+                label: page.label.clone(),
                 line,
             })
         })
@@ -209,6 +233,18 @@ fn title_key(title_page: &[(String, String)], name: &str) -> String {
 }
 
 impl Layout {
+    /// Where each page starts in the text it was laid out from, to lock them (DB-34).
+    pub(crate) fn page_starts(&self, text: &str) -> Vec<PageStart> {
+        let lines = text
+            .replace("\r\n", "\n")
+            .replace('\r', "\n")
+            .matches('\n')
+            .count()
+            + 1;
+
+        page_starts(&self.pagination, &self.located, lines)
+    }
+
     /// Whether it was laid out from `source`.
     pub(crate) fn is_for(&self, source: &Source) -> bool {
         self.made_for == *source
@@ -237,7 +273,7 @@ impl Layout {
             .pages
             .iter()
             .map(|page| ScriptPage {
-                label: (page.number > 1).then(|| format!("{}.", page.number)),
+                label: (page.number > 1).then(|| format!("{}.", page.label)),
                 lines: page
                     .lines
                     .iter()
@@ -348,5 +384,15 @@ mod tests {
         }
         let international = setup(Some(ScriptLanguage::De), ScriptWords::International);
         assert_eq!(words(&international, Language::German), Words::ENGLISH);
+    }
+
+    #[test]
+    fn a_line_of_a_lyrics_block_is_found_like_one_of_an_action() {
+        let lyrics = Located {
+            element: Element::Lyrics("a\nb\nc".into()),
+            lines: vec![4, 5, 6],
+        };
+
+        assert_eq!(text_line(&[lyrics], 0, 2), Some(5));
     }
 }
