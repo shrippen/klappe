@@ -20,10 +20,11 @@ const OBJ_PAGES: usize = 2;
 const OBJ_FONT_REGULAR: usize = 3;
 const OBJ_FONT_BOLD: usize = 4;
 const OBJ_FIRST_STATE: usize = 5;
+// The pages of text have two more fonts in place of the states.
+const OBJ_FONT_ITALIC: usize = OBJ_FONT_BOLD + 1;
+const OBJ_FONT_BOLD_ITALIC: usize = OBJ_FONT_ITALIC + 1;
 /// The pages of text have four fonts, so their pages start after them.
-const OBJ_FONT_ITALIC: usize = 5;
-const OBJ_FONT_BOLD_ITALIC: usize = 6;
-const OBJ_FIRST_TEXT_PAGE: usize = 7;
+const OBJ_FIRST_TEXT_PAGE: usize = OBJ_FONT_BOLD_ITALIC + 1;
 /// Circle quarter as a cubic Bézier: 4/3 * (sqrt 2 - 1).
 const BEZIER_KAPPA: f64 = 0.552_284_749_8;
 /// Mean advance of Helvetica text in em; PDF has no layout, so centring estimates the width
