@@ -41,6 +41,9 @@ pub struct ImportReport {
     pub pending: usize,
     /// Entries whose scene is not in the book.
     pub not_in_book: usize,
+    /// FDX only: text runs that lost their emphasis because Fountain cannot say it next to a
+    /// neighbour's.
+    pub styles_lost: usize,
 }
 
 /// What the status line says about the register and the book.

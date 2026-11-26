@@ -95,7 +95,7 @@ pub mod qobject {
         /// Last message for the status line, already translated.
         #[qproperty(QString, status)]
         /// What the last `importScript` made of the register, as JSON `{ scenes, created,
-        /// pending, notInBook }`; empty before the first import.
+        /// pending, notInBook, stylesLost }`; empty before the first import.
         #[qproperty(QString, import_report, cxx_name = "importReport")]
         /// Where the example's old copy went, already translated; empty for none. Kept until
         /// the user closes it or another project opens (`AsideNotice`).
@@ -522,6 +522,56 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "scriptBreaksJson"]
         fn script_breaks_json(self: Pin<&mut Self>) -> QString;
+
+        /// The outline of the screenplay for the scene list: `[{ kind, level, depth, line, end,
+        /// text, number, length, key, folded }]`, `kind` `section`, `scene` or `synopsis`, `length` from
+        /// the last layout (a section's the total of its scenes). `folded` is a JSON array of the
+        /// `key`s of the folded sections; what they hold is left out.
+        #[qinvokable]
+        #[cxx_name = "scriptOutlineJson"]
+        fn script_outline_json(self: Pin<&mut Self>, folded: &QString) -> QString;
+
+        /// Moves the scene or section at text line `line` one place, `way` `up` or `down`
+        /// (DB-21): `{ from, to, lines, line }`, the text lines `from..to` to be replaced by
+        /// `lines`, `line` where the block starts then; empty where it cannot move. Changes
+        /// nothing itself: the editor applies it as one edit.
+        #[qinvokable]
+        #[cxx_name = "moveOutline"]
+        fn move_outline(self: Pin<&mut Self>, line: i32, way: &QString) -> QString;
+        /// The locked versions of the screenplay (DB-40) and the colour of the revision since the
+        /// last one: `{ versions: [{ id, name, date, color, colorName }], next: { color,
+        /// colorName } | null }`; `color` is the file's name of the colour (`blue`), `colorName`
+        /// the word in the surface's language.
+        #[qinvokable]
+        #[cxx_name = "versionsJson"]
+        fn versions_json(self: Pin<&mut Self>) -> QString;
+
+        /// Saves the project and locks the book as version `name` (DB-40). Empty when it is
+        /// locked, else the reason in words (empty or used name, a file changed outside) for
+        /// the dialog to show at its field; no undo step.
+        #[qinvokable]
+        #[cxx_name = "lockVersion"]
+        fn lock_version(self: Pin<&mut Self>, name: &QString) -> QString;
+
+        /// Deletes version `id` with its text (no undo step); false when it is refused.
+        #[qinvokable]
+        #[cxx_name = "removeVersion"]
+        fn remove_version(self: Pin<&mut Self>, id: &QString) -> bool;
+
+        /// The lines (from 0) of the session's text that are new or changed since the last
+        /// version (DB-41), `[3, 4, 9]`; empty without a version. The editor sends its typing
+        /// first.
+        #[qinvokable]
+        #[cxx_name = "revisionJson"]
+        fn revision_json(self: Pin<&mut Self>) -> QString;
+
+        /// What differs between version `from` and version `to` (empty: the book now), scene by
+        /// scene (DB-42, DB-44): `[{ number, heading, status: "new" | "removed" | "changed" |
+        /// "same", place: "kept" | "moved", lines: [{ change: "added" | "removed", line, text }]
+        /// }]`; empty when a version is unknown.
+        #[qinvokable]
+        #[cxx_name = "compareJson"]
+        fn compare_json(self: Pin<&mut Self>, from: &QString, to: &QString) -> QString;
 
         /// Writes unsaved changes to the backup; QML calls it on a timer. An error goes to the
         /// status line.
@@ -1612,6 +1662,7 @@ mod start;
 mod state;
 mod team;
 mod templates;
+mod versions;
 mod view;
 
 fn q(s: &str) -> QString {

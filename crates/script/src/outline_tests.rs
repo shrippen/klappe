@@ -1,6 +1,8 @@
 //! The outline (DB-20, DB-21): tree, collapse, filter and moving blocks.
 
-use crate::{move_entry, outline, parse, visible, write, Element, Entry, EntryKind, Way};
+use crate::{
+    move_entry, outline, parse, sections_around, visible, write, Element, Entry, EntryKind, Way,
+};
 
 const TEXT: &str = "Title: X
 
@@ -272,4 +274,18 @@ fn a_move_never_changes_what_an_element_is() {
             }
         }
     }
+}
+
+/// The sections around a scene, nearest first: its sequence, then its act.
+#[test]
+fn the_sections_around_an_entry_come_nearest_first() {
+    let entries = outline(TEXT);
+    let scene = entries.iter().position(|e| e.scene == Some(0)).unwrap();
+    let names: Vec<_> = sections_around(&entries, scene)
+        .into_iter()
+        .map(|i| entries[i].text.clone())
+        .collect();
+
+    assert_eq!(names, ["Ankunft", "Akt I"]);
+    assert!(sections_around(&entries, 0).is_empty());
 }

@@ -65,6 +65,8 @@ RowLayout {
     /// The plan menu's template files (LH-07): the window asks for the file.
     signal templateImportRequested()
     signal templateExportRequested()
+    /// A command of the screenplay's versions: `"lock"` or `"compare"` (DB-40, DB-42).
+    signal versionRequested(string what)
 
     readonly property var project: controller.projectJson ? JSON.parse(controller.projectJson) : { scenes: [], plans: [], plan: "" }
     readonly property var scene: project.scenes.find(s => s.id === controller.sceneId) || null
@@ -75,7 +77,8 @@ RowLayout {
                                     actScript, actShot, actTimeline,
                                     actUndo, actRedo].concat(moduleCommands.actions, exportCommands.actions, shotViews.actions, zoom.actions,
                                     pageExports.actions, reportCommands.actions, viewCommands.actions, objectCommands.actions,
-                                    playCommands.actions, navCommands.actions, armCommands.actions, jumpCommands.actions)
+                                    playCommands.actions, navCommands.actions, armCommands.actions, jumpCommands.actions,
+                                    versionCommands.actions)
 
     // "Ctrl+Shift+Z" as the keyboard of the language names it.
     function keyName(sequence) {
@@ -590,6 +593,15 @@ RowLayout {
         controller: header.controller
         locked: header.locked
         keyName: header.keyName
+    }
+
+    VersionCommands {
+        id: versionCommands
+        texts: header.texts
+        controller: header.controller
+        locked: header.locked
+        module: header.module
+        onRequested: what => header.versionRequested(what)
     }
 
     JumpCommands {

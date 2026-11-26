@@ -70,6 +70,7 @@ pub use project_edit::{
 pub use report::{Report, ReportFormat};
 pub use script_pages::{HeaderLine, PageBreak, SceneNumbers, SceneSpan, ScriptPages, ScriptPrint};
 pub use script_refs::{ChangeKind, ScriptChange};
+pub use session::fdx_loss_text;
 pub use session::video_frame_count;
 pub use session::{
     Answer, AnswerLine, Answered, Autosave, BackupState, BookQuestion, DialogueFigure, Draft,
@@ -108,7 +109,7 @@ pub use klappe_stellprobe::{
 
 // Fountain, so the TUI editor can style and list what it types without the script crate;
 // `parse` for its tests.
-pub use klappe_script::{parse, parse_located, Element, Located};
+pub use klappe_script::{parse, parse_located, Element, FdxLoss, Located};
 // What `compare_drafts` and `revision` return (DB-41, DB-42, DB-44).
 pub use klappe_model::{RevisionColor, Version};
 pub use klappe_script::{Comparison, Edit, LineChange, SceneDiff, ScenePlace, SceneStatus};
@@ -131,6 +132,6 @@ pub use klappe_script::{
 // The outline of a screenplay (DB-20, DB-21): the tree, what a filter or a collapsed
 // section leaves, and moving a scene or a section.
 pub use klappe_script::{
-    length_text, move_entry, outline, outline_of, visible as visible_entries,
+    length_text, move_entry, outline, outline_of, sections_around, visible as visible_entries,
     Entry as OutlineEntry, EntryKind as OutlineKind, Moved, Way as MoveWay,
 };

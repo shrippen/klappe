@@ -4,7 +4,7 @@
 use std::path::{Path, PathBuf};
 
 use klappe_services::{
-    Draft, HeaderLine, Language, OnOutside, RevisionColor, Revisions, Saved, SceneNumbering,
+    Draft, HeaderLine, Laid, Language, OnOutside, RevisionColor, Revisions, Saved, SceneNumbering,
     SceneNumbers, ScenePlace, SceneStatus, ScriptPrint, ServiceError, Session,
 };
 
@@ -95,6 +95,19 @@ fn the_colours_follow_the_order_of_locking() {
     );
 }
 
+/// The revision's colour is the one after the last version's; none before the first.
+#[test]
+fn the_revision_colour_is_the_one_after_the_last_version() {
+    let (_, mut s) = session("versions-revision-colour", &book(&THREE));
+    assert_eq!(s.revision_color(), None);
+
+    lock(&mut s, "Eins");
+    assert_eq!(s.revision_color(), Some(RevisionColor::Blue));
+
+    lock(&mut s, "Zwei");
+    assert_eq!(s.revision_color(), Some(RevisionColor::Pink));
+}
+
 #[test]
 fn an_empty_or_used_name_is_refused_and_nothing_is_written() {
     let (dir, mut s) = session("versions-names", &book(&THREE));
@@ -136,6 +149,20 @@ fn a_conflict_locks_nothing() {
         s.project().script.scene_numbering,
         SceneNumbering::Automatic
     );
+}
+
+/// The pages of the last version are kept (DB-34); without it the next layout is a new one.
+#[test]
+fn deleting_the_last_version_frees_the_pages() {
+    let (_dir, mut s) = session("versions-delete-pages", &book(&THREE));
+    lock(&mut s, "Eins");
+    s.paginate(Language::English);
+    assert_eq!(s.paginate_if_changed(Language::English), Laid::Kept);
+    let id = s.versions()[0].id.clone();
+
+    s.remove_version(&id).unwrap();
+
+    assert_eq!(s.paginate_if_changed(Language::English), Laid::Anew);
 }
 
 #[test]

@@ -48,8 +48,31 @@ RowLayout {
     /// The last layout's page starts: `{ pages, breaks: [{ page, line }], scenes: [{ line, page }] }`
     /// (`scriptBreaksJson`). Shown as lines in the flowing text, used to find a scene's page.
     property var pageMap: ({ pages: 0, breaks: [], scenes: [] })
+    /// The sections, scenes and synopses of the text (`scriptOutlineJson`) for the scene list,
+    /// without what the folded sections hold. It follows the session's text, the last layout and
+    /// what the list has folded, so it is read again when one changes.
+    readonly property var outline: {
+        controller.scriptText
+        controller.projectJson
+        return JSON.parse(controller.scriptOutlineJson(JSON.stringify(Object.keys(sceneList.collapsed))))
+    }
     /// Typing since the last layout: the lines and the scene lengths are of an older text (DN-02).
     property bool stale: false
+    /// The locked versions (DB-40), `{ id, name, date, color, colorName }`, and the colour of the
+    /// revision since the last one (`{ color, colorName }`, null before the first version).
+    property var versions: []
+    property var nextRevision: null
+    /// Mark the lines that changed since the last version (DB-41); on as soon as there is one.
+    property bool showRevisions: true
+    /// Those lines (from 0) of the text as of the last layout; they follow it like the page
+    /// breaks (DN-02).
+    property var revisionLines: []
+    /// The same as text positions `{ from, to }` of the text at that layout.
+    property var revisionRanges: []
+    readonly property alias versionMenu: versionMenu
+    readonly property alias lockDialog: lockDialog
+    readonly property alias compareDialog: compareDialog
+    readonly property alias removeDialog: removeDialog
     /// The empty view's button: ask for a screenplay file.
     signal importRequested()
 
@@ -68,6 +91,72 @@ RowLayout {
     function readLayout() {
         pageMap = JSON.parse(controller.scriptBreaksJson())
         stale = false
+        readRevision()
+    }
+
+    /// Reads the locked versions the session holds.
+    /// The project changes with every typing that is sent: only a changed list is taken over and
+    /// marked anew (DN-02).
+    function readVersions() {
+        const json = controller.versionsJson()
+        if (json === _versionsRead) {
+            return
+        }
+        _versionsRead = json
+        const read = JSON.parse(json)
+        versions = read.versions
+        nextRevision = read.next
+        readRevision()
+    }
+    property string _versionsRead: ""
+
+    /// The lines changed since the last version, as of the text the session holds now.
+    function readRevision() {
+        const marking = versions.length > 0 && showRevisions
+        revisionLines = marking ? JSON.parse(controller.revisionJson()) : []
+        // Placed once per layout, like the page breaks' lines: typing moves no mark (DN-02),
+        // a mark cost a text position lookup twice, on every key.
+        revisionRanges = lineRanges(revisionLines, area.text)
+    }
+
+    /// The lines of `lines` (ascending, from 0) as text positions `{ from, to }`, `to` the end of
+    /// the line; `from` is -1 when the text no longer has the line. One pass over the text.
+    function lineRanges(lines, text) {
+        const ranges = []
+        let line = 0
+        let at = 0
+        for (const wanted of lines) {
+            while (at >= 0 && line < wanted) {
+                const next = text.indexOf("\n", at)
+                at = next < 0 ? -1 : next + 1
+                line++
+            }
+            if (at < 0) {
+                ranges.push({ from: -1, to: -1 })
+                continue
+            }
+            const end = text.indexOf("\n", at)
+            ranges.push({ from: at, to: end < 0 ? text.length : end })
+        }
+        return ranges
+    }
+
+    /// The version's dialogs; what was typed goes to the session first, the lock saves it.
+    function askLock() {
+        flush()
+        lockDialog.show()
+    }
+
+    function askCompare(from) {
+        flush()
+        compareDialog.show(from)
+    }
+
+    /// Shows or hides the marks of the revision.
+    function setRevisions(shown) {
+        flush()
+        showRevisions = shown
+        readRevision()
     }
 
     /// Lays the book out and shows the result (the lines, the lengths in the scene list).
@@ -135,6 +224,13 @@ RowLayout {
         }
     }
 
+    /// The page of the first scene at or after text line `line` (a scene's own heading, or a
+    /// section's first scene); 0 when no scene follows.
+    function pageOfLine(line) {
+        const found = pageMap.scenes.find(s => s.line >= line)
+        return found ? found.page : 0
+    }
+
     /// The cursor at the heading of `scene`, a row of the scene list: its `line` is the heading's
     /// text line, null when the book does not hold the scene, which leaves the cursor where it is.
     function goToScene(scene) {
@@ -143,9 +239,9 @@ RowLayout {
         }
         // The print view stays: it scrolls to the page the heading stands on.
         if (layout === "print") {
-            const found = pageMap.scenes.find(s => s.line === scene.line)
-            if (found) {
-                printView.goToPage(found.page, pageMap.pages)
+            const page = pageOfLine(scene.line)
+            if (page > 0) {
+                printView.goToPage(page, pageMap.pages)
             }
             return
         }
@@ -192,6 +288,7 @@ RowLayout {
     }
     readonly property alias flow: flow
     readonly property alias search: search
+    readonly property alias sceneList: sceneList
     onLineLooksChanged: restyle()
 
     /// Ctrl+Z and Ctrl+Shift+Z in the text: the editor's own history, not the project's. A step
@@ -298,6 +395,25 @@ RowLayout {
         }
     }
 
+    /// Alt+Up and Alt+Down in the scene list (DB-21): the scene or section whose heading is at text
+    /// line `line` swaps places with its neighbour, its text with it. One edit of the text (one
+    /// step of its undo history), sent to the session at once; the list keeps its focus on the block.
+    function moveBlock(line, way) {
+        flush()
+        const move = controller.moveOutline(line, way)
+        if (move === "") {
+            return
+        }
+        const m = JSON.parse(move)
+        // The block may have stepped into a folded section: open the sections around it.
+        sceneList.unfold(m.unfold)
+        const from = lineStart(area.text, m.from)
+        const end = lineStart(area.text, m.to)
+        putText(from, end < 0 ? area.text.length : end, m.lines.join("\n") + (end < 0 ? "" : "\n"))
+        flush()
+        sceneList.focusAt(m.line)
+    }
+
     function moveCursor(at) {
         if (at >= 0) {
             area.cursorPosition = at
@@ -330,12 +446,16 @@ RowLayout {
         layOut()
     }
 
-    Component.onCompleted: load()
+    Component.onCompleted: {
+        load()
+        readVersions()
+    }
     Connections {
         target: view.controller
         // Another project with the same text, or another paper, changes the project but not the
         // text: lay out again, unless typing is pending (DN-02: typing never lays out).
         function onProjectJsonChanged() {
+            view.readVersions()
             if (!view.stale) {
                 view.layOut()
             }
@@ -379,6 +499,32 @@ RowLayout {
         }
     }
 
+    VersionLockDialog {
+        id: lockDialog
+        objectName: "lockDialog"
+        texts: view.texts
+        controller: view.controller
+        onLocked: view.readVersions()
+    }
+    VersionRemoveDialog {
+        id: removeDialog
+        objectName: "removeDialog"
+        texts: view.texts
+        controller: view.controller
+        // The last version kept the page starts: without it the pages are free again.
+        onRemoved: {
+            view.readVersions()
+            view.layOut()
+        }
+    }
+    VersionCompare {
+        id: compareDialog
+        objectName: "compareDialog"
+        texts: view.texts
+        controller: view.controller
+        versions: view.versions
+    }
+
     ColumnLayout {
         Layout.fillHeight: true
         // Fixed: the list's fillWidth would otherwise make the column fill and squeeze the text.
@@ -391,13 +537,16 @@ RowLayout {
         KanteSectionLabel { text: view.texts.t("screenplay.scenes") }
 
         SceneList {
+            id: sceneList
             objectName: "sceneList"
             Layout.fillWidth: true
             Layout.fillHeight: true
             texts: view.texts
             controller: view.controller
             lengthsStale: view.stale
+            outline: view.outline
             onPicked: scene => view.goToScene(scene)
+            onMoveRequested: (line, way) => view.moveBlock(line, way)
         }
     }
 
@@ -420,6 +569,19 @@ RowLayout {
                 visible: view.stale
                 color: KanteStyle.mutedTextColor
                 text: view.texts.t("screenplay.stale")
+            }
+
+            VersionMenu {
+                id: versionMenu
+                objectName: "versionMenu"
+                enabled: area.text !== ""
+                texts: view.texts
+                versions: view.versions
+                showRevisions: view.showRevisions
+                onLockRequested: view.askLock()
+                onCompareRequested: from => view.askCompare(from)
+                onRemoveRequested: version => removeDialog.ask(version)
+                onRevisionsToggled: shown => view.setRevisions(shown)
             }
 
             KanteSegmented {
@@ -586,6 +748,16 @@ RowLayout {
                                 Accessible.name: view.texts.t("screenplay.pageNumber", { page: modelData.label })
                             }
                         }
+                    }
+                    RevisionMarks {
+                        objectName: "revisionMarks"
+                        visible: view.layout === "flow"
+                        area: area
+                        texts: view.texts
+                        stale: view.stale
+                        ranges: view.revisionRanges
+                        ink: view.nextRevision ? revisionInk.color(view.nextRevision.color) : KanteStyle.textColor
+                        RevisionInk { id: revisionInk }
                     }
                     // Later: while an edit runs, the cursor has moved but `text` is still the old one.
                     onCursorPositionChanged: {

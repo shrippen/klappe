@@ -113,6 +113,7 @@ Kirigami.ApplicationWindow {
                     root.openModule("screenplay")
                     screenplay.showTitlePage()
                 }
+                onVersionRequested: what => what === "lock" ? screenplay.askLock() : screenplay.askCompare("")
                 onFlushRequested: screenplay.flush()
                 onViewToggled: (area, shown) => {
                     switch (area) {
