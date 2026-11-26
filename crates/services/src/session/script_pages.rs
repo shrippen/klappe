@@ -174,6 +174,7 @@ impl Session {
     ) -> Result<(), ServiceError> {
         let (before, changed) = (self.project.script, self.project_changed);
         let (dirty, unbacked) = (self.dirty, self.unbacked);
+        let (layout, lengths) = (self.layout.clone(), self.lengths.clone());
         self.set_script_setup(ScriptSetup { paper, ..before });
 
         let result = self.export_script_pdf(path, print);
@@ -182,6 +183,8 @@ impl Session {
             self.project_changed = changed;
             self.dirty = dirty;
             self.unbacked = unbacked;
+            self.layout = layout;
+            self.lengths = lengths;
         }
 
         result
