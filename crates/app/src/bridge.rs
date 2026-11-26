@@ -525,6 +525,40 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "moveOutline"]
         fn move_outline(self: Pin<&mut Self>, line: i32, way: &QString) -> QString;
+        /// The locked versions of the screenplay (DB-40) and the colour of the revision since the
+        /// last one: `{ versions: [{ id, name, date, color, colorName }], next: { color,
+        /// colorName } | null }`; `color` is the file's name of the colour (`blue`), `colorName`
+        /// the word in the surface's language.
+        #[qinvokable]
+        #[cxx_name = "versionsJson"]
+        fn versions_json(self: Pin<&mut Self>) -> QString;
+
+        /// Saves the project and locks the book as version `name` (DB-40). Empty when it is
+        /// locked, else the reason in words (empty or used name, a file changed outside) for
+        /// the dialog to show at its field; no undo step.
+        #[qinvokable]
+        #[cxx_name = "lockVersion"]
+        fn lock_version(self: Pin<&mut Self>, name: &QString) -> QString;
+
+        /// Deletes version `id` with its text (no undo step); false when it is refused.
+        #[qinvokable]
+        #[cxx_name = "removeVersion"]
+        fn remove_version(self: Pin<&mut Self>, id: &QString) -> bool;
+
+        /// The lines (from 0) of the session's text that are new or changed since the last
+        /// version (DB-41), `[3, 4, 9]`; empty without a version. The editor sends its typing
+        /// first.
+        #[qinvokable]
+        #[cxx_name = "revisionJson"]
+        fn revision_json(self: Pin<&mut Self>) -> QString;
+
+        /// What differs between version `from` and version `to` (empty: the book now), scene by
+        /// scene (DB-42, DB-44): `[{ number, heading, status: "new" | "removed" | "changed" |
+        /// "same", place: "kept" | "moved", lines: [{ change: "added" | "removed", line, text }]
+        /// }]`; empty when a version is unknown.
+        #[qinvokable]
+        #[cxx_name = "compareJson"]
+        fn compare_json(self: Pin<&mut Self>, from: &QString, to: &QString) -> QString;
 
         /// Writes unsaved changes to the backup; QML calls it on a timer. An error goes to the
         /// status line.
@@ -1615,6 +1649,7 @@ mod start;
 mod state;
 mod team;
 mod templates;
+mod versions;
 mod view;
 
 fn q(s: &str) -> QString {

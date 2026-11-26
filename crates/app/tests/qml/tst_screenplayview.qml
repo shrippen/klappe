@@ -46,6 +46,8 @@ TestCase {
                                scenes: [{ line: 2, page: 1 }, { line: 6, page: 2 }] })
         function scriptBreaksJson() { return JSON.stringify(pages) }
         function scriptOutlineJson() { return "[]" }
+        function versionsJson() { return JSON.stringify({ versions: [], next: null }) }
+        function revisionJson() { return "[]" }
         // A heading's line is "h", every other line "a": enough to see the kinds arrive.
         function scriptKinds(text) {
             return text.split("\n").map(l => l.startsWith("INT.") || l.startsWith("EXT.") ? "h" : "a").join("")

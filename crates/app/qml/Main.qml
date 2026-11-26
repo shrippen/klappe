@@ -109,6 +109,7 @@ Kirigami.ApplicationWindow {
                 onTemplateExportRequested: templateExportDialog.open()
                 onBackgroundRequested: backgroundDialog.open()
                 onScriptImportRequested: scriptImport.start()
+                onVersionRequested: what => what === "lock" ? screenplay.askLock() : screenplay.askCompare("")
                 onFlushRequested: screenplay.flush()
                 onViewToggled: (area, shown) => {
                     switch (area) {
