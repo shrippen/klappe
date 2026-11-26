@@ -37,8 +37,8 @@ const ITALIC: &str = "Italic";
 const UNDERLINE: &str = "Underline";
 const STYLE_JOIN: char = '+';
 
-/// What the FDX file could not take from a screenplay, counted; nothing here is in the file
-/// except the lyrics, which stand there as action.
+/// What did not pass between a screenplay and an FDX file, counted. Writing: nothing here is
+/// in the file except the lyrics, which stand there as action. Reading: only `styles`.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct FdxLoss {
     pub sections: usize,
@@ -50,6 +50,9 @@ pub struct FdxLoss {
     /// `/* … */` comments; the parser cuts them, so the caller counts them in the text
     /// (`boneyard_count`) and sets this.
     pub boneyards: usize,
+    /// Reading: text runs whose emphasis Fountain cannot say next to a neighbour's, so the run
+    /// is plain (`**Nie` + `*mals*` have no common mark).
+    pub styles: usize,
     /// Page breaks with no paragraph after them to start a page.
     pub page_breaks: usize,
 }

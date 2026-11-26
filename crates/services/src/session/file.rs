@@ -262,10 +262,12 @@ impl Session {
         }
 
         // The book is kept as Fountain, whatever it was read from.
-        let script =
+        let (script, loss) =
             klappe_script::read_fdx(&text).map_err(|e| ServiceError::BadFdx(e.to_string()))?;
+        let mut report = self.import_book(&klappe_script::write(&script));
+        report.styles_lost = loss.styles;
 
-        Ok(self.import_book(&klappe_script::write(&script)))
+        Ok(report)
     }
 }
 

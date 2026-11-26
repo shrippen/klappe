@@ -161,6 +161,7 @@ impl Session {
             created,
             pending: report.pending,
             not_in_book: report.not_in_book,
+            styles_lost: 0,
         }
     }
 

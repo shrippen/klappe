@@ -1,5 +1,10 @@
 use super::*;
 
+/// The script of a file, without the loss.
+fn read(text: &str) -> Result<Script, FdxError> {
+    read_fdx(text).map(|(script, _)| script)
+}
+
 fn cue(name: &str, extension: Option<&str>, dual: bool) -> Element {
     Element::Character {
         name: name.to_owned(),
@@ -54,7 +59,7 @@ fn script_round_trips_through_fdx() {
     let script = full();
 
     let (xml, loss) = write_fdx(&script);
-    let back = read_fdx(&xml).unwrap();
+    let back = read(&xml).unwrap();
 
     assert!(loss.is_empty(), "{loss:?}");
     assert_eq!(back, script);
@@ -103,10 +108,11 @@ fn what_fdx_lacks_is_reported() {
             notes: 2,
             lyrics: 1,
             boneyards: 0,
+            styles: 0,
             page_breaks: 2,
         }
     );
-    let back = read_fdx(&xml).unwrap();
+    let back = read(&xml).unwrap();
     assert_eq!(
         back.elements,
         vec![
@@ -132,7 +138,7 @@ fn a_page_break_starts_the_page_of_a_dual_dialogue() {
     let (xml, loss) = write_fdx(&script);
 
     assert!(loss.is_empty());
-    assert_eq!(read_fdx(&xml).unwrap(), script);
+    assert_eq!(read(&xml).unwrap(), script);
 }
 
 const HAND: &str = r#"<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
@@ -170,7 +176,7 @@ const HAND: &str = r#"<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
 
 #[test]
 fn a_hand_written_file_is_read() {
-    let script = read_fdx(HAND).unwrap();
+    let script = read(HAND).unwrap();
 
     assert_eq!(
         script.title_page,
@@ -203,7 +209,7 @@ fn a_hand_written_file_is_read() {
 
 #[test]
 fn a_hand_written_file_survives_fountain() {
-    let script = read_fdx(HAND).unwrap();
+    let script = read(HAND).unwrap();
 
     let text = write(&script);
 
@@ -214,7 +220,7 @@ fn a_hand_written_file_survives_fountain() {
 fn literal_marks_stay_text() {
     let xml = "<FinalDraft><Content><Paragraph Type=\"Action\"><Text>a_b *c</Text></Paragraph></Content></FinalDraft>";
 
-    let script = read_fdx(xml).unwrap();
+    let script = read(xml).unwrap();
 
     assert_eq!(
         script.elements,
@@ -227,7 +233,7 @@ fn literal_marks_stay_text() {
 fn blanks_stay_outside_the_marks() {
     let xml = "<FinalDraft><Content><Paragraph Type=\"Action\"><Text Style=\"Bold\"> fett </Text></Paragraph></Content></FinalDraft>";
 
-    let script = read_fdx(xml).unwrap();
+    let script = read(xml).unwrap();
 
     assert_eq!(
         script.elements,
@@ -248,7 +254,7 @@ fn bad_files_are_refused() {
     ];
 
     for (text, expected) in cases {
-        let error = read_fdx(text).unwrap_err().to_string();
+        let error = read(text).unwrap_err().to_string();
         assert!(error.contains(expected), "{text}: {error}");
     }
 }
@@ -257,7 +263,7 @@ fn bad_files_are_refused() {
 fn deep_nesting_is_refused() {
     let text = format!("{}{}", "<a>".repeat(100), "</a>".repeat(100));
 
-    let error = read_fdx(&text).unwrap_err().to_string();
+    let error = read(&text).unwrap_err().to_string();
 
     assert!(error.contains("too deep"), "{error}");
 }
@@ -266,12 +272,12 @@ fn deep_nesting_is_refused() {
 fn an_entity_cannot_be_declared() {
     let text = "<!DOCTYPE FinalDraft [<!ENTITY x \"y\">]><FinalDraft>&x;</FinalDraft>";
 
-    assert!(read_fdx(text).is_err());
+    assert!(read(text).is_err());
 }
 
 #[test]
 fn a_file_without_content_is_an_empty_script() {
-    let script = read_fdx("<FinalDraft DocumentType=\"Script\"/>").unwrap();
+    let script = read("<FinalDraft DocumentType=\"Script\"/>").unwrap();
 
     assert_eq!(script, Script::default());
 }
@@ -309,14 +315,14 @@ fn literal_marks_in_emphasis_are_kept() {
     );
     // Read back, the literal mark carries its backslash; written again it is the same file.
     let (xml, _) = write_fdx(&script);
-    assert_eq!(write_fdx(&read_fdx(&xml).unwrap()).0, xml);
+    assert_eq!(write_fdx(&read(&xml).unwrap()).0, xml);
 }
 
 #[test]
 fn a_foreign_bold_run_with_a_mark_comes_back_whole() {
     let xml = one_paragraph("Action", "<Text Style=\"Bold\">a_b *c</Text>");
 
-    let script = read_fdx(&xml).unwrap();
+    let script = read(&xml).unwrap();
 
     assert_eq!(
         runs_of(&script),
@@ -355,7 +361,7 @@ fn title_time(n: usize) -> f64 {
     (0..3)
         .map(|_| {
             let start = std::time::Instant::now();
-            let script = read_fdx(&xml).unwrap();
+            let script = read(&xml).unwrap();
             assert_eq!(script.title_page.len(), n);
 
             start.elapsed().as_secs_f64()
@@ -380,7 +386,7 @@ fn a_blank_line_in_a_dialogue_keeps_it_a_dialogue() {
         "<Paragraph Type=\"Dialogue\"><Text>Eins.\n\nZwei.</Text></Paragraph>"
     );
 
-    let script = read_fdx(&xml).unwrap();
+    let script = read(&xml).unwrap();
 
     assert_eq!(parse(&write(&script)).elements, script.elements);
     assert_eq!(script.elements.len(), 2);
@@ -391,7 +397,7 @@ fn foreign_text_with_fountain_triggers_stays_text() {
     let text = "siehe [[x]] und /* y */ und a_b *c";
     let xml = one_paragraph("Action", &format!("<Text>{text}</Text>"));
 
-    let script = read_fdx(&xml).unwrap();
+    let script = read(&xml).unwrap();
 
     assert_eq!(parse(&write(&script)).elements, script.elements);
     assert_eq!(runs_of(&script), vec![(String::new(), text.to_owned())]);
@@ -401,4 +407,108 @@ fn foreign_text_with_fountain_triggers_stays_text() {
 fn boneyards_are_counted() {
     assert_eq!(boneyard_count("a /* b */ c\n\n/* d\n"), 2);
     assert_eq!(boneyard_count("a /\\* b"), 0);
+}
+
+/// Every combination of emphasis a text run can have.
+fn all_styles() -> Vec<&'static str> {
+    vec![
+        "",
+        "Bold",
+        "Italic",
+        "Bold+Italic",
+        "Underline",
+        "Bold+Underline",
+        "Italic+Underline",
+        "Bold+Italic+Underline",
+    ]
+}
+
+fn run(style: &str, text: &str) -> String {
+    format!("<Text Style=\"{style}\">{text}</Text>")
+}
+
+/// What the screenplay says of a one-paragraph file after Fountain: reading, writing,
+/// parsing and taking the marks off.
+fn through_fountain(runs: &str) -> String {
+    let script = read(&one_paragraph("Action", runs)).unwrap();
+    let parsed = parse(&write(&script));
+
+    match parsed.elements.as_slice() {
+        [Element::Action(text)] => plain_text(text),
+        other => panic!("{other:?}"),
+    }
+}
+
+#[test]
+fn neighbouring_runs_of_any_two_styles_keep_their_text() {
+    for first in all_styles() {
+        for second in all_styles() {
+            let runs = format!("{}{}", run(first, "Nie"), run(second, "mals"));
+
+            assert_eq!(through_fountain(&runs), "Niemals", "{first} + {second}");
+        }
+    }
+}
+
+#[test]
+fn three_runs_of_any_styles_keep_their_text() {
+    for first in all_styles() {
+        for second in all_styles() {
+            for third in all_styles() {
+                let runs = format!("{}{}{}", run(first, "a"), run(second, "b"), run(third, "c"));
+
+                assert_eq!(
+                    through_fountain(&runs),
+                    "abc",
+                    "{first} + {second} + {third}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn runs_that_meet_with_blanks_between_keep_both_styles() {
+    let runs = format!("{}{}", run("Bold", "Nie "), run("Bold+Italic", " mals"));
+
+    let script = read(&one_paragraph("Action", &runs)).unwrap();
+
+    assert_eq!(
+        script.elements,
+        vec![Element::Action("**Nie**  ***mals***".to_owned())]
+    );
+}
+
+#[test]
+fn an_emphasis_ending_in_a_slash_or_backslash_keeps_its_closing_mark() {
+    for end in ["/", "\\", "a/", "//"] {
+        let runs = format!("{}{}", run("Bold", &format!("ab{end}")), run("", " x"));
+        let script = read(&one_paragraph("Action", &runs)).unwrap();
+        let text = write(&script);
+
+        assert_eq!(through_fountain(&runs), format!("ab{end} x"));
+        assert!(!text.contains("\\*"), "{text}");
+    }
+}
+
+#[test]
+fn a_run_that_gives_up_its_style_is_counted() {
+    let runs = format!("{}{}", run("Bold", "Nie"), run("Bold+Italic", "mals"));
+
+    let (_, loss) = read_fdx(&one_paragraph("Action", &runs)).unwrap();
+
+    assert_eq!(loss.styles, 1);
+}
+
+#[test]
+fn runs_that_keep_their_style_are_not_counted() {
+    let runs = format!("{}{}", run("Bold", "Nie"), run("Italic", " mals"));
+
+    let (script, loss) = read_fdx(&one_paragraph("Action", &runs)).unwrap();
+
+    assert_eq!(loss.styles, 0);
+    assert_eq!(
+        script.elements,
+        vec![Element::Action("**Nie** *mals*".to_owned())]
+    );
 }

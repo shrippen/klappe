@@ -11,6 +11,7 @@ mod caps;
 mod compare;
 mod conflict;
 mod fdx;
+mod fdx_marks;
 mod fdx_read;
 mod fdx_write;
 mod flow;

@@ -68,6 +68,25 @@ fn a_boneyard_is_counted_as_left_out() {
 }
 
 #[test]
+fn runs_that_lose_their_emphasis_are_reported() {
+    let path = out("fdx-styles.fdx");
+    let xml = "<FinalDraft><Content><Paragraph Type=\"Scene Heading\"><Text>INT. HOF - TAG</Text></Paragraph>\
+        <Paragraph Type=\"Action\"><Text Style=\"Bold\">Nie</Text><Text Style=\"Bold+Italic\">mals</Text></Paragraph>\
+        </Content></FinalDraft>";
+    std::fs::write(&path, xml).unwrap();
+    let mut s = session("fdx-styles", "");
+
+    let report = s.import_script(&path).unwrap();
+
+    assert_eq!(report.styles_lost, 1);
+    assert!(
+        s.script_text().contains("Nie***mals***"),
+        "{}",
+        s.script_text()
+    );
+}
+
+#[test]
 fn no_screenplay_writes_no_file() {
     let path = out("fdx-none.fdx");
     let _ = std::fs::remove_file(&path);
