@@ -347,3 +347,14 @@ fn blank_lines_of_a_field_are_dropped() {
     assert_eq!(v["Contact"], "Eva\nWeg 1");
     assert_eq!(set, "Contact:\n   Eva\n   Weg 1\n\nINT. SAAL\n");
 }
+
+/// The key of a section is its level and title; scenes and synopses have none.
+#[test]
+fn only_sections_have_a_fold_key() {
+    let v: serde_json::Value = serde_json::from_str(&outline_json(BOOK, None, &[])).unwrap();
+
+    assert_eq!(v[0]["key"], "1Akt I");
+    assert_eq!(v[1]["key"], "");
+    assert_eq!(v[2]["key"], "");
+    assert_eq!(v[0]["folded"], false);
+}

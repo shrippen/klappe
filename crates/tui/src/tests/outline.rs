@@ -438,3 +438,22 @@ fn the_filter_matches_the_number_the_list_shows() {
     let shown = frame(&mut app);
     assert!(shown.contains("ZWEI") && !shown.contains("EINS"), "{shown}");
 }
+
+/// Typing a scene since the last layout changes the scene count: the lengths of the others
+/// are still found, by their heading line; the new scene has none yet.
+#[test]
+fn lengths_survive_a_stale_layout_by_heading_line() {
+    let (_s, mut app) = outlined();
+    press(&mut app, KeyCode::Enter);
+    typed(&mut app, "INT. NEU - TAG");
+    press(&mut app, KeyCode::Enter);
+    assert!(app.pages_stale());
+
+    let shown = frame(&mut app);
+    let line = |needle: &str| shown.lines().find(|l| l.contains(needle)).unwrap_or("");
+    assert!(line("INT. SAAL").ends_with("1/8"), "{shown}");
+    assert!(line("INT. HOF").ends_with("1/8"), "{shown}");
+    assert!(line("INT. KELLER").ends_with("1/8"), "{shown}");
+    assert!(line("▾ Akt I").ends_with("2/8"), "{shown}");
+    assert!(!line("INT. NEU").ends_with("/8"), "{shown}");
+}

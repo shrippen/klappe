@@ -28,6 +28,7 @@ mod light_edit;
 mod load;
 mod measure;
 mod number;
+mod outline_info;
 mod place_file;
 mod places;
 mod plan_edit;
@@ -61,6 +62,7 @@ pub use klappe_store::{builtin_camera_presets, FileKind};
 pub use light_edit::LightChange;
 pub use measure::measure_angle_deg;
 pub use number::{read_number, Range, Unit};
+pub use outline_info::{outline_info, OutlineInfo};
 pub use places::{PendingPlace, PlaceChoice, PlaceEdit};
 pub use plan_edit::{layer_of_source, Grid, MarkInfo, ObjectChange, Pace, PlanEdit, Snapping};
 pub use project_edit::{
