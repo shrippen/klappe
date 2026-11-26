@@ -440,6 +440,22 @@ pub mod qobject {
         #[cxx_name = "tabStep"]
         fn tab_step(self: &Self, line: &QString, kind: &QString) -> QString;
 
+        /// The choices for the end of line `line` (from 0) of `text`, a line of kind `kind` (a
+        /// letter of `scriptKinds`; `pending` the letter of the slot Enter or Tab made the line, or
+        /// empty, taken while `kind` is plain): `{ from, options, finishes, kind, gap }`, empty for
+        /// none. `from` is where in the line the choice goes (a
+        /// position of the text area), `options` at most eight, the most frequent first; `finishes`
+        /// says the choice ends the element, `kind` and `gap` (as `enterStep`) what follows it.
+        #[qinvokable]
+        #[cxx_name = "scriptSuggest"]
+        fn script_suggest(
+            self: &Self,
+            text: &QString,
+            line: i32,
+            kind: &QString,
+            pending: &QString,
+        ) -> QString;
+
         /// Line `at` of `text` in capitals as typed (a heading, a forced or `pending` cue);
         /// empty when nothing changes. `pending` is the letter of the slot Enter or Tab made the
         /// line, or empty.

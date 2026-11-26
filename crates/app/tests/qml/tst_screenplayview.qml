@@ -66,6 +66,7 @@ TestCase {
         }
         function tabStep(line, kind) { return "" }
         function typedCaps(text, at, pending) { return "" }
+        function scriptSuggest(text, line, kind, pending) { return "" }
         // Search (DB-07) by a plain `indexOf` without case; the rules are `script/`'s, tested there.
         // A speaker keeps the hits below their cue: the last line in capitals above the hit.
         function cueAt(text, at) {
