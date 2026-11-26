@@ -104,6 +104,13 @@ const PAGES: &[&str] = &[
     "qml/ProjectDialog.qml",
     "qml/ScriptSetupForm.qml",
     "qml/StartPage.qml",
+    "qml/RevisionInk.qml",
+    "qml/RevisionMarks.qml",
+    "qml/VersionCommands.qml",
+    "qml/VersionCompare.qml",
+    "qml/VersionLockDialog.qml",
+    "qml/VersionMenu.qml",
+    "qml/VersionRemoveDialog.qml",
 ];
 
 fn main() {

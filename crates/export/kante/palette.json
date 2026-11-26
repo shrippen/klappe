@@ -64,6 +64,31 @@
       "faded": "#0f6b66"
     }
   },
+  "revision": {
+    "usage": "Script revision colours (page colours of a screenplay) in their fixed order, as a mark (edge line, swatch) with the name beside it. Each reads at 3:1 or more (WCAG 1.4.11) on the surfaces a mark sits on (the app roles ground, card, sunken, dialog and selection: dark from 4.08, light from 3.63) and on every background token except bg2, the border colour (dark 3.5 to 16.1, Leinen 3.35 to 7.4, Kante Light 3.56 to 7.6); on bg2 some fall below 3:1. Light theme: darker readings of the paper colours, white as grey. Surfaces that are dark in every theme (.stage, .strip button) use the dark values. Web: --rev-<name>, data-revision. Apps: KanteStyle.revisions, revisionColor(name).",
+    "dark": {
+      "white": "#f2efe6",
+      "blue": "#6e9df0",
+      "pink": "#f58fb5",
+      "yellow": "#f2dc4a",
+      "green": "#6fd072",
+      "goldenrod": "#e0a21a",
+      "buff": "#d4b483",
+      "salmon": "#f78670",
+      "cherry": "#ee5a72"
+    },
+    "light": {
+      "white": "#717171",
+      "blue": "#2b66c0",
+      "pink": "#c03d7c",
+      "yellow": "#8f7400",
+      "green": "#2f7f35",
+      "goldenrod": "#9a6500",
+      "buff": "#8a6f3f",
+      "salmon": "#bf4c36",
+      "cherry": "#a3122f"
+    }
+  },
   "typography": {
     "heading": "Rajdhani",
     "headingWeights": [
@@ -212,6 +237,15 @@
       "labelCyan": "cyan",
       "labelBlue": "blue",
       "labelPurple": "purple",
+      "revisionWhite": "revision-white",
+      "revisionBlue": "revision-blue",
+      "revisionPink": "revision-pink",
+      "revisionYellow": "revision-yellow",
+      "revisionGreen": "revision-green",
+      "revisionGoldenrod": "revision-goldenrod",
+      "revisionBuff": "revision-buff",
+      "revisionSalmon": "revision-salmon",
+      "revisionCherry": "revision-cherry",
       "warning": "orange",
       "card": [
         "bg1",
@@ -280,6 +314,15 @@
       "labelCyan": "cyan",
       "labelBlue": "blue",
       "labelPurple": "purple",
+      "revisionWhite": "revision-white",
+      "revisionBlue": "revision-blue",
+      "revisionPink": "revision-pink",
+      "revisionYellow": "revision-yellow",
+      "revisionGreen": "revision-green",
+      "revisionGoldenrod": "revision-goldenrod",
+      "revisionBuff": "revision-buff",
+      "revisionSalmon": "revision-salmon",
+      "revisionCherry": "revision-cherry",
       "warning": "orange",
       "card": [
         "bg1",
