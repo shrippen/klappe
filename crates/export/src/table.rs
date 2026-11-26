@@ -27,12 +27,13 @@
 use klappe_model::{FloorPlan, Orientation, Shot};
 use klappe_stellprobe::{axis_jumps, ordered_shots, ShotOrder};
 
-use crate::canvas::{Anchor, Dash, Geom, Prim, Sheet, Stroke, Weight};
+use crate::canvas::{Sheet, Weight};
 use crate::error::ExportError;
-use crate::layout::{sheet_size_pt, GAP_PT, MIN_TEXT_PT, PT_PER_MM, TITLE_BAND_PT, TITLE_PT};
+use crate::layout::{sheet_size_pt, GAP_PT, MIN_TEXT_PT, PT_PER_MM, TITLE_BAND_PT};
 use crate::metrics::text_width_pt;
 use crate::page::{Page, ShotTexts};
-use crate::palette::Palette;
+use crate::palette::{Palette, Rgb};
+use crate::sheet_writer::{row_height, wrapped, SheetWriter};
 use crate::shots::{cells, heads, COLUMNS};
 
 pub(crate) const CELL_PT: f64 = MIN_TEXT_PT;
@@ -96,19 +97,14 @@ pub(crate) fn sheets(
 
     let table_w = table_width(&widths, content_w, orientation);
     let title = sheet_title(page, texts);
+    let mut writer = SheetWriter::new(pal, (width_pt, height_pt), margin, &title);
+    writer.rule_w = table_w;
     let mut ctx = Ctx {
-        pal,
-        margin,
+        w: writer,
         widths: &widths,
-        title: &title,
         head: &head_cells,
         head_extra: &head_extra,
         indent,
-        table_w,
-        sheets: Vec::new(),
-        prims: Vec::new(),
-        y: top,
-        rows: 0,
     };
 
     ctx.begin();
@@ -123,8 +119,8 @@ pub(crate) fn sheets(
         let shooting = order == ShotOrder::Shooting;
         let mut heading = shooting && *shot_setup != setup;
         let band_h = if heading { BAND_PT } else { 0.0 };
-        if ctx.y + band_h + height > bottom && ctx.rows > 0 {
-            ctx.finish(width_pt, height_pt);
+        if ctx.w.y + band_h + height > ctx.w.bottom && ctx.w.rows > 0 {
+            ctx.w.close();
             ctx.begin();
             heading = shooting;
         }
@@ -134,9 +130,8 @@ pub(crate) fn sheets(
         }
         ctx.shot(&lines, &extra, Weight::Regular, ROW_RULE_PT, pal.muted);
     }
-    ctx.finish(width_pt, height_pt);
 
-    Ok(ctx.sheets)
+    Ok(ctx.w.finish())
 }
 
 /// Upright, the free text lines run under the short columns: the table is as wide as the page.
@@ -172,153 +167,64 @@ fn sheet_title(page: &Page, texts: &ShotTexts) -> String {
     format!("{}{TITLE_SEPARATOR}{}", page.title, texts.title)
 }
 
-/// Sheet under construction.
+/// The shot list's sheets: the shared writer, and the head and widths every sheet repeats.
 struct Ctx<'a> {
-    pal: &'a Palette,
-    margin: f64,
+    w: SheetWriter<'a>,
     widths: &'a [f64; COLUMNS],
-    title: &'a str,
-    head: &'a [Vec<String>; COLUMNS],
+    head: &'a [Vec<String>],
     /// Upright: the second head line, over the free text columns.
     head_extra: &'a [String],
     /// Upright: how far the free text lines are indented.
     indent: f64,
-    table_w: f64,
-    sheets: Vec<Sheet>,
-    prims: Vec<Prim>,
-    y: f64,
-    /// Shot rows on this sheet.
-    rows: usize,
 }
 
 impl Ctx<'_> {
     /// Title and head row at the top of a new sheet.
     fn begin(&mut self) {
-        self.prims.push(Prim::Text {
-            rotation_deg: 0.0,
-            class: "title".into(),
-            anchor: Anchor::Start,
-            at: (self.margin, self.margin + TITLE_PT),
-            size_pt: TITLE_PT,
-            weight: Weight::Bold,
-            rgb: self.pal.foreground,
-            text: self.title.to_owned(),
-        });
-
-        self.y = self.margin + TITLE_BAND_PT + GAP_PT;
-        self.rows = 0;
+        self.w.begin();
         let (head, extra) = (self.head, self.head_extra);
-        self.shot(head, extra, Weight::Bold, HEAD_RULE_PT, self.pal.foreground);
-        self.rows = 0;
+        self.shot(
+            head,
+            extra,
+            Weight::Bold,
+            HEAD_RULE_PT,
+            self.w.pal.foreground,
+        );
+        self.w.rows = 0;
     }
 
     /// A row, and under it the free text lines of an upright table, with one rule below both.
     fn shot(
         &mut self,
-        lines: &[Vec<String>; COLUMNS],
+        lines: &[Vec<String>],
         extra: &[String],
         weight: Weight,
         rule_pt: f64,
-        rule: crate::palette::Rgb,
+        rule: Rgb,
     ) {
         if extra.is_empty() {
-            self.row(lines, row_height(lines), weight, rule_pt, rule);
+            self.w.row(lines, self.widths, weight, rule_pt, rule);
             return;
         }
 
-        self.row(lines, row_height(lines), weight, 0.0, rule);
-        let x = self.margin + self.indent + PAD_PT;
-        let top = self.y - ROW_PAD_PT;
+        self.w.row(lines, self.widths, weight, 0.0, rule);
+        let x = self.w.margin + self.indent + PAD_PT;
+        let top = self.w.y - ROW_PAD_PT;
         for (k, text) in extra.iter().enumerate() {
-            self.prims.push(Prim::Text {
-                rotation_deg: 0.0,
-                class: "shot".into(),
-                anchor: Anchor::Start,
-                at: (x, top + k as f64 * LINE_PT + CELL_PT),
-                size_pt: CELL_PT,
-                weight,
-                rgb: self.pal.foreground,
-                text: text.clone(),
-            });
+            self.w
+                .text(x, top + k as f64 * LINE_PT + CELL_PT, CELL_PT, weight, text);
         }
-        self.y += extra.len() as f64 * LINE_PT;
-        self.rule(rule_pt, rule);
-    }
-
-    fn rule(&mut self, rule_pt: f64, rgb: crate::palette::Rgb) {
-        self.prims.push(Prim::Shape {
-            class: "rule".into(),
-            geom: Geom::Open(vec![
-                (self.margin, self.y),
-                (self.margin + self.table_w, self.y),
-            ]),
-            fill: None,
-            stroke: Some(Stroke {
-                rgb,
-                width_pt: rule_pt,
-                dash: Dash::Solid,
-            }),
-        });
-    }
-
-    fn row(
-        &mut self,
-        lines: &[Vec<String>; COLUMNS],
-        height: f64,
-        weight: Weight,
-        rule_pt: f64,
-        rule: crate::palette::Rgb,
-    ) {
-        let mut x = self.margin;
-        for (cell, width) in lines.iter().zip(self.widths) {
-            for (k, text) in cell.iter().enumerate() {
-                self.prims.push(Prim::Text {
-                    rotation_deg: 0.0,
-                    class: "shot".into(),
-                    anchor: Anchor::Start,
-                    at: (
-                        x + PAD_PT,
-                        self.y + ROW_PAD_PT + k as f64 * LINE_PT + CELL_PT,
-                    ),
-                    size_pt: CELL_PT,
-                    weight,
-                    rgb: self.pal.foreground,
-                    text: text.clone(),
-                });
-            }
-            x += width;
-        }
-
-        self.rows += 1;
-        self.y += height;
-        if rule_pt > 0.0 {
-            self.rule(rule_pt, rule);
-        }
+        self.w.y += extra.len() as f64 * LINE_PT;
+        self.w.rule(rule_pt, rule);
     }
 
     /// A heading over the rows that follow, e.g. "Setup 2".
     fn band(&mut self, text: &str) {
-        self.prims.push(Prim::Text {
-            rotation_deg: 0.0,
-            class: "setup".into(),
-            anchor: Anchor::Start,
-            at: (self.margin + PAD_PT, self.y + ROW_PAD_PT + CELL_PT),
-            size_pt: CELL_PT,
-            weight: Weight::Bold,
-            rgb: self.pal.foreground,
-            text: text.to_owned(),
-        });
+        let at = (self.w.margin + PAD_PT, self.w.y + ROW_PAD_PT + CELL_PT);
+        self.w.text(at.0, at.1, CELL_PT, Weight::Bold, text);
 
-        self.y += BAND_PT;
-        self.rule(ROW_RULE_PT, self.pal.muted);
-    }
-
-    fn finish(&mut self, width_pt: f64, height_pt: f64) {
-        self.sheets.push(Sheet {
-            width_pt,
-            height_pt,
-            prims: std::mem::take(&mut self.prims),
-        });
+        self.w.y += BAND_PT;
+        self.w.rule(ROW_RULE_PT, self.w.pal.muted);
     }
 }
 
@@ -387,12 +293,6 @@ fn head_extra(head: &[String; COLUMNS], max_w: f64, orientation: Orientation) ->
     cell_lines(&names.join(HEAD_SEPARATOR), max_w, Weight::Bold)
 }
 
-fn row_height(cells: &[Vec<String>; COLUMNS]) -> f64 {
-    let lines = cells.iter().map(Vec::len).max().unwrap_or(0).max(1);
-
-    lines as f64 * LINE_PT + 2.0 * ROW_PAD_PT
-}
-
 /// Short columns as wide as their words, free text columns share the rest by need. When
 /// even the narrowest layout is too wide, everything shrinks alike (long words then break).
 fn column_widths(
@@ -448,17 +348,6 @@ fn widest_line(text: &str) -> f64 {
     text.lines()
         .map(|l| text_width_pt(l, CELL_PT, Weight::Regular))
         .fold(0.0, f64::max)
-}
-
-fn wrapped(
-    texts: &[String; COLUMNS],
-    widths: &[f64; COLUMNS],
-    weight: Weight,
-) -> [Vec<String>; COLUMNS] {
-    std::array::from_fn(|i| match widths[i] > 0.0 {
-        true => cell_lines(&texts[i], widths[i] - 2.0 * PAD_PT, weight),
-        false => Vec::new(),
-    })
 }
 
 /// Greedy word wrap to `max_w`; words wider than the column break by letter. Cut at

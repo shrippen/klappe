@@ -34,6 +34,7 @@ mod rgb8;
 mod scan;
 mod script;
 mod sheet;
+mod sheet_writer;
 mod shots;
 mod stroke;
 mod style;
@@ -241,3 +242,6 @@ fn sheets<'a>(
 
 #[cfg(test)]
 mod png_tests;
+
+#[cfg(test)]
+mod title_tests;
