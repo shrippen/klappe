@@ -364,3 +364,18 @@ fn a_refused_output_leaves_a_saved_project_clean() {
     assert!(!s.is_dirty());
     assert_eq!(s.autosave().unwrap(), klappe_services::Autosave::Clean);
 }
+
+/// A refused output leaves the layout of the paper it was made for, not the refused one.
+#[test]
+fn a_refused_output_keeps_the_layout() {
+    let mut s = session("pages-paper-layout", &scene(1, 56));
+    s.paginate(Language::English);
+    let before = s.script_pages().cloned();
+    let folder = out("pages-paper-layout");
+
+    let refused = s.export_script_on(&folder, &PRINT, ScriptPaper::Letter);
+
+    assert!(refused.is_err());
+    assert_eq!(s.project().script.paper, ScriptPaper::A4);
+    assert_eq!(s.script_pages().cloned(), before);
+}
