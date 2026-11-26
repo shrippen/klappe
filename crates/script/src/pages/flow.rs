@@ -393,7 +393,12 @@ impl Flow<'_> {
         let Some(section) = self.section.take() else {
             return;
         };
-        if !section.made {
+        // A number the pages that ran over already took is not struck twice.
+        let given = self
+            .last
+            .as_ref()
+            .is_some_and(|last| compare_labels(&section.label, last) != Ordering::Greater);
+        if !section.made && !given {
             self.struck.push(section.label);
         }
     }

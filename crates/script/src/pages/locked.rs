@@ -93,11 +93,14 @@ fn line_map(old: &[String], new: &[String]) -> Vec<Option<usize>> {
 /// The starts of a locked version's pages (`starts`, in the text `old`) as they stand in the
 /// text `new`: a start moves with its line, one on a line that is gone moves to the next
 /// line that is kept, one with no such line (and the pages struck at the end) goes to the
-/// end. The first page starts at the top. A start within a line keeps its place only if the
+/// end. The first page starts at the top. A start on a changed line moves to the changed
+/// lines right before the next kept one. A start within a line keeps its place only if the
 /// line is unchanged, else it moves to the start of the line.
 pub fn carry(old: &str, new: &str, starts: &[PageStart]) -> Vec<PageStart> {
     let (old, new) = (lines_of(old), lines_of(new));
     let map = line_map(&old, &new);
+    let mut kept = vec![false; new.len()];
+    map.iter().flatten().for_each(|&j| kept[j] = true);
 
     let moved = |start: &PageStart| {
         let found = (start.line..old.len()).find_map(|i| Some((i, map[i]?)));
@@ -109,11 +112,15 @@ pub fn carry(old: &str, new: &str, starts: &[PageStart]) -> Vec<PageStart> {
             return (line, start.offset);
         }
 
-        // The line is gone or changed: the page starts where it stood, on the first line
-        // after the last kept one before it, so a changed heading keeps its page (DB-31).
-        let before = (0..start.line).rev().find_map(|i| map[i]);
+        // The line is gone or changed: the page starts at the changed lines that stand
+        // right before the next kept one (a paragraph, no blank line), so a changed heading
+        // keeps its page (DB-31) and text added before it stays on the page before.
+        let mut first = line;
+        while first > 0 && !kept[first - 1] && !new[first - 1].is_empty() {
+            first -= 1;
+        }
 
-        (before.map_or(0, |b| b + 1).min(line), 0)
+        (first, 0)
     };
 
     starts

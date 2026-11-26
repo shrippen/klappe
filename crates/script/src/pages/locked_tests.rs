@@ -439,3 +439,65 @@ fn labels_sort_by_number_then_letters() {
     assert_eq!(compare_labels("3AB", "4"), Less);
     assert_eq!(compare_labels("10", "9"), Greater);
 }
+
+#[test]
+fn a_changed_heading_after_added_text_keeps_the_added_text_on_the_page_before() {
+    let text = scenes(10);
+    let (pages, starts) = lock(&text);
+    let head = first_text(&pages.pages[1]).to_owned();
+    assert!(head.starts_with("INT. ROOM"), "{head}");
+
+    // Text at the end of the scene before the page, and the heading changed.
+    let at = text.find(&head).unwrap();
+    let edited = format!(
+        "{}{}{}{}",
+        &text[..at],
+        EXTRA.replace('\n', "\n\n").trim_end_matches('\n'),
+        "\n\n",
+        text[at..].replacen("DAY", "NIGHT", 1)
+    );
+
+    let now = locked(&text, &starts, &edited);
+
+    assert_eq!(&labels(&now)[..3], ["1", "1A", "2"]);
+    assert_eq!(first_text(&now.pages[2]), head.replace("DAY", "NIGHT"));
+}
+
+#[test]
+fn a_struck_section_never_takes_a_number_already_given() {
+    use std::cmp::Ordering;
+
+    let text = story(24);
+    let (_, starts) = lock(&text);
+    let at = paragraph(&text, starts[3].line);
+    let grown = replace_lines(&text, at, at, EXTRA);
+    let located = parse_located(&grown);
+    let elements: Vec<Element> = located.iter().map(|l| l.element.clone()).collect();
+    let second = paginate_locked(
+        &elements,
+        &located,
+        &options(),
+        &carry(&text, &grown, &starts),
+    );
+    let starts2 = page_starts(&second, &located, lines(&grown));
+    let line_of = |label: &str| starts2.iter().find(|s| s.label == label).unwrap().line;
+    assert!(starts2.iter().any(|s| s.label == "3A"));
+
+    // Page 3A goes, page 3 grows by a long line.
+    let (three, three_a, four) = (line_of("3"), line_of("3A"), line_of("4"));
+    let cut = replace_lines(&grown, three_a, four + 1, "");
+    let long = "A long line runs on and on over the rows of the page. ".repeat(14);
+    let at = after_paragraph(&cut, three);
+    let edited = replace_lines(&cut, at, at, &format!("{long}\n"));
+
+    let now = locked(&grown, &starts2, &edited);
+
+    let names = labels(&now);
+    for pair in names.windows(2) {
+        assert_eq!(
+            compare_labels(pair[0], pair[1]),
+            Ordering::Less,
+            "{names:?}"
+        );
+    }
+}
