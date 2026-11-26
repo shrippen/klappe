@@ -1,7 +1,5 @@
 import QtQuick
 import QtQuick.Layouts
-import QtQuick.Controls as QQC2
-import org.kde.kirigami as Kirigami
 import Kante
 
 // DB-06: the title page of the screenplay as a form. The six fields of the Fountain title page;
@@ -29,8 +27,8 @@ FormDialog {
     readonly property var singles: [fTitle, fCredit, fAuthor, fSource, fDraft]
     readonly property string contactKey: "Contact"
     readonly property alias contactField: contact
-    /// The height of the contact field in grid units: four lines.
-    readonly property int contactGridUnits: 5
+    /// Lines of the contact field before it scrolls.
+    readonly property int contactLines: 4
 
     title: texts.t("titlepage.title")
     acceptText: texts.t("form.apply")
@@ -118,30 +116,12 @@ FormDialog {
     Single { id: fSource; key: "Source"; label: "titlepage.f.source" }
     Single { id: fDraft; key: "Draft date"; label: "titlepage.f.draft" }
 
-    // Kante has no multi-line field: the text area sits in a Kante card with the field's colours.
     KanteSectionLabel { text: form.texts.t("titlepage.f.contact") }
-    KanteCard {
+    KanteTextArea {
+        id: contact
+        objectName: "field.Contact"
         Layout.fillWidth: true
-        Layout.preferredHeight: Kirigami.Units.gridUnit * form.contactGridUnits
-        color: KanteStyle.sunkenColor
-        borderColor: KanteStyle.frameColor
-        chamfer: 0
-
-        QQC2.ScrollView {
-            anchors.fill: parent
-            QQC2.TextArea {
-                id: contact
-                objectName: "field.Contact"
-                wrapMode: TextEdit.Wrap
-                color: KanteStyle.textColor
-                selectionColor: KanteStyle.selectionColor
-                selectedTextColor: KanteStyle.textColor
-                background: null
-                Accessible.name: form.texts.t("titlepage.f.contact")
-                // Tab leaves the field like in the others (a tab character has no place in a contact).
-                Keys.onTabPressed: nextItemInFocusChain(true).forceActiveFocus()
-                Keys.onBacktabPressed: nextItemInFocusChain(false).forceActiveFocus()
-            }
-        }
+        maxLines: form.contactLines
+        Accessible.name: form.texts.t("titlepage.f.contact")
     }
 }

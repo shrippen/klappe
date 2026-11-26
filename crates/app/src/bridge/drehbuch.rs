@@ -6,10 +6,10 @@ use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
 use klappe_services::{
-    enter_step, error_text, set_title_fields, tab_step, text_kinds, title_fields, typed_caps, Align, EnterStep, Gap, HeaderLine,
-    ImportReport, Laid, PrintFace, Revisions, SceneNumbering, SceneNumbers, ScriptLanguage,
-    ScriptPages, ScriptPaper, ScriptPrint, ScriptSetup, ScriptWords, SheetPage, Slot, TextKind,
-    SCRIPT_ASCENT_PT, SCRIPT_FONT_PT, TEXT_COLUMNS,
+    enter_step, error_text, set_title_fields, tab_step, text_kinds, title_fields, typed_caps,
+    Align, EnterStep, Gap, HeaderLine, ImportReport, Laid, PrintFace, Revisions, SceneNumbering,
+    SceneNumbers, ScriptLanguage, ScriptPages, ScriptPaper, ScriptPrint, ScriptSetup, ScriptWords,
+    SheetPage, Slot, TextKind, SCRIPT_ASCENT_PT, SCRIPT_FONT_PT, TEXT_COLUMNS,
 };
 use serde_json::{json, Map, Value};
 
