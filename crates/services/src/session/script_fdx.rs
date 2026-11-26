@@ -14,7 +14,9 @@ impl Session {
         }
 
         let script = klappe_script::parse(self.script_text());
-        let (xml, loss) = klappe_script::write_fdx(&script);
+        let (xml, mut loss) = klappe_script::write_fdx(&script);
+        // The parser has cut the boneyards from the script already.
+        loss.boneyards = klappe_script::boneyard_count(self.script_text());
         write_file(path, xml.into_bytes())?;
 
         Ok(loss)
@@ -29,6 +31,7 @@ pub fn fdx_loss_text(language: Language, loss: &FdxLoss) -> String {
         ("script.fdxSynopses", loss.synopses),
         ("script.fdxNotes", loss.notes),
         ("script.fdxLyrics", loss.lyrics),
+        ("script.fdxBoneyards", loss.boneyards),
         ("script.fdxBreaks", loss.page_breaks),
     ];
     let parts: Vec<String> = counted

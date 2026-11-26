@@ -314,6 +314,7 @@
  "script.fdxSynopses": "synopses {count}",
  "script.fdxNotes": "notes {count}",
  "script.fdxLyrics": "lyrics (as action) {count}",
+ "script.fdxBoneyards": "boneyards {count}",
  "script.fdxBreaks": "page breaks {count}",
  "script.imported": "Screenplay loaded.",
  "script.reportTitle": "Screenplay loaded",

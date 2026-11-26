@@ -55,6 +55,19 @@ fn what_is_left_out_is_worded() {
 }
 
 #[test]
+fn a_boneyard_is_counted_as_left_out() {
+    let text = format!("{BOOK}\n/* alt */\n");
+    let path = out("fdx-boneyard.fdx");
+
+    let loss = session("fdx-boneyard", &text)
+        .export_script_fdx(&path)
+        .unwrap();
+
+    assert_eq!(loss.boneyards, 1);
+    assert!(fdx_loss_text(Language::English, &loss).contains("boneyards 1"));
+}
+
+#[test]
 fn no_screenplay_writes_no_file() {
     let path = out("fdx-none.fdx");
     let _ = std::fs::remove_file(&path);

@@ -47,6 +47,9 @@ pub struct FdxLoss {
     pub notes: usize,
     /// Lyrics, written as action.
     pub lyrics: usize,
+    /// `/* … */` comments; the parser cuts them, so the caller counts them in the text
+    /// (`boneyard_count`) and sets this.
+    pub boneyards: usize,
     /// Page breaks with no paragraph after them to start a page.
     pub page_breaks: usize,
 }

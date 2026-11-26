@@ -70,8 +70,23 @@ fn closes_later(chars: &[char], from: usize, run: usize) -> bool {
 /// Emphasis counts only when its closing mark is on the same line, so a lone `*` is text.
 /// Example: `a *b* [[c]]` gives italic for `*b*` and note for `[[c]]`.
 pub fn inline_runs(line: &str, in_boneyard: bool) -> (Vec<Run>, bool) {
+    let scan = scan(line, in_boneyard);
+
+    (runs(&scan.marks), scan.boneyard)
+}
+
+/// What `scan` found: the marks of each character, which characters open or close an
+/// emphasis (a lone `*` or `_` does neither), and whether the next line is in a boneyard.
+struct Scan {
+    marks: Vec<Marks>,
+    toggles: Vec<bool>,
+    boneyard: bool,
+}
+
+fn scan(line: &str, in_boneyard: bool) -> Scan {
     let chars: Vec<char> = line.chars().collect();
     let mut marks = vec![Marks::default(); chars.len()];
+    let mut toggles = vec![false; chars.len()];
     let mut now = Marks::default();
     let mut boneyard = in_boneyard;
     let mut at = 0;
@@ -102,6 +117,12 @@ pub fn inline_runs(line: &str, in_boneyard: bool) -> (Vec<Run>, bool) {
             }
         }
         if c == ESCAPE {
+            // An escaped character is text inside the emphasis it stands in.
+            for m in marks.iter_mut().skip(at).take(2) {
+                m.bold = now.bold;
+                m.italic = now.italic;
+                m.underline = now.underline;
+            }
             at += 2;
             continue;
         }
@@ -118,10 +139,18 @@ pub fn inline_runs(line: &str, in_boneyard: bool) -> (Vec<Run>, bool) {
             m.italic = before.italic || now.italic;
             m.underline = before.underline || now.underline;
         }
+        // A mark that changed the emphasis is a mark; any other is text.
+        if now != before {
+            toggles[at..at + step].iter_mut().for_each(|t| *t = true);
+        }
         at += step;
     }
 
-    (runs(&marks), boneyard)
+    Scan {
+        marks,
+        toggles,
+        boneyard,
+    }
 }
 
 /// Handles a run of stars at `at`; returns how many characters it took.
@@ -169,14 +198,10 @@ pub fn plain_text(text: &str) -> String {
     let mut out = String::new();
 
     for line in text.lines() {
-        let (runs, _) = inline_runs(line, false);
-        let chars: Vec<char> = line.chars().collect();
-
-        for run in runs {
-            if run.marks.note {
-                continue;
+        for (marks, part) in visible_runs(line) {
+            if !marks.note {
+                out.push_str(&part);
             }
-            out.push_str(&run_text(&chars[run.start..run.end], run.marks));
         }
         out.push(' ');
     }
@@ -185,21 +210,32 @@ pub fn plain_text(text: &str) -> String {
     out.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
-/// The characters of one run as a reader sees them: without the marks of its emphasis and the
-/// backslash of `\*`.
-pub(crate) fn run_text(part: &[char], marks: Marks) -> String {
-    let emphasis = marks.bold || marks.italic || marks.underline;
-    let mut out = String::new();
+/// The runs of a line with the text a reader sees: the marks that open or close an emphasis
+/// are gone, and so is the backslash of `\*`, `\_` and `\[[`; a `*` or `_` that opens
+/// nothing is text. Notes come with their marks, for the caller to leave out.
+pub(crate) fn visible_runs(line: &str) -> Vec<(Marks, String)> {
+    let chars: Vec<char> = line.chars().collect();
+    let scan = scan(line, false);
 
-    for (i, c) in part.iter().enumerate() {
-        let escapes = *c == ESCAPE && part.get(i + 1).is_some_and(|n| is_mark(*n));
-        if escapes || (emphasis && is_mark(*c)) {
-            continue;
-        }
-        out.push(*c);
-    }
+    runs(&scan.marks)
+        .iter()
+        .map(|run| {
+            let mut part = String::new();
+            for i in run.start..run.end {
+                let escapes = chars[i] == ESCAPE && escapes_next(&chars, i);
+                if !scan.toggles[i] && !escapes {
+                    part.push(chars[i]);
+                }
+            }
 
-    out
+            (run.marks, part)
+        })
+        .collect()
+}
+
+/// Whether the backslash at `at` protects what follows: a mark or the opening of a note.
+fn escapes_next(chars: &[char], at: usize) -> bool {
+    chars.get(at + 1).is_some_and(|c| is_mark(*c)) || starts(chars, at + 1, NOTE_OPEN)
 }
 
 fn is_mark(c: char) -> bool {

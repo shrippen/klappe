@@ -1,5 +1,7 @@
 //! FDX to a [`Script`].
 
+use std::collections::HashMap;
+
 use crate::fdx::{
     self, paragraphs, Style, ALIGNMENT, CENTER, CONTENT, DUAL, KEY, NEW_PAGE, NUMBER, RIGHT, ROOT,
     STYLE, TEXT, TITLE_PAGE, TYPE, YES,
@@ -83,7 +85,7 @@ fn read_paragraph(par: &Node, dual: bool, out: &mut Vec<Element>) {
         },
         fdx::CHARACTER => cue(text, dual),
         fdx::PARENTHETICAL => Element::Parenthetical(unwrap_parens(text)),
-        fdx::DIALOGUE => Element::Dialogue(text.to_owned()),
+        fdx::DIALOGUE => Element::Dialogue(no_blank_lines(text)),
         fdx::TRANSITION => Element::Transition(text.to_owned()),
         _ if par.attr(ALIGNMENT) == Some(CENTER) => Element::Centered(text.to_owned()),
         _ => Element::Action(text.to_owned()),
@@ -111,6 +113,14 @@ fn cue(text: &str, dual: bool) -> Element {
     }
 }
 
+/// A blank line ends a dialogue in Fountain, so a dialogue with one would split; the blank
+/// lines are dropped.
+fn no_blank_lines(text: &str) -> String {
+    let lines: Vec<&str> = text.lines().filter(|l| !l.trim().is_empty()).collect();
+
+    lines.join("\n")
+}
+
 fn unwrap_parens(text: &str) -> String {
     let inner = text.strip_prefix('(').unwrap_or(text);
 
@@ -123,8 +133,8 @@ struct Piece {
     text: String,
 }
 
-/// The paragraph's text as Fountain: runs with a style get its marks, and a literal `*` or
-/// `_` gets a backslash so it stays text.
+/// The paragraph's text as Fountain: runs with a style get its marks, and a literal `*`, `_`
+/// or `[[` gets a backslash so it stays text (`/*` is protected when the book is written).
 fn marked_text(par: &Node) -> String {
     let mut pieces: Vec<Piece> = Vec::new();
 
@@ -185,7 +195,8 @@ fn escape(line: &str) -> String {
         out.push(c);
     }
 
-    out
+    // `[[` would open a note; the backslash keeps the first bracket text.
+    out.replace("[[", "\\[[")
 }
 
 /// The title page: our paragraphs name their key; in a foreign file the centered ones are
@@ -193,6 +204,7 @@ fn escape(line: &str) -> String {
 /// rest the contact.
 fn read_title(content: &Node) -> Vec<(String, String)> {
     let mut pairs: Vec<(String, String)> = Vec::new();
+    let mut index: HashMap<String, usize> = HashMap::new();
     let mut centered = 0;
 
     for par in paragraphs(content) {
@@ -207,12 +219,15 @@ fn read_title(content: &Node) -> Vec<(String, String)> {
             None => foreign_key(par.attr(ALIGNMENT), &mut centered),
         };
 
-        match pairs.iter_mut().find(|(k, _)| *k == key) {
-            Some((_, value)) => {
-                value.push('\n');
-                value.push_str(&text);
+        match index.get(&key) {
+            Some(&at) => {
+                pairs[at].1.push('\n');
+                pairs[at].1.push_str(&text);
             }
-            None => pairs.push((key, text)),
+            None => {
+                index.insert(key.clone(), pairs.len());
+                pairs.push((key, text));
+            }
         }
     }
 

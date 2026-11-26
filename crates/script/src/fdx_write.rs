@@ -5,7 +5,7 @@ use crate::fdx::{
     LEFT, NEW_PAGE, NUMBER, PARAGRAPH, PARENTHETICAL, RIGHT, ROOT, STYLE, TEXT, TITLE_PAGE,
     TRANSITION, TYPE, YES,
 };
-use crate::inline::{inline_runs, run_text, Marks};
+use crate::inline::{visible_runs, Marks};
 use crate::title::TITLE_KEYS;
 use crate::xml::{Kid, Node};
 use crate::{Element, Script};
@@ -206,16 +206,12 @@ impl Writer {
             if n > 0 {
                 push_piece(&mut pieces, Style::default(), "\n");
             }
-            let chars: Vec<char> = line.chars().collect();
-            let (runs, _) = inline_runs(line, false);
-
-            for run in runs {
-                if run.marks.note {
+            for (marks, part) in visible_runs(line) {
+                if marks.note {
                     self.loss.notes += 1;
                     continue;
                 }
-                let part = run_text(&chars[run.start..run.end], run.marks);
-                push_piece(&mut pieces, style_of(run.marks), &part);
+                push_piece(&mut pieces, style_of(marks), &part);
             }
         }
 

@@ -274,3 +274,130 @@ fn a_file_without_content_is_an_empty_script() {
 
     assert_eq!(script, Script::default());
 }
+
+fn one_paragraph(kind: &str, runs: &str) -> String {
+    format!(
+        "<FinalDraft><Content><Paragraph Type=\"{kind}\">{runs}</Paragraph></Content></FinalDraft>"
+    )
+}
+
+/// The text runs of the first paragraph of a written file.
+fn runs_of(script: &Script) -> Vec<(String, String)> {
+    let (xml, _) = write_fdx(script);
+    let root = crate::xml::parse_xml(&xml).unwrap();
+    let par = root.child("Content").unwrap().child("Paragraph").unwrap();
+
+    par.nodes()
+        .map(|run| (run.attr("Style").unwrap_or_default().to_owned(), run.text()))
+        .collect()
+}
+
+#[test]
+fn literal_marks_in_emphasis_are_kept() {
+    let script = Script {
+        title_page: Vec::new(),
+        elements: vec![Element::Action("**E_MAIL** ist da.".to_owned())],
+    };
+
+    assert_eq!(
+        runs_of(&script),
+        vec![
+            ("Bold".to_owned(), "E_MAIL".to_owned()),
+            (String::new(), " ist da.".to_owned()),
+        ]
+    );
+    // Read back, the literal mark carries its backslash; written again it is the same file.
+    let (xml, _) = write_fdx(&script);
+    assert_eq!(write_fdx(&read_fdx(&xml).unwrap()).0, xml);
+}
+
+#[test]
+fn a_foreign_bold_run_with_a_mark_comes_back_whole() {
+    let xml = one_paragraph("Action", "<Text Style=\"Bold\">a_b *c</Text>");
+
+    let script = read_fdx(&xml).unwrap();
+
+    assert_eq!(
+        runs_of(&script),
+        vec![("Bold".to_owned(), "a_b *c".to_owned())]
+    );
+}
+
+#[test]
+fn a_real_pair_of_marks_still_goes() {
+    let script = Script {
+        title_page: Vec::new(),
+        elements: vec![Element::Action("_a_ *b* x_y".to_owned())],
+    };
+
+    assert_eq!(
+        runs_of(&script),
+        vec![
+            ("Underline".to_owned(), "a".to_owned()),
+            (String::new(), " ".to_owned()),
+            ("Italic".to_owned(), "b".to_owned()),
+            (String::new(), " x_y".to_owned()),
+        ]
+    );
+}
+
+/// Seconds `read_fdx` takes for a title page of `n` keyed paragraphs, the best of three.
+fn title_time(n: usize) -> f64 {
+    let mut xml = String::from("<FinalDraft><TitlePage><Content>");
+    for i in 0..n {
+        xml.push_str(&format!(
+            "<Paragraph KlappeKey=\"K{i}\"><Text>v</Text></Paragraph>"
+        ));
+    }
+    xml.push_str("</Content></TitlePage></FinalDraft>");
+
+    (0..3)
+        .map(|_| {
+            let start = std::time::Instant::now();
+            let script = read_fdx(&xml).unwrap();
+            assert_eq!(script.title_page.len(), n);
+
+            start.elapsed().as_secs_f64()
+        })
+        .fold(f64::MAX, f64::min)
+}
+
+/// Four times the paragraphs take about four times as long; a search through all keys per
+/// paragraph takes sixteen times.
+#[test]
+fn many_title_paragraphs_read_in_linear_time() {
+    let ratio = title_time(40_000) / title_time(10_000);
+
+    assert!(ratio < 8.0, "ratio {ratio}");
+}
+
+#[test]
+fn a_blank_line_in_a_dialogue_keeps_it_a_dialogue() {
+    let xml = format!(
+        "<FinalDraft><Content>{}{}</Content></FinalDraft>",
+        "<Paragraph Type=\"Character\"><Text>ANNA</Text></Paragraph>",
+        "<Paragraph Type=\"Dialogue\"><Text>Eins.\n\nZwei.</Text></Paragraph>"
+    );
+
+    let script = read_fdx(&xml).unwrap();
+
+    assert_eq!(parse(&write(&script)).elements, script.elements);
+    assert_eq!(script.elements.len(), 2);
+}
+
+#[test]
+fn foreign_text_with_fountain_triggers_stays_text() {
+    let text = "siehe [[x]] und /* y */ und a_b *c";
+    let xml = one_paragraph("Action", &format!("<Text>{text}</Text>"));
+
+    let script = read_fdx(&xml).unwrap();
+
+    assert_eq!(parse(&write(&script)).elements, script.elements);
+    assert_eq!(runs_of(&script), vec![(String::new(), text.to_owned())]);
+}
+
+#[test]
+fn boneyards_are_counted() {
+    assert_eq!(boneyard_count("a /* b */ c\n\n/* d\n"), 2);
+    assert_eq!(boneyard_count("a /\\* b"), 0);
+}

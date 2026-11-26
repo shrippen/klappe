@@ -314,6 +314,7 @@
  "script.fdxSynopses": "Synopsen {count}",
  "script.fdxNotes": "Notizen {count}",
  "script.fdxLyrics": "Liedtexte (als Handlung) {count}",
+ "script.fdxBoneyards": "Auskommentiertes {count}",
  "script.fdxBreaks": "Seitenumbrüche {count}",
  "script.imported": "Drehbuch geladen.",
  "script.reportTitle": "Drehbuch geladen",
