@@ -86,7 +86,7 @@ pub(super) fn suggest_json(text: &str, line: usize, kind: &str, pending: &str) -
         return String::new();
     };
     // The open element counts while the reader sees plain text there, as in the terminal.
-    let plain = kind == " " || slot_of(kind) == Some(Slot::Action);
+    let plain = kind == letter(TextKind::Blank).to_string() || slot_of(kind) == Some(Slot::Action);
     let open = !pending.is_empty() && plain;
     let slot = slot_of(if open { pending } else { kind });
     let context = match slot {

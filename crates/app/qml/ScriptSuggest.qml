@@ -3,7 +3,7 @@ import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 import Kante
 
-// DB-03: the choices under the line being typed in the flowing text (D-27, vorläufig). A card
+// DB-03: the choices under the line being typed in the flowing text (D-27). A card
 // below the cursor line, over the text: nothing moves. The keys stay with the text area (Up, Down,
 // Esc in `ScreenplayView`, Enter and Tab in `ScriptFlow`); a click takes a choice too.
 //
