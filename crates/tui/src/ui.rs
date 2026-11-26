@@ -679,3 +679,22 @@ pub(crate) fn centered(area: Rect, width: usize, height: usize) -> Rect {
         height,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::shown_chars;
+
+    #[test]
+    fn shown_chars_stop_before_the_number() {
+        for (text, number, want) in [
+            ("INT. A #12A#", "12A", 6),
+            ("INT. A   #12A#  ", "12A", 6),
+            ("INT. #1 A #2#", "2", 9),
+            ("INT. A #12A#", "7", 12),
+            ("INT. A", "1", 6),
+            (".INT. Ä #3#", "3", 7),
+        ] {
+            assert_eq!(shown_chars(text, number), want, "{text:?}");
+        }
+    }
+}
