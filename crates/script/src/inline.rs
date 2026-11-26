@@ -212,7 +212,7 @@ pub fn plain_text(text: &str) -> String {
 }
 
 /// The runs of a line with the text a reader sees: the marks that open or close an emphasis
-/// are gone, and so is the backslash of `\*`, `\_`, `\[[` and `\\`; a `*` or `_` that opens
+/// are gone, and so is the backslash of `\*`, `\_`, `\[` and `\\`; a `*` or `_` that opens
 /// nothing is text. Notes come with their marks, for the caller to leave out.
 pub(crate) fn visible_runs(line: &str) -> Vec<(Marks, String)> {
     let chars: Vec<char> = line.chars().collect();
@@ -234,8 +234,8 @@ pub(crate) fn visible_runs(line: &str) -> Vec<(Marks, String)> {
         .collect()
 }
 
-/// Which characters are a backslash that protects what follows (a mark, the opening of a
-/// note or another backslash). The protected character is text, so `\\*` is a backslash and
+/// Which characters are a backslash that protects what follows (a mark, a bracket or another
+/// backslash). The protected character is text, so `\\*` is a backslash and
 /// then a mark.
 fn escape_marks(chars: &[char]) -> Vec<bool> {
     let mut escapes = vec![false; chars.len()];
@@ -243,16 +243,18 @@ fn escape_marks(chars: &[char]) -> Vec<bool> {
 
     while i < chars.len() {
         let protects = chars[i] == ESCAPE
-            && (chars
+            && chars
                 .get(i + 1)
-                .is_some_and(|c| is_mark(*c) || *c == ESCAPE)
-                || starts(chars, i + 1, NOTE_OPEN));
+                .is_some_and(|c| is_mark(*c) || *c == ESCAPE || *c == NOTE_BRACKET);
         escapes[i] = protects;
         i += if protects { 2 } else { 1 };
     }
 
     escapes
 }
+
+/// The character a note opens with.
+const NOTE_BRACKET: char = '[';
 
 fn is_mark(c: char) -> bool {
     c == STAR || c == UNDERLINE

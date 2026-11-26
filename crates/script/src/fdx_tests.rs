@@ -489,7 +489,11 @@ fn an_emphasis_ending_in_a_slash_or_backslash_keeps_its_closing_mark() {
         let text = write(&script);
 
         assert_eq!(through_fountain(&runs), format!("ab{end} x"));
-        assert!(!text.contains("\\*"), "{text}");
+        // A slash tail stands plain behind the closing mark; a backslash is escaped inside.
+        let slashes = end.trim_start_matches(|c| c != '/');
+        let inside = end.trim_end_matches('/').replace('\\', "\\\\");
+        let expected = format!("**ab{inside}**{slashes} x");
+        assert!(text.contains(&expected), "{text}");
     }
 }
 
@@ -576,6 +580,27 @@ fn runs_meeting_at_a_backslash_keep_it_text() {
     }
 }
 
+#[test]
+fn brackets_over_runs_do_not_open_a_note() {
+    let runs = format!(
+        "{}{}{}",
+        run("", "a["),
+        run("Bold", "["),
+        run("Italic", "[bbbb]] c")
+    );
+
+    assert_eq!(through_fountain(&runs), "a[[[bbbb]] c");
+}
+
+#[test]
+fn blanks_that_lose_their_style_are_counted() {
+    let runs = format!("{}{}{}", run("", "a"), run("Underline", " "), run("", "b"));
+
+    let (_, loss) = read_fdx(&one_paragraph("Action", &runs)).unwrap();
+
+    assert_eq!(loss.styles, 1);
+}
+
 /// Small deterministic generator, so the sequences are the same on every run.
 fn next_random(state: &mut u64) -> usize {
     *state = state
@@ -585,64 +610,100 @@ fn next_random(state: &mut u64) -> usize {
     (*state >> 33) as usize
 }
 
-#[test]
-fn random_runs_keep_text_and_style_per_character() {
-    const PIECES: [&str; 5] = ["\\", "*", "_", "a", " "];
+/// A random paragraph of runs: their style, their text.
+fn random_runs(state: &mut u64) -> Vec<(Style, String)> {
+    const PIECES: [&str; 8] = ["\\", "*", "_", "[", "]", "/", "a", " "];
     let styles = all_styles();
+    let mut runs: Vec<(Style, String)> = Vec::new();
+
+    for _ in 0..=next_random(state) % 4 {
+        let style = Style::parse(styles[next_random(state) % styles.len()]);
+        let text: String = (0..=next_random(state) % 4)
+            .map(|_| PIECES[next_random(state) % PIECES.len()])
+            .collect();
+
+        match runs.last_mut() {
+            Some((last, joined)) if *last == style => joined.push_str(&text),
+            _ => runs.push((style, text)),
+        }
+    }
+
+    runs
+}
+
+/// The Fountain line of `runs` read back: each visible character with its style.
+fn read_back(runs: &[(Style, String)]) -> (Vec<(char, Style)>, usize) {
+    let xml: String = runs
+        .iter()
+        .map(|(style, text)| run(&style.attr().unwrap_or_default(), text))
+        .collect();
+    let (script, loss) = read_fdx(&one_paragraph("Action", &xml)).unwrap();
+    let parsed = parse(&write(&script));
+    let [Element::Action(line)] = parsed.elements.as_slice() else {
+        panic!("{xml}: {:?}", parsed.elements);
+    };
+    let seen = visible_runs(line)
+        .iter()
+        .flat_map(|(m, t)| {
+            assert!(!m.note && !m.boneyard, "{xml} -> {line}");
+            let style = Style {
+                bold: m.bold,
+                italic: m.italic,
+                underline: m.underline,
+            };
+            t.chars().map(move |c| (c, style))
+        })
+        .collect();
+
+    (seen, loss.styles)
+}
+
+/// The characters whose style is checked: not the blanks at the edge of a run (they stand
+/// outside its marks), and none at all in a run of blanks.
+fn checked(runs: &[(Style, String)]) -> Vec<(char, Option<Style>)> {
+    let mut out = Vec::new();
+
+    for (style, text) in runs {
+        let lead = text.chars().count() - text.trim_start().chars().count();
+        let end = text.trim_end().chars().count();
+        let blank = text.trim().is_empty();
+
+        for (i, c) in text.chars().enumerate() {
+            let outer = c.is_whitespace() && (i < lead || i >= end || blank);
+            out.push((c, if outer { None } else { Some(*style) }));
+        }
+    }
+
+    out
+}
+
+#[test]
+fn random_runs_keep_their_text_and_count_lost_style() {
     let mut state = 7;
 
-    for _ in 0..3000 {
-        let mut runs = String::new();
-        let mut wanted: Vec<(char, Style)> = Vec::new();
-        for _ in 0..=next_random(&mut state) % 4 {
-            let style = styles[next_random(&mut state) % styles.len()];
-            let text: String = (0..=next_random(&mut state) % 3)
-                .map(|_| PIECES[next_random(&mut state) % PIECES.len()])
-                .collect();
-            runs.push_str(&run(style, &text));
-            wanted.extend(text.chars().map(|c| (c, Style::parse(style))));
-        }
-
-        // A blank paragraph is no element.
-        if wanted.iter().all(|(c, _)| c.is_whitespace()) {
+    for _ in 0..20_000 {
+        let runs = random_runs(&mut state);
+        let all: String = runs.iter().map(|(_, t)| t.as_str()).collect();
+        if all.trim().is_empty() {
             continue;
         }
 
-        let (script, loss) = read_fdx(&one_paragraph("Action", &runs)).unwrap();
-        let parsed = parse(&write(&script));
-        let [Element::Action(line)] = parsed.elements.as_slice() else {
-            panic!("{runs}: {:?}", parsed.elements);
-        };
-        let seen: Vec<(char, Style)> = visible_runs(line)
-            .iter()
-            .flat_map(|(m, t)| {
-                let style = Style {
-                    bold: m.bold,
-                    italic: m.italic,
-                    underline: m.underline,
-                };
-                t.chars().map(move |c| (c, style))
-            })
-            .collect();
+        let (seen, lost) = read_back(&runs);
+        let wanted = checked(&runs);
+        let text: String = seen.iter().map(|(c, _)| *c).collect();
+        assert_eq!(text, all.trim(), "{runs:?}");
 
-        // A paragraph's outer blanks are not kept by Fountain.
-        let trim = |mut v: Vec<(char, Style)>| {
-            while v.last().is_some_and(|(c, _)| c.is_whitespace()) {
-                v.pop();
-            }
-            v.into_iter()
-                .skip_while(|(c, _)| c.is_whitespace())
-                .collect::<Vec<_>>()
-        };
-        let (seen, wanted) = (trim(seen), trim(wanted));
-        let text = |v: &[(char, Style)]| v.iter().map(|(c, _)| *c).collect::<String>();
-        assert_eq!(text(&seen), text(&wanted), "{runs} -> {line}");
-
-        // Emphasis may be given up, but then it is counted.
+        // The paragraph's outer blanks are not kept; skip them on the wanted side.
+        let skipped = all.len() - all.trim_start().len();
+        let wanted = &wanted[skipped..skipped + seen.len()];
         let same = seen
             .iter()
-            .zip(&wanted)
-            .all(|(s, w)| w.0.is_whitespace() || s.1 == w.1);
-        assert!(same || loss.styles > 0, "{runs} -> {line}");
+            .zip(wanted)
+            .all(|((_, s), (_, w))| w.is_none_or(|w| *s == w));
+        let blank_run_lost = runs
+            .iter()
+            .any(|(s, t)| *s != Style::default() && t.trim().is_empty());
+        assert!(same || lost > 0, "{runs:?} -> {seen:?}");
+        assert!(!blank_run_lost || lost > 0, "{runs:?}");
     }
 }

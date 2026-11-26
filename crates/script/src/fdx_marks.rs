@@ -2,16 +2,22 @@
 //!
 //! Fountain reads a run of stars as one mark, so the marks of two runs that touch must not
 //! stand side by side (`**Nie***mals*` is no bold and italic, it is stars). Where a run
-//! cannot be marked without that, it is left plain and counted.
+//! cannot be marked without that, it is left plain and counted. Every line is read back
+//! with the reader of the screenplay; if it does not say what the file says, the line is
+//! written without emphasis, so text is never lost, only counted emphasis.
 
 use crate::fdx::{Style, STYLE, TEXT};
+use crate::inline::visible_runs;
 use crate::xml::Node;
 
-/// Characters that, directly before a mark, change what it means: `\*` is a literal star and
-/// `/*` opens a boneyard.
-const SPOILERS: [char; 2] = ['/', '\\'];
+/// Characters that, directly before a mark, change what it means: `/*` opens a boneyard.
+const SPOILERS: [char; 1] = ['/'];
 
-/// One run's text on one line, escaped, and how it is set.
+/// Characters of the inline syntax; each is written with a backslash, whatever its
+/// neighbours, so that a run's text reads back as itself next to any other run.
+const SPECIAL: [char; 4] = ['\\', '*', '_', '['];
+
+/// One run's text on one line, as the file has it, and how it is set.
 struct Frag {
     style: Style,
     /// The style the run has in the file; `style` is what is left of it.
@@ -28,10 +34,6 @@ impl Frag {
         }
     }
 
-    fn marked(&self) -> bool {
-        self.style != Style::default()
-    }
-
     fn stars(&self) -> bool {
         self.style.bold || self.style.italic
     }
@@ -46,8 +48,8 @@ impl Frag {
     }
 }
 
-/// The paragraph's text as Fountain. A literal `*`, `_` or `[[` gets a backslash so it
-/// stays text (`/*` is protected when the book is written); `lost` counts the runs that
+/// The paragraph's text as Fountain. Literal special characters get a backslash so they
+/// stay text (`/*` is protected when the book is written); `lost` counts the runs that
 /// had to give up their style.
 pub(crate) fn marked_text(par: &Node, lost: &mut usize) -> String {
     let mut lines: Vec<Vec<Frag>> = vec![Vec::new()];
@@ -62,7 +64,7 @@ pub(crate) fn marked_text(par: &Node, lost: &mut usize) -> String {
                 lines[at].push(Frag {
                     style,
                     wanted: style,
-                    text: escape(line),
+                    text: line.to_owned(),
                 });
             }
         }
@@ -70,10 +72,52 @@ pub(crate) fn marked_text(par: &Node, lost: &mut usize) -> String {
 
     let done: Vec<String> = lines
         .into_iter()
-        .map(|line| render(settle(line, lost)))
+        .map(|line| safe_line(settle(line), lost))
         .collect();
 
     done.join("\n")
+}
+
+/// The line as Fountain; if reading it back gives other text or style than the line has,
+/// it is written plain instead. Counts the runs that lost their style.
+fn safe_line(mut line: Vec<Frag>, lost: &mut usize) -> String {
+    let mut text = render(&line);
+    if !reads_back(&line, &text) {
+        line.iter_mut().for_each(|f| f.style = Style::default());
+        text = render(&line);
+    }
+
+    *lost += line.iter().filter(|f| f.style != f.wanted).count();
+
+    text
+}
+
+/// Whether `text` says what `line` has: the same characters, and the style of every
+/// character that is not a blank.
+fn reads_back(line: &[Frag], text: &str) -> bool {
+    let mut seen = Vec::new();
+    for (marks, part) in visible_runs(text) {
+        if marks.note || marks.boneyard {
+            return false;
+        }
+
+        let style = Style {
+            bold: marks.bold,
+            italic: marks.italic,
+            underline: marks.underline,
+        };
+        seen.extend(part.chars().map(|c| (c, style)));
+    }
+
+    let wanted = line
+        .iter()
+        .flat_map(|f| f.text.chars().map(|c| (c, f.style)));
+
+    seen.len() == wanted.clone().count()
+        && seen
+            .into_iter()
+            .zip(wanted)
+            .all(|(s, w)| s.0 == w.0 && (s.0.is_whitespace() || s.1 == w.1))
 }
 
 /// The runs of the paragraph; neighbours of one style join, and an empty run is no run.
@@ -97,11 +141,12 @@ fn runs(par: &Node) -> Vec<(Style, String)> {
 }
 
 /// Takes the style off the runs whose marks would touch another mark or a character that
-/// changes them, and gives it back to a run whose neighbour gave way in the end.
-fn settle(line: Vec<Frag>, lost: &mut usize) -> Vec<Frag> {
-    let mut out: Vec<Frag> = Vec::new();
-    for frag in line {
-        out.extend(split_tail(frag, lost));
+/// changes them, and gives it back to a run whose neighbour gave way in the end. A run of
+/// blanks has no word to mark and is plain.
+fn settle(line: Vec<Frag>) -> Vec<Frag> {
+    let mut out: Vec<Frag> = line.into_iter().flat_map(split_tail).collect();
+    for frag in out.iter_mut().filter(|f| f.text.trim().is_empty()) {
+        frag.style = Style::default();
     }
 
     for i in 1..out.len() {
@@ -116,7 +161,7 @@ fn settle(line: Vec<Frag>, lost: &mut usize) -> Vec<Frag> {
     }
 
     for i in 0..out.len() {
-        let given_up = out[i].style != out[i].wanted;
+        let given_up = out[i].style != out[i].wanted && !out[i].text.trim().is_empty();
         if !given_up {
             continue;
         }
@@ -130,15 +175,14 @@ fn settle(line: Vec<Frag>, lost: &mut usize) -> Vec<Frag> {
         }
     }
 
-    *lost += out.iter().filter(|f| f.style != f.wanted).count();
-
     out
 }
 
-/// Whether `b` cannot keep its marks behind `a`: they would touch another mark, or a `\` or
-/// `/` stands before them.
+/// Whether `b` cannot keep its marks behind `a`: they would touch another mark, or a `/`
+/// stands before them.
 fn meets(a: &Frag, b: &Frag) -> bool {
-    let spoiled = a.text.ends_with(SPOILERS) && b.marked() && b.touches_start();
+    let opens_with_star = b.stars() && !b.style.underline;
+    let spoiled = a.text.ends_with(SPOILERS) && opens_with_star && b.touches_start();
 
     spoiled || clash(a, b)
 }
@@ -152,10 +196,10 @@ fn clash(a: &Frag, b: &Frag) -> bool {
     stars && !apart && a.touches_end() && b.touches_start()
 }
 
-/// A marked run that ends in `/` or `\` would put its closing mark behind it: the tail
-/// leaves the run and stands plain.
-fn split_tail(frag: Frag, lost: &mut usize) -> Vec<Frag> {
-    if !frag.marked() {
+/// A run with stars that ends in `/` would put its closing stars behind it: the tail leaves
+/// the run and stands plain.
+fn split_tail(frag: Frag) -> Vec<Frag> {
+    if !frag.stars() {
         return vec![frag];
     }
 
@@ -165,23 +209,24 @@ fn split_tail(frag: Frag, lost: &mut usize) -> Vec<Frag> {
         return vec![frag];
     }
 
-    *lost += 1;
-    let tail = Frag::plain(&frag.text[kept.len()..]);
+    let plain = |text: &str| Frag {
+        wanted: frag.wanted,
+        ..Frag::plain(text)
+    };
     if kept.trim().is_empty() {
-        return vec![Frag::plain(&frag.text)];
+        return vec![plain(&frag.text)];
     }
 
     vec![
         Frag {
-            style: frag.style,
-            wanted: frag.style,
             text: kept.to_owned(),
+            ..frag
         },
-        tail,
+        plain(&frag.text[kept.len()..]),
     ]
 }
 
-fn render(line: Vec<Frag>) -> String {
+fn render(line: &[Frag]) -> String {
     line.iter().map(|f| mark_line(&f.text, f.style)).collect()
 }
 
@@ -195,29 +240,26 @@ fn mark_line(line: &str, style: Style) -> String {
         (false, true) => "*",
         (false, false) => "",
     };
-    if core.is_empty() || (under.is_empty() && stars.is_empty()) {
+    if core.is_empty() {
         return line.to_owned();
     }
 
     let lead = &line[..line.len() - line.trim_start().len()];
     let trail = &line[line.trim_end().len()..];
 
-    format!("{lead}{under}{stars}{core}{stars}{under}{trail}")
+    format!("{lead}{under}{stars}{}{stars}{under}{trail}", escape(core))
 }
 
-/// `line` as Fountain text that reads back as itself. Every backslash is escaped, not only
-/// one before a mark: the next run may begin with a mark, and `\\` always reads as one
-/// backslash.
-fn escape(line: &str) -> String {
-    let mut out = String::with_capacity(line.len());
+/// `text` as Fountain that reads back as itself: every special character gets a backslash.
+fn escape(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
 
-    for c in line.chars() {
-        if matches!(c, '*' | '_' | '\\') {
+    for c in text.chars() {
+        if SPECIAL.contains(&c) {
             out.push('\\');
         }
         out.push(c);
     }
 
-    // `[[` would open a note; the backslash keeps the first bracket text.
-    out.replace("[[", "\\[[")
+    out
 }
