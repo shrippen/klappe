@@ -5,8 +5,8 @@ use std::path::Path;
 use std::process::ExitCode;
 
 use klappe_services::{
-    color_text, error_text, Comparison, Draft, Edit, Language, OnOutside, Saved, SceneDiff,
-    ScenePlace, SceneStatus, Session,
+    color_text, error_text, scene_heading_text, scene_status_text, Comparison, Draft, Edit,
+    Language, OnOutside, Saved, SceneDiff, SceneStatus, Session,
 };
 
 use clap::Subcommand;
@@ -219,22 +219,11 @@ fn comparison_text(comparison: &Comparison, language: Language) -> String {
 
 /// `12<TAB>INT. SAAL - TAG<TAB>geändert, verschoben`.
 fn scene_line(scene: &SceneDiff, language: Language) -> String {
-    let status = match scene.status {
-        SceneStatus::New => "compare.new",
-        SceneStatus::Removed => "compare.removed",
-        SceneStatus::Changed => "compare.changed",
-        SceneStatus::Same => "compare.same",
-    };
-    let mut words = vec![language.text(status)];
-    if scene.place == ScenePlace::Moved {
-        words.push(language.text("compare.moved"));
-    }
-
     format!(
         "{}\t{}\t{}",
         scene.number.as_deref().unwrap_or("-"),
-        scene.heading.as_deref().unwrap_or(""),
-        words.join(", ")
+        scene_heading_text(language, scene.heading.as_deref()),
+        scene_status_text(language, scene)
     )
 }
 
@@ -255,23 +244,31 @@ mod tests {
         }
     }
 
-    /// What the command line says of a scene today: a moved scene that did not change is
-    /// "unverändert, verschoben", and a scene without heading has an empty heading column.
+    /// What the command line says of a scene: a moved scene that did not change is
+    /// "verschoben", and a scene without heading says so (owner decision, 26.11.).
     #[test]
     fn a_scene_line_words_status_and_place() {
         let line = |s| scene_line(&s, Language::German);
 
         assert_eq!(
-            line(scene(SceneStatus::Same, ScenePlace::Moved, Some("INT. HOF"))),
-            "3\tINT. HOF\tunverändert, verschoben"
+            line(scene(
+                SceneStatus::Same,
+                ScenePlace::Moved,
+                Some("INT. HOF")
+            )),
+            "3\tINT. HOF\tverschoben"
         );
         assert_eq!(
-            line(scene(SceneStatus::Changed, ScenePlace::Moved, Some("INT. HOF"))),
+            line(scene(
+                SceneStatus::Changed,
+                ScenePlace::Moved,
+                Some("INT. HOF")
+            )),
             "3\tINT. HOF\tgeändert, verschoben"
         );
         assert_eq!(
             line(scene(SceneStatus::Same, ScenePlace::Kept, None)),
-            "3\t\tunverändert"
+            "3\t(ohne Überschrift)\tunverändert"
         );
     }
 }

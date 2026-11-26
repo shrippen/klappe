@@ -82,7 +82,7 @@ pub use session::{
 };
 pub use start::{project_card, CardState, ProjectCard};
 pub use sun_input::{read_site, read_sun_time};
-pub use versions::color_text;
+pub use versions::{color_text, scene_heading_text, scene_status_text};
 pub use views::{
     AxisChoice, CameraSpot, CastUse, CastingRow, CharacterRow, Chip, ElementRow, Elsewhere, Hint,
     LibraryEntry, LinkKind, LocationRow, LookElement, LookRow, Marker, NotShot, Overview,

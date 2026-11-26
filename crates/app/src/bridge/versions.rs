@@ -7,8 +7,8 @@ use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
 use klappe_services::{
-    color_text, error_text, Comparison, Draft, Edit, Language, OnOutside, RevisionColor, Saved,
-    ScenePlace, SceneStatus, ServiceError, Version,
+    color_text, error_text, scene_heading_text, scene_status_text, Comparison, Draft, Edit,
+    Language, OnOutside, RevisionColor, Saved, ScenePlace, SceneStatus, ServiceError, Version,
 };
 use serde_json::json;
 
@@ -38,10 +38,11 @@ pub(super) fn versions_json(
     json!({ "versions": versions_view, "next": next }).to_string()
 }
 
-/// The comparison as `[{ number, heading, status, place, lines: [{ change, line, text, group }] }]`;
-/// `status` is `new`, `removed`, `changed` or `same`, `place` `kept` or `moved`, `change`
+/// The comparison as `[{ number, heading, headingText, oldHeadingText, statusText, status,
+/// place, lines: [{ change, line, text, group }] }]`; the `…Text` fields are the words to show
+/// as they are (`ohne Überschrift`, `geändert, verschoben`). `status` is `new`, `removed`, `changed` or `same`, `place` `kept` or `moved`, `change`
 /// `added` or `removed`.
-pub(super) fn compare_json(comparison: &Comparison) -> String {
+pub(super) fn compare_json(comparison: &Comparison, language: Language) -> String {
     let scenes: Vec<_> = comparison
         .scenes
         .iter()
@@ -72,8 +73,14 @@ pub(super) fn compare_json(comparison: &Comparison) -> String {
             json!({
                 "number": scene.number,
                 "heading": scene.heading,
+                "headingText": scene_heading_text(language, scene.heading.as_deref()),
                 "oldNumber": scene.old_number,
                 "oldHeading": scene.old_heading,
+                "oldHeadingText": scene_heading_text(
+                    language,
+                    scene.old_heading.as_deref().or(scene.heading.as_deref()),
+                ),
+                "statusText": scene_status_text(language, scene),
                 "status": status,
                 "place": place,
                 "lines": lines,
@@ -179,7 +186,7 @@ impl qobject::Controller {
         let result = s.compare_drafts(&from, &to);
         let comparison = self.as_mut().told(result, language);
 
-        q(&compare_json(&comparison))
+        q(&compare_json(&comparison, language))
     }
 
     /// The comparison, or none after saying in the status line why there is none; "no version
@@ -273,10 +280,14 @@ mod tests {
             }],
         };
 
-        let v: serde_json::Value = serde_json::from_str(&compare_json(&comparison)).unwrap();
+        let v: serde_json::Value =
+            serde_json::from_str(&compare_json(&comparison, Language::German)).unwrap();
         assert_eq!(v[0]["status"], "changed");
         assert_eq!(v[0]["place"], "moved");
         assert_eq!(v[0]["number"], "2");
+        assert_eq!(v[0]["statusText"], "geändert, verschoben");
+        assert_eq!(v[0]["headingText"], "EXT. HOF");
+        assert_eq!(v[0]["oldHeadingText"], "EXT. GARTEN");
         assert_eq!(v[0]["oldHeading"], "EXT. GARTEN");
         assert_eq!(v[0]["lines"][0]["change"], "removed");
         assert_eq!(v[0]["lines"][1]["text"], "neu");
