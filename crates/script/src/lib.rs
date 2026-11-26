@@ -30,7 +30,9 @@ mod write;
 mod xml;
 
 pub use align::{align, heading_print, scene_states, Alignment, Fingerprint, Outcome, SceneState};
-pub use assist::{heading_place, suggest, Context, Stage, Suggestions, Vocabulary};
+pub use assist::{
+    can_suggest, heading_like, heading_place, suggest, Context, Stage, Suggestions, Vocabulary,
+};
 pub use caps::typed_caps;
 pub use compare::{compare, Comparison, Edit, LineChange, SceneDiff, ScenePlace, SceneStatus};
 pub use conflict::conflict_line;
@@ -43,8 +45,9 @@ pub use kinds::{located_kinds, text_kinds, TextKind};
 pub use numbering::{is_omitted, number_scenes, NumberMode, NumberRules, OMITTED_DE, OMITTED_EN};
 pub use outline::{move_entry, outline, outline_of, visible, Entry, EntryKind, Moved, Way};
 pub use pages::{
-    length_text, paginate, Align, ContdAfterAction, Line, Margin, Page, PageKind, PageOptions,
-    PageSize, Pagination, SceneLength, Words, TEXT_COLUMNS,
+    carry, compare_labels, length_text, lines_text, page_label_after, page_starts, paginate,
+    paginate_locked, Align, ContdAfterAction, Line, Margin, Page, PageKind, PageOptions, PageSize,
+    Pagination, SceneLength, Words, TEXT_COLUMNS,
 };
 pub use parse::{
     boneyard_count, boneyard_lines, parse, parse_located, title_page_lines, FORCE_CHARACTER,

@@ -248,6 +248,21 @@ pub fn suggest(
     (!suggestions.options.is_empty()).then_some(suggestions)
 }
 
+/// Whether a line that Enter or Tab opened as a heading is still one: empty, or the start of a
+/// prefix. Prose typed there is an action and gets no heading suggestions.
+pub fn heading_like(text: &str) -> bool {
+    let prefix = suggest(&Vocabulary::default(), text, 0, Context::Heading)
+        .is_some_and(|s| s.stage == Stage::Prefix);
+
+    text.trim().is_empty() || prefix
+}
+
+/// Whether `line` of context `ctx` can get suggestions at all; cheaper than reading the
+/// vocabulary for a line of plain text.
+pub fn can_suggest(line: &str, ctx: Context) -> bool {
+    context_of(line.trim_start(), ctx) != Context::Line
+}
+
 /// Bytes of the line that are the forcing character of the element.
 fn line_marker(trimmed: &str, ctx: Context) -> usize {
     let forced = match ctx {
@@ -538,6 +553,22 @@ mod tests {
         assert_eq!(options(&v, "@b", Context::Line), ["BEN"]);
         assert!(options(&v, "INT. KÜCHE #3#", Context::Line).is_empty());
         assert!(options(&v, "...und", Context::Line).is_empty());
+    }
+
+    #[test]
+    fn a_pending_heading_with_prose_is_no_heading() {
+        assert!(heading_like(""));
+        assert!(heading_like("IN"));
+        assert!(!heading_like("Sie g"));
+        assert!(!heading_like("INT. GARTEN - TAG"));
+    }
+
+    #[test]
+    fn plain_lines_cannot_suggest() {
+        assert!(!can_suggest("Sie geht.", Context::Line));
+        assert!(can_suggest("@an", Context::Line));
+        assert!(can_suggest("INT. K", Context::Line));
+        assert!(can_suggest("x", Context::Cue));
     }
 
     #[test]

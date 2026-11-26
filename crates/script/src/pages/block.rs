@@ -268,6 +268,21 @@ pub(super) struct Block {
     pub heading: bool,
     /// A forced page break and nothing to print.
     pub page_break: bool,
+    /// The page that starts here is a locked one with this label (DB-34); with `page_break`.
+    pub section: Option<String>,
+    /// The block is the first half of a dialogue a locked page start cut: it ends in
+    /// `(MORE)` wherever its last piece lands.
+    pub more: bool,
+}
+
+/// Where a locked page start falls in a block.
+pub(super) enum Hit {
+    /// At the top of the block.
+    Before,
+    /// Inside: the block cut in two there.
+    Inside(Block, Block),
+    /// Nowhere the text can be cut at.
+    Nowhere,
 }
 
 impl Block {
@@ -277,7 +292,68 @@ impl Block {
             body: Body::Single(parts),
             heading: false,
             page_break: false,
+            section: None,
+            more: false,
         }
+    }
+
+    /// A page break where the locked page `label` starts.
+    pub(super) fn marker(label: String) -> Self {
+        let mut block = Block::new(0, Vec::new());
+        block.page_break = true;
+        block.section = Some(label);
+
+        block
+    }
+
+    /// The first and the last element of the block's text.
+    pub(super) fn span(&self) -> Option<(usize, usize)> {
+        let parts: Vec<&Part> = match &self.body {
+            Body::Single(parts) => parts.iter().collect(),
+            Body::Dual(left, right) => left.iter().chain(right).collect(),
+            Body::Rows(_) => Vec::new(),
+        };
+        let elements = parts.iter().map(|p| p.element);
+
+        Some((elements.clone().min()?, elements.max()?))
+    }
+
+    /// Where a locked page starting at `offset` bytes into the text of `element` falls in
+    /// the block: the cut gives the dialogue its `(MORE)` and `(CONT'D)` like any other.
+    pub(super) fn hit(&self, element: usize, offset: usize, words: Words) -> Hit {
+        let Body::Single(parts) = &self.body else {
+            return Hit::Nowhere;
+        };
+        let found = parts.iter().position(|p| p.element == element && !p.added);
+        let Some(i) = found else {
+            return Hit::Nowhere;
+        };
+        let Some(at) = offset.checked_sub(parts[i].base) else {
+            return Hit::Nowhere;
+        };
+
+        // Between parts; a name stays with the words after it.
+        if at == 0 {
+            if i == 0 || parts[i - 1].kind == PageKind::Character {
+                return Hit::Before;
+            }
+
+            return self.cut_spot(parts, i, 0, words);
+        }
+
+        let text = &parts[i].text;
+        if !text.is_char_boundary(at) || text.get(at..).is_none_or(|t| t.trim().is_empty()) {
+            return Hit::Nowhere;
+        }
+
+        self.cut_spot(parts, i, at, words)
+    }
+
+    fn cut_spot(&self, parts: &[Part], i: usize, at: usize, words: Words) -> Hit {
+        let (mut first, rest) = self.cut(parts, i, at, words);
+        first.more = first.is_dialogue();
+
+        Hit::Inside(first, rest)
     }
 
     pub(super) fn rows(&self) -> Vec<Vec<Line>> {
@@ -356,7 +432,8 @@ impl Block {
         rest.extend_from_slice(&parts[i + 1..]);
 
         let first = Block::new(self.before, first);
-        let rest = Block::new(0, rest);
+        let mut rest = Block::new(0, rest);
+        rest.more = self.more;
 
         (first, rest)
     }
@@ -368,6 +445,8 @@ impl Block {
             body: Body::Rows(rows),
             heading: false,
             page_break: false,
+            section: None,
+            more: false,
         }
     }
 }

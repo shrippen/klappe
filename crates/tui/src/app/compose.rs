@@ -5,7 +5,8 @@
 //! cursor leaves it.
 
 use klappe_services::{
-    enter_step, force_line, suggest, tab_step, Context, EnterStep, Gap, Slot, Stage, Suggestions,
+    enter_step, force_line, heading_like, suggest, tab_step, Context, EnterStep, Gap, Slot, Stage,
+    Suggestions,
 };
 
 use super::{App, Mode};
@@ -29,20 +30,14 @@ impl App {
         self.slot_of(line) == Some(Slot::Parenthetical)
     }
 
-    /// Whether the pending heading line is still one: empty, or the start of a prefix. Prose
-    /// typed there is an action and shows and keeps its case as one.
-    fn heading_like(&self, line: usize) -> bool {
-        let text = self.editor.lines().get(line).map_or("", String::as_str);
-        let prefix = suggest(&self.analysis.vocab, text, line, Context::Heading)
-            .is_some_and(|s| s.stage == Stage::Prefix);
-
-        text.trim().is_empty() || prefix
+    fn heading_like_at(&self, line: usize) -> bool {
+        heading_like(self.editor.lines().get(line).map_or("", String::as_str))
     }
 
     /// The kind of the pending line, if `line` is it and still looks like its slot.
     pub(super) fn pending_kind(&self, line: usize) -> Option<TextKind> {
         match self.pending {
-            Some((at, Slot::Heading)) if at == line && !self.heading_like(line) => None,
+            Some((at, Slot::Heading)) if at == line && !self.heading_like_at(line) => None,
             Some((at, slot)) if at == line => Some(TextKind::of_slot(slot)),
             _ => None,
         }
