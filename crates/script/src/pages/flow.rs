@@ -18,6 +18,7 @@ use std::cmp::Ordering;
 
 use super::block::{blocks, column, with_contd, Block, MIN_SPLIT_ROWS};
 use super::locked::{split_blocks, Start};
+use super::shown::{padded, plain};
 use super::{
     compare_labels, page_label_after, Line, Page, PageKind, PageOptions, Pagination, SceneLength,
 };
@@ -204,6 +205,10 @@ fn marked(cues: &[Line], kind: PageKind, words: Words) -> Vec<Line> {
             };
 
             Line {
+                runs: match kind {
+                    PageKind::More => plain(&text),
+                    _ => padded(&c.runs, &text),
+                },
                 text,
                 kind,
                 offset: 0,
@@ -419,6 +424,7 @@ impl Flow<'_> {
             row: self.options.body_lines / 3,
             x,
             kind: PageKind::Centered,
+            runs: plain(&text),
             text,
             element: 0,
             offset: 0,

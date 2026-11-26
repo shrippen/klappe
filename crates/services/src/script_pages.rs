@@ -6,11 +6,13 @@
 //!                                                      └─► export::ScriptSheet (the PDF)
 //! ```
 
-use klappe_export::{Face, Paper, Revised, ScriptLine, ScriptPage, ScriptSheet, TitlePage};
+use klappe_export::{
+    Face, Paper, Revised, ScriptLine, ScriptPage, ScriptRun, ScriptSheet, TitlePage, Underline,
+};
 use klappe_model::{PageStart, ScriptLanguage, ScriptPaper, ScriptSetup, ScriptWords};
 use klappe_script::{
     carry, length_text, lines_text, page_starts, paginate_locked, parse_located, title_fields,
-    ContdAfterAction, Element, Located, PageKind, PageOptions, PageSize, Pagination, Words,
+    ContdAfterAction, Element, Located, Marks, PageKind, PageOptions, PageSize, Pagination, Words,
     TEXT_COLUMNS, TITLE_KEYS,
 };
 
@@ -321,10 +323,20 @@ impl Layout {
                         row: line.row,
                         col: line.x,
                         text: line.text.clone(),
-                        face: match line.kind {
-                            PageKind::Heading => Face::Bold,
-                            _ => Face::Regular,
-                        },
+                        face: face_of(line.kind, Marks::default()),
+                        runs: line
+                            .runs
+                            .iter()
+                            .map(|run| ScriptRun {
+                                start: run.start,
+                                end: run.end,
+                                face: face_of(line.kind, run.marks),
+                                underline: match run.marks.underline {
+                                    true => Underline::Yes,
+                                    false => Underline::No,
+                                },
+                            })
+                            .collect(),
                         revised: self.revised(line, revision),
                         // A heading without a number gets its place in the script.
                         scene_number: match (line.kind, line.offset) {
@@ -364,6 +376,18 @@ impl Layout {
             true => Revised::Yes,
             false => Revised::No,
         }
+    }
+}
+
+/// The face of text with `marks` in a line of `kind`; a scene heading is bold throughout.
+fn face_of(kind: PageKind, marks: Marks) -> Face {
+    let bold = kind == PageKind::Heading || marks.bold;
+
+    match (bold, marks.italic) {
+        (false, false) => Face::Regular,
+        (true, false) => Face::Bold,
+        (false, true) => Face::Italic,
+        (true, true) => Face::BoldItalic,
     }
 }
 
