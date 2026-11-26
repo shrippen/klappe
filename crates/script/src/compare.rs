@@ -11,6 +11,8 @@
 //! are not part of the comparison; a scene whose number alone changed is unchanged.
 
 use crate::lcs::{in_rising, unpaired};
+use crate::numbering::is_omitted;
+use crate::plain_text;
 use crate::text::normal;
 use crate::{align, parse_located, scene_states, Alignment, Element, Outcome, Script};
 
@@ -95,6 +97,13 @@ struct Row {
     shown: String,
 }
 
+impl Scene {
+    /// Whether the heading is a struck scene's (`.ENTFÄLLT #12#`).
+    fn is_struck(&self) -> bool {
+        self.heading.as_deref().is_some_and(is_omitted)
+    }
+}
+
 impl Row {
     fn change(&self, change: Edit) -> LineChange {
         LineChange {
@@ -148,10 +157,13 @@ pub fn compare(old: &str, new: &str) -> Comparison {
 
     let mut out = std::mem::take(&mut slots[0]);
     for (n, scene) in new.scenes.iter().enumerate() {
-        out.push(match old_of(n) {
-            Some(o) => both(&old.scenes[o], scene, moved(n)),
-            None => lone(scene, SceneStatus::New),
-        });
+        match old_of(n) {
+            Some(o) => out.push(both(&old.scenes[o], scene, moved(n))),
+            // A struck heading marks the removed scene, it is no new scene.
+            None if scene.is_struck() => {}
+            None => out.push(lone(scene, SceneStatus::New)),
+        }
+
         out.append(&mut slots[n + 1]);
     }
 
@@ -220,8 +232,6 @@ fn both(old: &Scene, new: &Scene, moved: bool) -> SceneDiff {
 /// each element stands on.
 fn read(text: &str) -> Book {
     let located = parse_located(text);
-    let source = text.replace("\r\n", "\n").replace('\r', "\n");
-    let source: Vec<&str> = source.split('\n').collect();
     let mut scenes: Vec<Scene> = Vec::new();
 
     for l in &located {
@@ -243,20 +253,24 @@ fn read(text: &str) -> Book {
         let Some(scene) = scenes.last_mut() else {
             continue;
         };
-        for &line in &l.lines {
-            let shown = source.get(line).map(|s| s.trim()).unwrap_or_default();
+        for (at, text) in printed(&l.element).iter().enumerate() {
+            let shown = plain_text(text);
+            if shown.is_empty() {
+                continue;
+            }
+
+            let line = l
+                .lines
+                .get(at)
+                .or(l.lines.last())
+                .copied()
+                .unwrap_or_default();
             let key = match &l.element {
                 // The number is not part of what is compared.
                 Element::SceneHeading { text, .. } => normal(text),
-                _ => shown.to_owned(),
+                _ => shown.clone(),
             };
-            if !key.is_empty() {
-                scene.lines.push(Row {
-                    line,
-                    key,
-                    shown: shown.to_owned(),
-                });
-            }
+            scene.lines.push(Row { line, key, shown });
         }
     }
 
@@ -267,4 +281,32 @@ fn read(text: &str) -> Book {
     };
 
     Book { script, scenes }
+}
+
+/// The lines the page prints for an element: none for what stays off the page (notes,
+/// sections, synopses). Boneyards are gone by the parser, inline notes by `plain_text`.
+fn printed(element: &Element) -> Vec<String> {
+    match element {
+        Element::SceneHeading { text, number } => {
+            let mark = number.as_ref().map(|n| format!(" #{n}#"));
+
+            vec![format!("{text}{}", mark.unwrap_or_default())]
+        }
+        Element::Character {
+            name, extension, ..
+        } => {
+            let extension = extension.as_ref().map(|e| format!(" ({e})"));
+
+            vec![format!("{name}{}", extension.unwrap_or_default())]
+        }
+        Element::Action(t)
+        | Element::Dialogue(t)
+        | Element::Lyrics(t)
+        | Element::Parenthetical(t)
+        | Element::Transition(t)
+        | Element::Centered(t) => t.split('\n').map(str::to_owned).collect(),
+        Element::Section { .. } | Element::Synopsis(_) | Element::Note(_) | Element::PageBreak => {
+            Vec::new()
+        }
+    }
 }

@@ -181,3 +181,34 @@ fn twin_scenes_are_not_guessed() {
 
     assert!(c.scenes.iter().any(|s| s.status == SceneStatus::New));
 }
+
+#[test]
+fn a_struck_heading_belongs_to_the_removed_scene() {
+    let old = book(&THREE);
+    let new = old.replace(&scene(Some("2"), "KÜCHE", B), ".ENTFÄLLT #2#\n\n");
+    assert_ne!(old, new);
+    let c = compare(&old, &new);
+
+    let kinds: Vec<SceneStatus> = c.scenes.iter().map(|s| s.status).collect();
+    assert_eq!(
+        kinds,
+        vec![SceneStatus::Same, SceneStatus::Removed, SceneStatus::Same]
+    );
+}
+
+#[test]
+fn notes_and_boneyards_are_not_compared() {
+    let old = book(&THREE);
+    let new = old
+        .replace("Ding 1 Beta.\n", "Ding 1 Beta. [[Regie: lauter]]\n")
+        .replace(
+            "Ding 2 Gamma.\n",
+            "Ding 2 Gamma.\n\n/* gestrichen\nzwei Zeilen */\n",
+        )
+        .replace("Ding 3 Alpha.\n", "Ding 3 Alpha.\n\n[[Eine Notiz.]]\n");
+    assert_ne!(old, new);
+    let c = compare(&old, &new);
+
+    assert_eq!(statuses(&c), vec![(SceneStatus::Same, ScenePlace::Kept); 3]);
+    assert!(c.marked_lines().is_empty());
+}
