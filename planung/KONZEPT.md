@@ -14,7 +14,7 @@ Anforderungen des ersten Moduls: [`stellprobe/LASTENHEFT.md`](stellprobe/LASTENH
 | Besetzung/Team | Rollen besetzen, Personen, Departments | GUI | später |
 | Drehplan | Szenen auf Drehtage verteilen (Stripboard), Versionen | GUI | später |
 | Dispo | Tagesdisposition je Drehtag, als Druckvorlage | GUI | später |
-| Unterwegs | App für Android und Plasma Mobile für Begehung und Drehtag: Sucher (Kamera, Objektiv und Bildrahmen des Shots, Storyboard-Bild im Sucher, Bild zurück ins Storyboard, Kamera im Floorplan setzen), Begehung (Fotos mit Objektiv, Richtung und Ort, Sonne, Messen, Raum, Checkliste, Lärm, Bericht, offline), Drehtag (Shotliste, Dispo, Drehbuch, Anschlussfotos, Zeit; die Klappe später); liest und schreibt dasselbe Projekt. Entscheidungen E-15 bis E-18, Marktanalyse: [`unterwegs/MARKTANALYSE.md`](unterwegs/MARKTANALYSE.md). Nicht in der ersten Version (E-01). | Android, Plasma Mobile | später |
+| Unterwegs | App für Android und Plasma Mobile für Begehung und Drehtag: Sucher (Kamera, Objektiv und Bildrahmen des Shots, Storyboard-Bild im Sucher, Bild zurück ins Storyboard, Kamera im Floorplan setzen), Begehung (Fotos mit Objektiv, Richtung und Ort, Sonne, Messen, Raum, Checkliste, Lärm, Bericht, offline), Drehtag (Shotliste, Dispo, Drehbuch, Anschlussfotos, Zeit; die Klappe später); liest und schreibt dasselbe Projekt. Auswahl auf der Seite „Klappe unterwegs“ (https://claude.ai/artifact/LmRpyJhGmfZBP6Qn2fqx7S, privat), Entscheidungen E-15 bis E-18, Marktanalyse: [`unterwegs/MARKTANALYSE.md`](unterwegs/MARKTANALYSE.md). Nicht in der ersten Version (E-01). | Android, Plasma Mobile | später |
 
 Alle Module arbeiten auf demselben Projekt und demselben Datenmodell
 ([`DATENMODELL.md`](DATENMODELL.md): wer welche Daten besitzt, Verweise, Ablage).
@@ -50,7 +50,7 @@ Alle Module arbeiten auf demselben Projekt und demselben Datenmodell
 Abhängigkeitsregel wie Kontra: nur MIT, Apache-2.0, BSD, ISC, Zlib, Unlicense, CC0, Schriften
 SIL OFL; Qt und KDE Frameworks dynamisch; `cargo-deny` prüft. Im Zweifel selbst bauen.
 
-**Risiko:** cxx-qt auf Android ist wenig erprobt. Kommt später ein Tablet-Build, wird das zuerst geprüft.
+**Risiko:** cxx-qt auf Android ist wenig erprobt. Kommt später ein Tablet-Build, wird das zuerst geprüft; für „Unterwegs“ gehört der Build-Durchstich auf Android in den ersten Prototyp (E-15).
 
 ### Variante B: C++ und Qt 6 (wie Mitori), verworfen
 
@@ -124,7 +124,7 @@ Eigentümer, 2026-11-13:
 | E-12 | Technik des Kamerablicks | Eigener Rasterer mit Tiefenpuffer (`raster/`), eine Szene für Plan, 3D und Kamerablick; abgelöst am 15.11.2026 die einfache Perspektivprojektion. Einzelheiten: [`stellprobe/3D-KONZEPT.md`](stellprobe/3D-KONZEPT.md). |
 | E-13 | CI | Wie Kontra: Prüfungen und Flatpak auf dem GitHub-Mirror, Status an Gitea. |
 | E-14 | Oberfläche | Entwurf B der Runde 2 („Drehbuch daneben“): Drehbuch links, Plan in der Mitte, Shot mit Vorschau und Daten rechts, Zeitleiste mit Ebenenschaltern unten. Seitenleisten und Zeitleiste ein- und ausklappbar; oben Kopfzeile und Werkzeugleiste wie Entwurf A. Entwürfe: https://claude.ai/artifact/9UDTh7hdqccSMz62NLZztN Abgelöst, wo sie sich unterscheiden, durch die Designrunde vom 14.11.2026: [DESIGN.md](DESIGN.md) D-01 bis D-10. |
-| E-15 | Technik von „Unterwegs“ | Qt/QML mit Kante wie die Desktop-App, derselbe Rust-Kern. Die Kamera bekommt eine eigene Schicht je System (Android: Camera2 über JNI, weil Qt Multimedia die einzelnen Objektive nicht wählt; Plasma Mobile: libcamera); zuerst ein Prototyp auf zwei, drei Handys (Marktanalyse). Eigentümer, 26.11.2026. |
+| E-15 | Technik von „Unterwegs“ | Qt/QML mit Kante wie die Desktop-App, derselbe Rust-Kern. Die Kamera bekommt eine eigene Schicht je System (Android: Camera2 über JNI, weil Qt Multimedia die einzelnen Objektive nicht wählt; Plasma Mobile: libcamera); zuerst ein Prototyp auf zwei, drei Handys: Rust-Kern mit cxx-qt auf Android bauen und die Kameraschicht prüfen (Marktanalyse). Eigentümer, 26.11.2026. |
 | E-16 | Abgleich von „Unterwegs“ | Zuerst WebDAV (z. B. Nextcloud), dazu Git und die `.klappe`-Datei als Notweg. Kein Cloud-Konto beim Hersteller. Eigentümer, 26.11.2026. |
 | E-17 | Reihenfolge von „Unterwegs“ | Zuerst Sucher und Begehung, danach der Drehtag; die digitale Klappe mit Takes später. Eigentümer, 26.11.2026. |
 | E-18 | Ziele von „Unterwegs“ | Android und Plasma Mobile; auf Plasma Mobile kann der Sucher eingeschränkt sein, soweit die Kamera des Geräts es nicht kann. Eigentümer, 26.11.2026. |
