@@ -3,9 +3,9 @@ import QtTest
 import "../../qml"
 
 // ScreenplayView (E-09, D-15): the scene list shows the project's scenes (D-13), a click shows
-// the scene and moves the cursor to its heading when the text holds it, typing reaches the controller after the pause, and a change from outside (an
-// import) shows in the text. Each line gets the look of its kind, in the page's columns scaled
-// to the text's width.
+// the scene and moves the cursor to its heading when the text holds it, typing reaches the
+// controller after the pause, and a change from outside (an import) shows in the text. Each line
+// gets the look of its kind, in the page's columns scaled to the text's width.
 TestCase {
     id: tc
     name: "ScreenplayView"
@@ -45,6 +45,7 @@ TestCase {
         property var pages: ({ pages: 2, breaks: [{ page: 2, line: 6 }],
                                scenes: [{ line: 2, page: 1 }, { line: 6, page: 2 }] })
         function scriptBreaksJson() { return JSON.stringify(pages) }
+        function scriptOutlineJson() { return "[]" }
         // A heading's line is "h", every other line "a": enough to see the kinds arrive.
         function scriptKinds(text) {
             return text.split("\n").map(l => l.startsWith("INT.") || l.startsWith("EXT.") ? "h" : "a").join("")
@@ -74,7 +75,6 @@ TestCase {
         }
         // The session's rules, as far as the tests need them.
         function sameFigureName(a, b) { return a.trim().toUpperCase() === b.trim().toUpperCase() }
-
         function scriptSpeakers(text) {
             return JSON.stringify(speakers)
         }

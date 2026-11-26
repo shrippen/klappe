@@ -47,6 +47,13 @@ RowLayout {
     /// The last layout's page starts: `{ pages, breaks: [{ page, line }], scenes: [{ line, page }] }`
     /// (`scriptBreaksJson`). Shown as lines in the flowing text, used to find a scene's page.
     property var pageMap: ({ pages: 0, breaks: [], scenes: [] })
+    /// The sections, scenes and synopses of the text (`scriptOutlineJson`) for the scene list. It
+    /// follows the session's text and the last layout, so it is read again when either changes.
+    readonly property var outline: {
+        controller.scriptText
+        controller.projectJson
+        return JSON.parse(controller.scriptOutlineJson())
+    }
     /// Typing since the last layout: the lines and the scene lengths are of an older text (DN-02).
     property bool stale: false
     /// The empty view's button: ask for a screenplay file.
@@ -273,6 +280,23 @@ RowLayout {
         }
     }
 
+    /// Alt+Up and Alt+Down in the scene list (DB-21): the scene or section whose heading is at text
+    /// line `line` swaps places with its neighbour, its text with it. One edit of the text (one
+    /// step of its undo history), sent to the session at once; the list keeps its focus on the block.
+    function moveBlock(line, way) {
+        flush()
+        const move = controller.moveOutline(line, way)
+        if (move === "") {
+            return
+        }
+        const m = JSON.parse(move)
+        const from = lineStart(area.text, m.from)
+        const end = lineStart(area.text, m.to)
+        putText(from, end < 0 ? area.text.length : end, m.lines.join("\n") + (end < 0 ? "" : "\n"))
+        flush()
+        sceneList.focusAt(m.line)
+    }
+
     function moveCursor(at) {
         if (at >= 0) {
             area.cursorPosition = at
@@ -356,13 +380,16 @@ RowLayout {
         KanteSectionLabel { text: view.texts.t("screenplay.scenes") }
 
         SceneList {
+            id: sceneList
             objectName: "sceneList"
             Layout.fillWidth: true
             Layout.fillHeight: true
             texts: view.texts
             controller: view.controller
             lengthsStale: view.stale
+            outline: view.outline
             onPicked: scene => view.goToScene(scene)
+            onMoveRequested: (line, way) => view.moveBlock(line, way)
         }
     }
 
