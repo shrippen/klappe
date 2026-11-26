@@ -6,7 +6,9 @@ use super::outside::PROJECT_FILE;
 use super::Session;
 use crate::catalog::Language;
 use crate::error::ServiceError;
-use crate::script_pages::{lay_out, PageLock, ScriptPages, ScriptPrint, Source};
+use crate::script_pages::{lay_out, HeaderLine, PageLock, ScriptPages, ScriptPrint, Source};
+use crate::session::Revisions;
+use crate::sides::sides;
 use klappe_export::SheetPage;
 use klappe_model::{ScriptLanguage, ScriptPaper, ScriptSetup, ScriptWords};
 
@@ -185,6 +187,32 @@ impl Session {
         result
     }
 
+    /// Writes the sides of `figure` as PDF (DB-62): the scenes it speaks in, whole, laid out
+    /// as a screenplay of its own (fresh page breaks, the page numbers of the sides), headed
+    /// with its name. No marks of a revision, no title page.
+    pub fn export_sides_pdf(
+        &mut self,
+        path: &Path,
+        figure: &str,
+        print: &ScriptPrint,
+    ) -> Result<(), ServiceError> {
+        if self.script_text().trim().is_empty() {
+            return Err(ServiceError::NoScript);
+        }
+
+        let sides = sides(self.script_text(), &self.project, figure)?;
+        let layout = lay_out(&sides.text, &self.project.script, print.language, None);
+        let plain = ScriptPrint {
+            header: HeaderLine::Off,
+            revisions: Revisions::Off,
+            ..*print
+        };
+        let mut sheet = layout.sheet(&self.project.script, &plain, &self.project.title, None);
+        sheet.header = Some(sides.name);
+
+        write_file(path, klappe_export::script_pdf(&sheet))
+    }
+
     /// Writes the screenplay as PDF (DB-70) after laying it out again, so the pages are the
     /// ones in the text now.
     pub fn export_script_pdf(
@@ -207,6 +235,9 @@ impl Session {
             &self.project.title,
             revision.as_ref(),
         );
+        if print.revisions == Revisions::ChangedPages && sheet.pages.is_empty() {
+            return Err(ServiceError::NoChangedPages);
+        }
 
         write_file(path, klappe_export::script_pdf(&sheet))
     }

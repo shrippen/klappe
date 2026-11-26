@@ -260,6 +260,46 @@ impl Layout {
         project_title: &str,
         revision: Option<&Revision>,
     ) -> ScriptSheet {
+        let only_changed = print.revisions == Revisions::ChangedPages && revision.is_some();
+        let pages = self.script_pages(revision, only_changed);
+
+        // The fields in the order of `TITLE_KEYS`, so a new spelling there reaches the PDF.
+        let [title, credit, author, source, draft_date, contact] =
+            TITLE_KEYS.map(|name| title_key(&self.title_page, name));
+        let header = match print.header {
+            HeaderLine::Off => None,
+            HeaderLine::Title => Some(header_text(&title, project_title, &draft_date)),
+        };
+
+        // The pages of a revision are loose sheets for the ones who have the script already.
+        let title_page = match only_changed {
+            true => TitlePage::default(),
+            false => TitlePage {
+                title,
+                credit,
+                author,
+                source,
+                draft_date,
+                contact,
+            },
+        };
+
+        ScriptSheet {
+            paper: match setup.paper {
+                ScriptPaper::A4 => Paper::A4,
+                ScriptPaper::Letter => Paper::Letter,
+            },
+            columns: TEXT_COLUMNS,
+            title_page,
+            pages,
+            scene_numbers: print.scene_numbers,
+            header,
+            revision: revision.map(|r| r.header.clone()),
+        }
+    }
+
+    /// The pages as export prints them; with `only_changed` those with a marked row.
+    fn script_pages(&self, revision: Option<&Revision>, only_changed: bool) -> Vec<ScriptPage> {
         let ordinal = |element: usize| {
             self.pagination
                 .scenes
@@ -268,10 +308,10 @@ impl Layout {
                 .map(|i| (i + 1).to_string())
         };
 
-        let pages = self
-            .pagination
+        self.pagination
             .pages
             .iter()
+            .filter(|page| !only_changed || self.page_changed(page, revision))
             .map(|page| ScriptPage {
                 label: (page.number > 1).then(|| format!("{}.", page.label)),
                 lines: page
@@ -296,35 +336,20 @@ impl Layout {
                     })
                     .collect(),
             })
-            .collect();
+            .collect()
+    }
 
-        // The fields in the order of `TITLE_KEYS`, so a new spelling there reaches the PDF.
-        let [title, credit, author, source, draft_date, contact] =
-            TITLE_KEYS.map(|name| title_key(&self.title_page, name));
-        let header = match print.header {
-            HeaderLine::Off => None,
-            HeaderLine::Title => Some(header_text(&title, project_title, &draft_date)),
+    /// Whether whoever holds the last locked version needs the page (DB-43): a sheet of struck
+    /// pages, a page it has no number of (12A), or one whose text differs from its page of
+    /// that number.
+    fn page_changed(&self, page: &klappe_script::Page, revision: Option<&Revision>) -> bool {
+        let Some(revision) = revision else {
+            return false;
         };
 
-        ScriptSheet {
-            paper: match setup.paper {
-                ScriptPaper::A4 => Paper::A4,
-                ScriptPaper::Letter => Paper::Letter,
-            },
-            columns: TEXT_COLUMNS,
-            title_page: TitlePage {
-                title,
-                credit,
-                author,
-                source,
-                draft_date,
-                contact,
-            },
-            pages,
-            scene_numbers: print.scene_numbers,
-            header,
-            revision: revision.map(|r| r.header.clone()),
-        }
+        !page.omitted.is_empty()
+            || !revision.old_pages.contains(&page.label)
+            || revision.changed.contains(&page.label)
     }
 
     /// Whether the text line a printed row is from is new or changed. A repeated name and
