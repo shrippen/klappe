@@ -15,7 +15,9 @@ crates/export/src/png.rs	rgb_over	ccn=17
 crates/export/src/scan.rs	scan	ccn=22 length=98
 crates/export/src/stroke.rs	visible	ccn=17
 crates/imagehead/src/lib.rs	jpeg_frame	ccn=22
+crates/model/src/team.rs	name	ccn=17
 crates/script/src/write.rs	render	ccn=16
+crates/services/src/error_text.rs	error_text	ccn=56 length=95
 crates/services/src/field.rs	name	ccn=56
 crates/services/src/plan_edit.rs	apply	ccn=33 length=119
 crates/services/src/plan_edit/check.rs	check	ccn=19
@@ -24,4 +26,3 @@ crates/services/tests/plan_edit.rs	-	lines=841
 crates/stellprobe/src/look.rs	look	ccn=16
 crates/store/tests/store.rs	-	lines=846
 crates/store/tests/store.rs	plan	length=125
-crates/model/src/team.rs	name	ccn=17
