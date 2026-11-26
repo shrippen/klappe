@@ -269,7 +269,10 @@ impl qobject::Controller {
 
 #[cfg(test)]
 mod tests {
-    use super::{breaks_json, enter_json, kinds_text, looks_json, print_json, tab_json};
+    use super::{
+        breaks_json, enter_json, kinds_text, looks_json, print_json, report_json, tab_json,
+        ImportReport,
+    };
 
     /// Enter at the end of a heading opens an action after a blank line; at the end of a cue
     /// the dialogue right below; in the middle of a line it is a plain break.
