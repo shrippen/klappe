@@ -58,21 +58,16 @@ RowLayout {
     }
     /// Typing since the last layout: the lines and the scene lengths are of an older text (DN-02).
     property bool stale: false
-    /// The locked versions (DB-40), `{ id, name, date, color, colorName }`, and the colour of the
-    /// revision since the last one (`{ color, colorName }`, null before the first version).
-    property var versions: []
-    property var nextRevision: null
-    /// Mark the lines that changed since the last version (DB-41); on as soon as there is one.
-    property bool showRevisions: true
-    /// Those lines (from 0) of the text as of the last layout; they follow it like the page
-    /// breaks (DN-02).
-    property var revisionLines: []
-    /// The same as text positions `{ from, to }` of the text at that layout.
-    property var revisionRanges: []
+    /// The locked versions and the marks of what changed since (ScriptVersions).
+    property alias versions: scriptVersions.versions
+    property alias nextRevision: scriptVersions.nextRevision
+    property alias showRevisions: scriptVersions.showRevisions
+    property alias revisionLines: scriptVersions.revisionLines
+    property alias revisionRanges: scriptVersions.revisionRanges
     readonly property alias versionMenu: versionMenu
-    readonly property alias lockDialog: lockDialog
-    readonly property alias compareDialog: compareDialog
-    readonly property alias removeDialog: removeDialog
+    readonly property alias lockDialog: scriptVersions.lockDialog
+    readonly property alias compareDialog: scriptVersions.compareDialog
+    readonly property alias removeDialog: scriptVersions.removeDialog
     /// The empty view's button: ask for a screenplay file.
     signal importRequested()
 
@@ -94,60 +89,23 @@ RowLayout {
         readRevision()
     }
 
-    /// Reads the locked versions the session holds.
-    /// The project changes with every typing that is sent: only a changed list is taken over and
-    /// marked anew (DN-02).
-    function readVersions() {
-        const json = controller.versionsJson()
-        if (json === _versionsRead) {
-            return
-        }
-        _versionsRead = json
-        const read = JSON.parse(json)
-        versions = read.versions
-        nextRevision = read.next
-        readRevision()
-    }
-    property string _versionsRead: ""
-
-    /// The lines changed since the last version, as of the text the session holds now.
+    /// The lines changed since the last version, read anew (ScriptVersions).
     function readRevision() {
-        const marking = versions.length > 0 && showRevisions
-        revisionLines = marking ? JSON.parse(controller.revisionJson()) : []
-        // Placed once per layout, like the page breaks' lines: typing moves no mark (DN-02),
-        // a mark cost a text position lookup twice, on every key.
-        revisionRanges = lineRanges(revisionLines)
+        scriptVersions.readRevision()
     }
 
-    /// The lines of `lines` (ascending, from 0) as text positions `{ from, to }`, `to` the end of
-    /// the line; `from` is -1 when the text no longer has the line.
+    /// The lines of `lines` as text positions (ScriptVersions).
     function lineRanges(lines) {
-        const text = doc.read()
-        return doc.lineStarts(lines).map(at => {
-            if (at < 0) {
-                return { from: -1, to: -1 }
-            }
-            const end = text.indexOf("\n", at)
-            return { from: at, to: end < 0 ? text.length : end }
-        })
+        return scriptVersions.lineRanges(lines)
     }
 
-    /// The version's dialogs; what was typed goes to the session first, the lock saves it.
+    /// The version's dialogs (ScriptVersions).
     function askLock() {
-        flush()
-        lockDialog.show()
+        scriptVersions.askLock()
     }
 
     function askCompare(from) {
-        flush()
-        compareDialog.show(from)
-    }
-
-    /// Shows or hides the marks of the revision.
-    function setRevisions(shown) {
-        flush()
-        showRevisions = shown
-        readRevision()
+        scriptVersions.askCompare(from)
     }
 
     /// Lays the book out and shows the result (the lines, the lengths in the scene list).
@@ -420,14 +378,14 @@ RowLayout {
 
     Component.onCompleted: {
         load()
-        readVersions()
+        scriptVersions.readVersions()
     }
     Connections {
         target: view.controller
         // Another project with the same text, or another paper, changes the project but not the
         // text: lay out again, unless typing is pending (DN-02: typing never lays out).
         function onProjectJsonChanged() {
-            view.readVersions()
+            scriptVersions.readVersions()
             if (!view.stale) {
                 view.layOut()
             }
@@ -471,30 +429,13 @@ RowLayout {
         }
     }
 
-    VersionLockDialog {
-        id: lockDialog
-        objectName: "lockDialog"
+    ScriptVersions {
+        id: scriptVersions
         texts: view.texts
         controller: view.controller
-        onLocked: view.readVersions()
-    }
-    VersionRemoveDialog {
-        id: removeDialog
-        objectName: "removeDialog"
-        texts: view.texts
-        controller: view.controller
-        // The last version kept the page starts: without it the pages are free again.
-        onRemoved: {
-            view.readVersions()
-            view.layOut()
-        }
-    }
-    VersionCompare {
-        id: compareDialog
-        objectName: "compareDialog"
-        texts: view.texts
-        controller: view.controller
-        versions: view.versions
+        doc: doc
+        onFlushRequested: view.flush()
+        onLayoutRequested: view.layOut()
     }
 
     ColumnLayout {
@@ -553,7 +494,7 @@ RowLayout {
                 onLockRequested: view.askLock()
                 onCompareRequested: from => view.askCompare(from)
                 onRemoveRequested: version => removeDialog.ask(version)
-                onRevisionsToggled: shown => view.setRevisions(shown)
+                onRevisionsToggled: shown => scriptVersions.setRevisions(shown)
             }
 
             KanteSegmented {
