@@ -2,8 +2,8 @@
 #![allow(clippy::unwrap_used)]
 
 use klappe_export::{
-    extract_pdf, report_csv, report_ods, report_pdf, report_xlsx, ExportError, ExtractBox,
-    ExtractPage, ReportTable, Theme,
+    extract_pdf, report_csv, report_ods, report_pdf, report_xlsx, tables_csv, tables_ods,
+    tables_pdf, tables_xlsx, ExportError, ExtractBox, ExtractPage, ReportTable, Theme,
 };
 
 const LOCAL_SIGNATURE: [u8; 4] = [0x50, 0x4B, 0x03, 0x04];
@@ -162,6 +162,49 @@ fn a_box_longer_than_a_page_goes_on_to_the_next() {
 fn an_extract_without_scenes_is_refused() {
     assert!(matches!(
         extract_pdf(&[], Theme::Light),
+        Err(ExportError::EmptyPlan)
+    ));
+}
+
+fn second() -> ReportTable {
+    ReportTable {
+        title: "Orte".into(),
+        head: vec!["Ort".into()],
+        rows: vec![vec!["Saal".into()]],
+    }
+}
+
+#[test]
+fn csv_of_tables_gives_each_its_title_and_a_blank_line_between() {
+    let csv = tables_csv(&[table(1), second()]);
+
+    assert_eq!(
+        csv,
+        "Szenen\r\nNr.,Kopf,Figuren\r\n\
+         1A,INT. KÜCHE & <Flur> 1,\"Anna, \"\"Bo\"\"\"\r\n\
+         \r\nOrte\r\nOrt\r\nSaal\r\n"
+    );
+}
+
+#[test]
+fn ods_and_xlsx_have_a_worksheet_per_table() {
+    let tables = [table(1), second()];
+
+    let ods = entry(&tables_ods(&tables).unwrap(), "content.xml");
+    assert!(ods.contains(r#"table:name="Szenen""#) && ods.contains(r#"table:name="Orte""#));
+
+    let xlsx = tables_xlsx(&tables).unwrap();
+    let book = entry(&xlsx, "xl/workbook.xml");
+    assert!(book.contains(r#"name="Szenen""#) && book.contains(r#"name="Orte""#));
+}
+
+#[test]
+fn each_table_starts_a_sheet_of_the_pdf() {
+    let pdf = tables_pdf(&[table(1), second()], Theme::Light).unwrap();
+
+    assert_eq!(sheets_in(&pdf), 2);
+    assert!(matches!(
+        tables_pdf(&[], Theme::Light),
         Err(ExportError::EmptyPlan)
     ));
 }

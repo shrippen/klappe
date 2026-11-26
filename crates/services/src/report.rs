@@ -13,16 +13,23 @@ pub enum Report {
     Extract,
     /// Every person of the team with phone, mail and address.
     Contacts,
+    /// Replies and dialogue share per character, scenes and length per place and time of day
+    /// (DB-53).
+    Statistics,
+    /// The replies of one character in book order (DB-52); the character is chosen first.
+    Dialogue,
 }
 
 impl Report {
     /// Every report, in the order the menu offers them.
-    pub const ALL: [Report; 5] = [
+    pub const ALL: [Report; 7] = [
         Report::Scenes,
         Report::Places,
         Report::Cast,
         Report::Extract,
         Report::Contacts,
+        Report::Statistics,
+        Report::Dialogue,
     ];
 
     /// How surfaces, the command line and the catalogue (`report.<name>`) call the report.
@@ -33,6 +40,8 @@ impl Report {
             Report::Cast => "figuren",
             Report::Extract => "auszug",
             Report::Contacts => "kontakte",
+            Report::Statistics => "statistik",
+            Report::Dialogue => "dialog",
         }
     }
 
