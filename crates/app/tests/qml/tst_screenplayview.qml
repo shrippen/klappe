@@ -41,6 +41,10 @@ TestCase {
         }
         property int layouts: 0
         function paginateScript() { layouts += 1 }
+        // The last layout: page 2 starts at the text's line 6 (the second heading); two pages.
+        property var pages: ({ pages: 2, breaks: [{ page: 2, line: 6 }],
+                               scenes: [{ line: 2, page: 1 }, { line: 6, page: 2 }] })
+        function scriptBreaksJson() { return JSON.stringify(pages) }
         // A heading's line is "h", every other line "a": enough to see the kinds arrive.
         function scriptKinds(text) {
             return text.split("\n").map(l => l.startsWith("INT.") || l.startsWith("EXT.") ? "h" : "a").join("")
@@ -396,18 +400,25 @@ TestCase {
         verify(page.width <= view.printView.width)
     }
 
-    // A scene picked in the list goes back to the text at its heading.
-    function test_a_scene_from_the_print_view_goes_to_the_text() {
+    // DB-30: the print view stays on a click in the scene list and scrolls to the page of the
+    // scene's heading; the title page, if there is one, comes before the counted pages.
+    function test_a_scene_in_the_print_view_goes_to_its_page() {
         const view = make()
+        fake.pages = { pages: 3, breaks: [{ page: 2, line: 4 }, { page: 3, line: 6 }],
+                       scenes: [{ line: 2, page: 1 }, { line: 6, page: 3 }] }
         view.showLayout("print")
         const list = findChild(view, "sceneRows")
         tryVerify(() => findChild(list, "scene.s2") !== null)
+        // Title page and three pages of text.
+        view.printView.sheet = { fontPt: 12, ascentPt: 10, pages: [0, 1, 2, 3].map(i => ({ width: 595, height: 842, texts: [] })) }
+        view.printView.positionViewAtBeginning()
 
         findChild(list, "scene.s2").clicked()
 
-        compare(view.layout, "flow")
-        verify(!view.printView.visible)
-        compare(view.area.cursorPosition, book.indexOf("EXT. HOF"))
+        compare(view.layout, "print")
+        verify(view.printView.visible)
+        compare(view.printView.indexAt(10, view.printView.contentY + 10), 3)
+        compare(fake.selected[fake.selected.length - 1], "s2")
     }
 
     // A change from outside while the pages show lays them out again.
@@ -736,5 +747,54 @@ TestCase {
         compare(box.count, 2)
         compare(view.search.speaker, "")
         fake.speakers = []
+    }
+
+    // DB-30: a thin line with the page number above the first line of each page after the first,
+    // placed from the layout's lines; it moves no text.
+    function test_a_page_break_stands_above_its_line() {
+        const view = make()
+        const mark = findChild(view.area, "pageBreak.2")
+        verify(mark !== null)
+
+        const at = book.indexOf("EXT. HOF")
+        compare(view.marks[0].at, at)
+        fuzzyCompare(mark.y + mark.height, view.area.positionToRectangle(at).y, 1)
+        compare(mark.width, view.area.width - view.area.leftPadding - view.area.rightPadding)
+    }
+
+    // A line the text does not have (it got shorter since) gives no position.
+    function test_a_break_beyond_the_text_has_no_place() {
+        const view = make()
+
+        compare(view.breakMarks([{ page: 2, line: 99 }], "a\nb")[0].at, -1)
+        compare(view.breakMarks([{ page: 2, line: 1 }, { page: 3, line: 2 }], "a\nb\nc").map(m => m.at).join(), "2,4")
+        compare(view.lineStart("a\nb", 0), 0)
+    }
+
+    // DN-02: typing makes the lines and lengths stale until the layout is made anew; the note
+    // "Seiten veraltet" stands beside the switch for that time.
+    function test_typing_makes_the_pages_stale_until_laid_out() {
+        const view = make()
+        const note = findChild(view, "staleNote")
+        const mark = findChild(view.area, "pageBreak.2")
+        const before = fake.layouts
+        verify(!view.stale)
+        verify(!note.visible)
+        compare(mark.opacity, 1)
+        compare(findChild(view, "sceneRows").parent.lengthsStale, false)
+
+        view.area.forceActiveFocus()
+        view.area.insert(view.area.length, "x")
+
+        verify(view.stale)
+        verify(note.visible)
+        compare(note.text, "Seiten veraltet")
+        verify(mark.opacity < 1)
+        compare(findChild(view, "sceneRows").parent.lengthsStale, true)
+
+        tryVerify(() => !view.stale)
+        verify(fake.layouts > before)
+        verify(!note.visible)
+        compare(findChild(view.area, "pageBreak.2").opacity, 1)
     }
 }

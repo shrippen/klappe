@@ -30,6 +30,13 @@ ListView {
         sheet = JSON.parse(controller.scriptPrintJson())
     }
 
+    /// Shows script page `page` (from 1) of `pages` at the top: the title page, if the sheet has
+    /// one, comes before the pages the layout counts.
+    function goToPage(page, pages) {
+        const first = sheet.pages.length - pages
+        positionViewAtIndex(Math.max(0, Math.min(first + page - 1, sheet.pages.length - 1)), ListView.Beginning)
+    }
+
     clip: true
     spacing: Kirigami.Units.largeSpacing
     topMargin: Kirigami.Units.largeSpacing

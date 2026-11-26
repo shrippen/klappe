@@ -21,6 +21,8 @@ ColumnLayout {
 
     required property var texts
     required property var controller
+    /// The lengths are of an older text than the one typed: shown pale (DN-02).
+    property bool lengthsStale: false
     /// A row was clicked and its scene is on view: `{ id, number, heading, inBook, plans, shots }`.
     signal picked(var scene)
 
@@ -34,10 +36,6 @@ ColumnLayout {
     // What the row's meta figure holds: "T P1 S5", each part only when it applies.
     function marks(scene) {
         const parts = []
-        // Its length on the page (DB-32), as in the terminal: `1 3/8`.
-        if (scene.length) {
-            parts.push(scene.length)
-        }
         if (scene.inBook) {
             parts.push(texts.t("scenelist.markText"))
         }
@@ -127,6 +125,16 @@ ColumnLayout {
             text: modelData.heading !== "" ? modelData.heading : list.texts.t("scene.notInBook")
             subtitle: !modelData.inBook && modelData.heading !== "" ? list.texts.t("scene.notInBook") : ""
             meta: list.marks(modelData)
+            // Its length on the page (DB-32), as in the terminal: `1 3/8`; pale while out of date.
+            trailing: [
+                QQC2.Label {
+                    objectName: "length." + modelData.id
+                    visible: !!modelData.length
+                    text: modelData.length ?? ""
+                    color: KanteStyle.mutedTextColor
+                    opacity: list.lengthsStale ? KanteStyle.dimOpacity : 1
+                }
+            ]
             selected: modelData.id === list.controller.sceneId
             Accessible.description: list.describe(modelData)
             Keys.onDownPressed: list.step(index, 1)
