@@ -33,16 +33,25 @@ fn missing(error: &ServiceError) -> Option<(&'static str, String)> {
         ServiceError::NoShot(id) => ("error.noShot", id),
         ServiceError::NoLocation(id) => ("error.noLocation", id),
         ServiceError::NoCharacter(id) => ("error.noCharacter", id),
-        ServiceError::NameUnchanged(name) => ("error.nameUnchanged", name),
-        ServiceError::NameAsked(name) => ("error.nameAsked", name),
-        ServiceError::NameIsOwnAlias(name) => ("error.nameIsOwnAlias", name),
-        ServiceError::NameNotCue(name) => ("error.nameNotCue", name),
         ServiceError::NoElement(id) => ("error.noElement", id),
         ServiceError::NoPerson(id) => ("error.noPerson", id),
         ServiceError::NoVersion(id) => ("error.noVersion", id),
         ServiceError::NoDialogue(name) => ("error.noDialogue", name),
         ServiceError::NoLook(id) => ("error.noLook", id),
         ServiceError::NotLookElement(id) => ("error.notLookElement", id),
+        _ => return None,
+    };
+
+    Some((found.0, found.1.clone()))
+}
+
+/// The text key and name of a refused character name (e.g. one the book still asks about).
+fn refused_name(error: &ServiceError) -> Option<(&'static str, String)> {
+    let found = match error {
+        ServiceError::NameUnchanged(name) => ("error.nameUnchanged", name),
+        ServiceError::NameAsked(name) => ("error.nameAsked", name),
+        ServiceError::NameIsOwnAlias(name) => ("error.nameIsOwnAlias", name),
+        ServiceError::NameNotCue(name) => ("error.nameNotCue", name),
         _ => return None,
     };
 
@@ -69,7 +78,7 @@ fn taken_text(language: Language, error: &ServiceError) -> Option<String> {
 }
 
 fn own_text(language: Language, error: &ServiceError) -> String {
-    if let Some((key, id)) = missing(error) {
+    if let Some((key, id)) = missing(error).or_else(|| refused_name(error)) {
         return language.text(key).replace("{detail}", &id);
     }
     if let Some(text) = taken_text(language, error) {

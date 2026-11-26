@@ -198,44 +198,7 @@ struct ExportJob {
 fn main() -> ExitCode {
     match Cli::parse().command {
         Command::Fov { lens, sensor } => fov(lens, &sensor),
-        Command::Export {
-            project,
-            scene,
-            plan,
-            at,
-            paper,
-            orientation,
-            language,
-            format,
-            camera,
-            out,
-        } => {
-            let language = language_of(language);
-            let Some(format) = format.or_else(|| format_of(&out)) else {
-                let path = format!("{out:?}");
-                return refuse(language.text("cli.noFormat").replace("{path}", &path));
-            };
-            if format == ExportFormat::Camera && camera.is_none() {
-                return refuse(language.text("cli.cameraNeedsId"));
-            }
-            if format != ExportFormat::Camera && camera.is_some() {
-                return refuse(language.text("cli.cameraOnly"));
-            }
-            let job = ExportJob {
-                project,
-                scene,
-                plan,
-                at_s: at,
-                paper,
-                orientation,
-                language,
-                format,
-                camera,
-                out,
-            };
-
-            export(&job)
-        }
+        command @ Command::Export { .. } => export_command(command),
         Command::Report {
             project,
             report,
@@ -276,6 +239,50 @@ fn main() -> ExitCode {
         } => sides_pdf(&project, &figure, &out, language_of(language)),
         Command::Versions(command) => command.run(),
     }
+}
+
+/// Checks the export flags and runs the export.
+fn export_command(command: Command) -> ExitCode {
+    let Command::Export {
+        project,
+        scene,
+        plan,
+        at,
+        paper,
+        orientation,
+        language,
+        format,
+        camera,
+        out,
+    } = command
+    else {
+        unreachable!("only called for export");
+    };
+    let language = language_of(language);
+    let Some(format) = format.or_else(|| format_of(&out)) else {
+        let path = format!("{out:?}");
+        return refuse(language.text("cli.noFormat").replace("{path}", &path));
+    };
+    if format == ExportFormat::Camera && camera.is_none() {
+        return refuse(language.text("cli.cameraNeedsId"));
+    }
+    if format != ExportFormat::Camera && camera.is_some() {
+        return refuse(language.text("cli.cameraOnly"));
+    }
+    let job = ExportJob {
+        project,
+        scene,
+        plan,
+        at_s: at,
+        paper,
+        orientation,
+        language,
+        format,
+        camera,
+        out,
+    };
+
+    export(&job)
 }
 
 /// Renames the character `from` to `to` in the book and saves the project.
