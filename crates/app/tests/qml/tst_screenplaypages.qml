@@ -178,9 +178,11 @@ TestCase {
     function test_a_break_beyond_the_text_has_no_place() {
         const view = make()
 
-        compare(view.breakMarks([{ page: 2, label: "2", line: 99 }], "a\nb")[0].at, -1)
-        compare(view.breakMarks([{ page: 2, label: "2", line: 1 }, { page: 3, label: "3", line: 2 }], "a\nb\nc").map(m => m.at).join(), "2,4")
-        compare(view.lineStart("a\nb", 0), 0)
+        view.doc.load("a\nb")
+        compare(view.breakMarks([{ page: 2, label: "2", line: 99 }])[0].at, -1)
+        view.doc.load("a\nb\nc")
+        compare(view.breakMarks([{ page: 2, label: "2", line: 1 }, { page: 3, label: "3", line: 2 }]).map(m => m.at).join(), "2,4")
+        compare(view.doc.lineStart(0), 0)
     }
 
     // Where a line starts, at and past the end of the text: the jump lands at the end of the
@@ -204,15 +206,6 @@ TestCase {
         compare(view.doc.cursor, 0)
         view.goToLine(1)
         compare(view.doc.cursor, 0)
-    }
-
-    // The flow's own start of a line: right for every line the text has, one past the end for
-    // the line after the last (the editor never asks for it).
-    function test_the_flow_start_of_a_line() {
-        const view = make()
-        view.doc.load("ab\n\ncd")
-
-        compare([0, 1, 2, 3].map(n => view.flow.lineStart(n)).join(), "0,3,4,7")
     }
 
     // DN-02: typing makes the lines and lengths stale until the layout is made anew; the note
