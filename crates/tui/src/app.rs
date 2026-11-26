@@ -5,7 +5,8 @@ use std::path::Path;
 use std::time::{Duration, Instant};
 
 use klappe_services::{
-    error_text, load_notes_text, OnOutside, Saved, SceneSpan, ServiceError, Session, Slot, TextKind,
+    error_text, load_notes_text, outline_info, OnOutside, OutlineInfo, Saved, ServiceError,
+    Session, Slot, TextKind,
 };
 use ratatui::crossterm::event::{
     KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
@@ -120,6 +121,8 @@ pub struct App {
     pub(crate) links: Links,
     pub(crate) editor: Editor,
     pub(crate) analysis: Analysis,
+    /// Length and fold key of each entry of `analysis.outline`.
+    pub(crate) outline_info: Vec<OutlineInfo>,
     pub(crate) layout: Layout,
     pub(crate) focus: Focus,
     pub(crate) mode: Mode,
@@ -132,7 +135,7 @@ pub struct App {
     unanswered: Vec<(usize, u64)>,
     /// Selected entry of the outline (an index into `analysis.outline`).
     pub(crate) list_sel: usize,
-    /// Sections folded in the outline, by `fold_key`.
+    /// Sections folded in the outline, by the key of `outline_info`.
     collapsed: HashSet<String>,
     /// What is typed to narrow the outline.
     pub(crate) list_filter: String,
@@ -198,6 +201,7 @@ impl App {
             saved_revision: editor.revision(),
             editor,
             analysis: Analysis::default(),
+            outline_info: Vec::new(),
             layout: Layout::default(),
             focus: Focus::Editor,
             mode: Mode::Normal,
@@ -249,20 +253,6 @@ impl App {
     /// The pages of the last computation (DN-02), `None` never in practice: `open` lays out.
     pub(crate) fn pages(&self) -> Option<&klappe_services::ScriptPages> {
         self.session.script_pages()
-    }
-
-    /// Scene `index` of the list as the last computation has it; `None` without one. While
-    /// the text has gained or lost scenes since, the scene is found by its line, which moves
-    /// with typing: then a length may be missing, never wrong by more than the last edit.
-    pub(crate) fn scene_span(&self, index: usize) -> Option<&SceneSpan> {
-        let spans = &self.pages()?.scenes;
-        match spans.len() == self.analysis.scenes.len() {
-            true => spans.get(index),
-            false => {
-                let line = self.analysis.scenes.get(index)?.line;
-                spans.iter().find(|s| s.line == line)
-            }
-        }
     }
 
     pub(crate) fn file_name(&self) -> &str {
@@ -349,6 +339,7 @@ impl App {
         self.built_for = Some(key);
 
         self.analysis = analyse(self.editor.lines());
+        self.outline_info = outline_info(&self.analysis.outline, self.pages());
         self.apply_pending();
         let breaks: Vec<(usize, usize)> = self
             .session

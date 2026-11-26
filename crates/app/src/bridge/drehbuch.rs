@@ -6,14 +6,15 @@ use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
 use klappe_services::{
-    can_suggest, enter_step, error_text, heading_like, length_text, move_entry, outline,
+    can_suggest, enter_step, error_text, heading_like, move_entry, outline, outline_info,
     parse_located, sections_around, set_title_fields, suggest, tab_step, text_kinds, title_fields,
     typed_caps, visible_entries, Align, Context, EnterStep, Gap, HeaderLine, ImportReport, Laid,
     MoveWay, OutlineEntry, OutlineKind, PrintUnderline, Revisions, SceneNumbering, SceneNumbers,
-    SceneSpan, ScriptLanguage, ScriptPages, ScriptPaper, ScriptPrint, ScriptSetup, ScriptWords,
-    SheetPage, Slot, Stage, TextKind, Vocabulary, SCRIPT_ASCENT_PT, SCRIPT_FONT_PT, TEXT_COLUMNS,
+    ScriptLanguage, ScriptPages, ScriptPaper, ScriptPrint, ScriptSetup, ScriptWords, SheetPage,
+    Slot, Stage, TextKind, Vocabulary, SCRIPT_ASCENT_PT, SCRIPT_FONT_PT, TEXT_COLUMNS,
 };
 use serde_json::{json, Map, Value};
+use std::collections::HashSet;
 
 /// The letter of each line kind for `scriptKinds` and its name in `scriptLooks`.
 const KINDS: [(TextKind, char, &str); 14] = [
@@ -226,70 +227,31 @@ pub(super) fn title_set(text: &str, fields: &str) -> String {
     set_title_fields(text, &pairs)
 }
 
-/// The page span of the scene `index` of `entries` in the last layout: by position while the
-/// layout has as many scenes as the text, else by the heading's line (typing since).
-fn span_of<'a>(
-    pages: &'a ScriptPages,
-    scenes: usize,
-    entry: &OutlineEntry,
-) -> Option<&'a SceneSpan> {
-    if pages.scenes.len() == scenes {
-        return pages.scenes.get(entry.scene?);
-    }
-
-    pages.scenes.iter().find(|s| s.line == entry.line)
-}
-
-/// What a folded section is remembered by: its level and title. Typing above it does not move
-/// it; renaming it opens it.
-fn fold_key(entry: &OutlineEntry) -> String {
-    match entry.kind {
-        OutlineKind::Section(level) => format!("{level}{}", entry.text),
-        _ => String::new(),
-    }
-}
-
 /// The entries of the scene list: `[{ kind: section | scene | synopsis, level (sections: 1 for
 /// `#`), depth, line, end, text, number, length, key, folded }]` in text order, without what a
 /// folded section holds (`folded`: the `key`s of the folded sections). A section's `length` is
 /// the total of its scenes, a scene's its own, both from the last layout.
 pub(super) fn outline_json(text: &str, pages: Option<&ScriptPages>, folded: &[String]) -> String {
     let entries = outline(text);
-    let is_folded = |e: &OutlineEntry| folded.contains(&fold_key(e));
-    let scenes = entries.iter().filter(|e| e.scene.is_some()).count();
-    let eighths = |e: &OutlineEntry| -> usize {
-        let Some(span) = pages.and_then(|p| span_of(p, scenes, e)) else {
-            return 0;
-        };
-        span.eighths
-    };
+    let info = outline_info(&entries, pages);
+
+    // The headings of the folded sections, as the walk over the entries knows them.
+    let folded_lines: HashSet<usize> = entries
+        .iter()
+        .zip(&info)
+        .filter(|(_, i)| folded.contains(&i.key))
+        .map(|(e, _)| e.line)
+        .collect();
+    let is_folded = |e: &OutlineEntry| folded_lines.contains(&e.line);
 
     let rows: Vec<_> = visible_entries(&entries, &is_folded, "")
         .into_iter()
         .map(|i| {
             let e = &entries[i];
-            let (kind, level, length) = match e.kind {
-                OutlineKind::Section(level) => {
-                    let total: usize = entries
-                        .iter()
-                        .filter(|n| n.scene.is_some() && n.line > e.line && n.line < e.end)
-                        .map(eighths)
-                        .sum();
-                    let length = if total > 0 {
-                        length_text(total)
-                    } else {
-                        String::new()
-                    };
-                    ("section", level, length)
-                }
-                OutlineKind::Scene => {
-                    let length = pages
-                        .and_then(|p| span_of(p, scenes, e))
-                        .map(|s| s.length.clone())
-                        .unwrap_or_default();
-                    ("scene", 0, length)
-                }
-                OutlineKind::Synopsis => ("synopsis", 0, String::new()),
+            let (kind, level) = match e.kind {
+                OutlineKind::Section(level) => ("section", level),
+                OutlineKind::Scene => ("scene", 0),
+                OutlineKind::Synopsis => ("synopsis", 0),
             };
             json!({
                 "kind": kind,
@@ -299,8 +261,8 @@ pub(super) fn outline_json(text: &str, pages: Option<&ScriptPages>, folded: &[St
                 "end": e.end,
                 "text": e.text,
                 "number": e.number,
-                "length": length,
-                "key": fold_key(e),
+                "length": info[i].length,
+                "key": info[i].key,
                 "folded": is_folded(e),
             })
         })
@@ -335,13 +297,14 @@ pub(super) fn move_json(text: &str, line: usize, way: &str) -> String {
     let mut moved_lines = lines;
     moved_lines.splice(moved.from..moved.to, moved.lines.clone());
     let after = outline(&moved_lines.join("\n"));
+    let after_info = outline_info(&after, None);
     let unfold: Vec<String> = after
         .iter()
         .position(|e| e.line == moved.line)
         .map(|i| sections_around(&after, i))
         .unwrap_or_default()
         .into_iter()
-        .map(|i| fold_key(&after[i]))
+        .map(|i| after_info[i].key.clone())
         .collect();
 
     json!({

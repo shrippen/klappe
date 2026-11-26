@@ -1,8 +1,10 @@
 //! The outline in the list pane (DB-20, DB-21): the tree of sections, scenes and
 //! synopses, collapsing, the filter, jumping and moving blocks.
 
+use std::collections::HashSet;
+
 use klappe_services::{
-    length_text, move_entry, sections_around, visible_entries, MoveWay, OutlineEntry, OutlineKind,
+    move_entry, sections_around, visible_entries, MoveWay, OutlineEntry, OutlineKind,
 };
 use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::layout::Rect;
@@ -29,12 +31,6 @@ pub(crate) fn list_top(pos: usize, height: usize) -> usize {
     (pos + 1).saturating_sub(height)
 }
 
-/// What a collapsed section is remembered by: its level and title. Typing above it does
-/// not move it; renaming it expands it.
-fn fold_key(entry: &OutlineEntry) -> String {
-    format!("{:?}{}", entry.kind, entry.text)
-}
-
 fn is_section(entry: &OutlineEntry) -> bool {
     matches!(entry.kind, OutlineKind::Section(_))
 }
@@ -42,7 +38,12 @@ fn is_section(entry: &OutlineEntry) -> bool {
 impl App {
     /// Indices into `analysis.outline` of the rows on screen.
     pub(crate) fn list_rows(&self) -> Vec<usize> {
-        let collapsed = |e: &OutlineEntry| self.collapsed.contains(&fold_key(e));
+        // The headings of the collapsed sections, as the walk over the entries knows them.
+        let lines: HashSet<usize> = (0..self.analysis.outline.len())
+            .filter(|&i| self.is_collapsed(i))
+            .map(|i| self.analysis.outline[i].line)
+            .collect();
+        let collapsed = |e: &OutlineEntry| lines.contains(&e.line);
 
         visible_entries(&self.analysis.outline, &collapsed, &self.list_filter)
     }
@@ -62,29 +63,8 @@ impl App {
         }
     }
 
-    pub(crate) fn is_collapsed(&self, entry: &OutlineEntry) -> bool {
-        self.collapsed.contains(&fold_key(entry))
-    }
-
-    /// The length an entry shows: a scene's, a section's total of the scenes in it.
-    pub(crate) fn entry_length(&self, index: usize) -> Option<String> {
-        let entries = &self.analysis.outline;
-        let entry = entries.get(index)?;
-        if let Some(scene) = entry.scene {
-            return self.scene_span(scene).map(|s| s.length.clone());
-        }
-        if !is_section(entry) {
-            return None;
-        }
-
-        let total: usize = entries[index + 1..]
-            .iter()
-            .take_while(|e| e.line < entry.end)
-            .filter_map(|e| self.scene_span(e.scene?))
-            .map(|s| s.eighths)
-            .sum();
-
-        (total > 0).then(|| length_text(total))
+    pub(crate) fn is_collapsed(&self, index: usize) -> bool {
+        self.collapsed.contains(&self.outline_info[index].key)
     }
 
     /// The entry of the outline that is scene `scene`.
@@ -194,7 +174,7 @@ impl App {
             return;
         };
         let entry = &self.analysis.outline[index];
-        let key = fold_key(entry);
+        let key = self.outline_info[index].key.clone();
         let folded = self.collapsed.contains(&key);
 
         // A selection inside what just collapsed rests on its section.
@@ -288,7 +268,7 @@ impl App {
         let entries = &self.analysis.outline;
 
         for section in sections_around(entries, index) {
-            self.collapsed.remove(&fold_key(&entries[section]));
+            self.collapsed.remove(&self.outline_info[section].key);
         }
     }
 }

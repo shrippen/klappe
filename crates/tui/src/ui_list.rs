@@ -100,7 +100,7 @@ pub(crate) fn draw_list(frame: &mut Frame, app: &App, area: Rect) {
 fn item(app: &App, i: usize, current: Option<usize>, width: usize) -> ListItem<'_> {
     let entry = &app.analysis.outline[i];
     let indent = " ".repeat(entry.depth * INDENT);
-    let length = app.entry_length(i).unwrap_or_default();
+    let length = &app.outline_info[i].length;
     let here = entry.scene.is_some() && entry.scene == current;
     let mark = match here {
         true => Span::styled(CURRENT_MARK, Style::new().fg(theme::ACCENT)),
@@ -109,11 +109,7 @@ fn item(app: &App, i: usize, current: Option<usize>, width: usize) -> ListItem<'
 
     let (lead, text, lead_style, text_style) = match entry.kind {
         OutlineKind::Section(_) => {
-            let fold = if app.is_collapsed(entry) {
-                FOLDED
-            } else {
-                OPEN
-            };
+            let fold = if app.is_collapsed(i) { FOLDED } else { OPEN };
             let style = Style::new().fg(theme::STRONG).add_modifier(Modifier::BOLD);
             (fold.to_string(), entry.text.as_str(), style, style)
         }
