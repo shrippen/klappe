@@ -52,8 +52,8 @@ pub use pages::{
     Pagination, SceneLength, Words, TEXT_COLUMNS,
 };
 pub use parse::{
-    boneyard_count, boneyard_lines, parse, parse_located, title_page_lines, FORCE_CHARACTER,
-    NUMBER_MARK,
+    boneyard_count, boneyard_lines, number_token, numbered_head, parse, parse_located,
+    split_number, title_page_lines, FORCE_CHARACTER, NUMBER_MARK,
 };
 pub use quote::{find_quote, find_quotes, quote_at, Found, LineKind, Quote};
 pub use search::{find_all, replace_hits, Case, Hit, Query, Splice};

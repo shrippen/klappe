@@ -1,8 +1,8 @@
 //! Elements to Fountain text.
 
 use crate::parse::{
-    escape_openers, parse, parse_elements, Escape, FORCE_ACTION, FORCE_CHARACTER, FORCE_HEADING,
-    FORCE_TRANSITION,
+    escape_openers, numbered_head, parse, parse_elements, Escape, FORCE_ACTION, FORCE_CHARACTER,
+    FORCE_HEADING, FORCE_TRANSITION,
 };
 use crate::{Element, Script};
 
@@ -89,7 +89,7 @@ fn render(el: &Element, next: Option<&Element>) -> String {
     match el {
         Element::SceneHeading { text, number } => {
             let plain = match number {
-                Some(n) => format!("{text} #{n}#"),
+                Some(n) => numbered_head(text, n),
                 None => text.clone(),
             };
             forced(el, &plain, &plain, FORCE_HEADING)

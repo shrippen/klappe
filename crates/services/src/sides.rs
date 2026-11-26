@@ -7,12 +7,10 @@
 //! ```
 
 use klappe_model::{same_character_name, Project};
-use klappe_script::{parse_located, Element, Located};
+use klappe_script::{numbered_head, parse_located, Element, Located};
 
 use crate::error::ServiceError;
 use crate::script_refs::names;
-
-const NUMBER_MARK: char = '#';
 
 /// The sides of one figure.
 pub(crate) struct Sides {
@@ -135,7 +133,7 @@ fn chunk_lines(lines: &[&str], chunk: &Chunk) -> Vec<String> {
         .map(|l| (*l).to_owned())
         .collect();
     if let (Some(place), Some(head)) = (chunk.unnumbered, out.first_mut()) {
-        head.push_str(&format!(" {NUMBER_MARK}{place}{NUMBER_MARK}"));
+        *head = numbered_head(head, &place.to_string());
     }
 
     out

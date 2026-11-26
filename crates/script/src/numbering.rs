@@ -4,7 +4,7 @@
 
 use std::collections::HashSet;
 
-use crate::{parse_located, Element, NUMBER_MARK};
+use crate::{numbered_head, parse_located, split_number, Element};
 
 /// The word a struck scene's heading is, in a German and in an English book.
 pub const OMITTED_DE: &str = "ENTFÄLLT";
@@ -291,18 +291,9 @@ fn with_number(line: &str, number: &str) -> String {
         .strip_suffix('\r')
         .map_or((line, ""), |line| (line, "\r"));
     let line = line.trim_end();
-    let base = line
-        .strip_suffix(NUMBER_MARK)
-        .and_then(|body| {
-            let at = body.rfind(NUMBER_MARK)?;
-            let old = &body[at + 1..];
-            let plain = !old.is_empty() && !old.contains(char::is_whitespace);
+    let (base, _) = split_number(line);
 
-            plain.then(|| body[..at].trim_end())
-        })
-        .unwrap_or(line);
-
-    format!("{base} {NUMBER_MARK}{number}{NUMBER_MARK}{ret}")
+    numbered_head(base, number) + ret
 }
 
 /// The struck numbers of the Sperrstand with the line each heading goes in front of; `None`
@@ -357,7 +348,7 @@ fn insert_struck(lines: &mut Vec<String>, heads: &[Heading], rules: &NumberRules
     // In order of the lines; `shift` is what the headings before added.
     let mut shift = 0;
     for (line, number) in places {
-        let heading = format!(".{} {NUMBER_MARK}{number}{NUMBER_MARK}", rules.omitted);
+        let heading = numbered_head(&format!(".{}", rules.omitted), &number);
         if line == end {
             if lines.last().is_some_and(|l| !l.trim().is_empty()) {
                 end_last_line(lines, newline, ret);

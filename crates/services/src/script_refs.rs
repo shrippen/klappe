@@ -4,10 +4,9 @@
 //! meant differently.
 
 use klappe_model::{same_character_name, Character, Project, Scene};
-use klappe_script::{parse, parse_located, Element, Located, FORCE_CHARACTER};
+use klappe_script::{number_token, parse, parse_located, Element, Located, FORCE_CHARACTER};
 use serde::Serialize;
 
-const NUMBER_MARK: char = '#';
 const FORCE_HEADING: char = '.';
 
 /// What a change replaces.
@@ -241,7 +240,7 @@ fn scene_lines(
         }
     }
     if number != scene.number {
-        let (from, to) = (mark(&scene.number), mark(number));
+        let (from, to) = (number_token(&scene.number), number_token(number));
         if let Some(next) = replace_once(&new_line, &from, &to) {
             new_line = next;
             changes.push((ChangeKind::Number, from, to));
@@ -280,10 +279,6 @@ fn reads_as_cue(line: &str, name: &str) -> bool {
 /// reads as `Anna` with the extension `jung` in any spelling.
 pub(crate) fn can_be_cue(name: &str) -> bool {
     reads_as_cue(&format!("{FORCE_CHARACTER}{name}"), name)
-}
-
-fn mark(number: &str) -> String {
-    format!("{NUMBER_MARK}{number}{NUMBER_MARK}")
 }
 
 fn reads_as_heading(line: &str) -> bool {

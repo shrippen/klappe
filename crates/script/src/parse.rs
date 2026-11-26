@@ -544,7 +544,18 @@ pub(crate) fn heading_prefix(t: &str) -> Option<&'static str> {
 
 /// Splits a trailing `#12A#` off the heading.
 fn heading(t: &str) -> Element {
-    let split = t.strip_suffix(NUMBER_MARK).and_then(|body| {
+    let (text, number) = split_number(t);
+
+    Element::SceneHeading {
+        text: text.to_string(),
+        number: number.map(str::to_string),
+    }
+}
+
+/// Splits a trailing `#12A#` off a heading: the text before it, without the blanks in
+/// between, and the number. A mark that is open, empty or holds a blank is no number.
+pub fn split_number(heading: &str) -> (&str, Option<&str>) {
+    let split = heading.strip_suffix(NUMBER_MARK).and_then(|body| {
         let at = body.rfind(NUMBER_MARK)?;
         let number = &body[at + 1..];
         if number.is_empty() || number.contains(char::is_whitespace) {
@@ -554,15 +565,19 @@ fn heading(t: &str) -> Element {
     });
 
     match split {
-        Some((text, number)) => Element::SceneHeading {
-            text: text.to_string(),
-            number: Some(number.to_string()),
-        },
-        None => Element::SceneHeading {
-            text: t.to_string(),
-            number: None,
-        },
+        Some((text, number)) => (text, Some(number)),
+        None => (heading, None),
     }
+}
+
+/// The mark of a scene number: `#12A#`.
+pub fn number_token(number: &str) -> String {
+    format!("{NUMBER_MARK}{number}{NUMBER_MARK}")
+}
+
+/// The heading `text` with `number` behind it: `INT. A - TAG #12A#`.
+pub fn numbered_head(text: &str, number: &str) -> String {
+    format!("{text} {}", number_token(number))
 }
 
 /// No lowercase letter and at least one letter.
