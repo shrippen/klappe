@@ -99,11 +99,11 @@ fn replies_count_by_name_and_alias_and_the_dual_voice() {
     let at = csv.iter().position(|l| l == "Figuren").unwrap();
     assert_eq!(
         csv[at + 1],
-        "Figur,Szenen mit Dialog,Repliken,Dialogzeilen,Anteil am Dialog (%)"
+        "Figur,Szenen mit Dialog,Repliken,Wörter,Anteil am Dialog (%)"
     );
-    // ANNA 4 of 6 lines, BOB 2: the struck scene's BOB and ZED are not counted.
-    assert_eq!(csv[at + 2], "ANNA,2,3,4,\"66,7\"");
-    assert_eq!(csv[at + 3], "BOB,2,2,2,\"33,3\"");
+    // ANNA 6 of 8 words, BOB 2: the struck scene's BOB and ZED are not counted.
+    assert_eq!(csv[at + 2], "ANNA,2,3,6,\"75,0\"");
+    assert_eq!(csv[at + 3], "BOB,2,2,2,\"25,0\"");
     assert_eq!(csv[at + 4], "");
 }
 
@@ -244,4 +244,65 @@ fn every_format_holds_the_tables() {
         let text = String::from_utf8_lossy(&bytes);
         assert!(text.contains("Total length"), "{}", format.name());
     }
+}
+
+/// One scene of the character ANNA with `body` as her cue block, then BOB's two replies.
+fn open_one(name: &str, body: &str) -> Session {
+    let dir = dir_of(name);
+    let mut project = Project::new("Test");
+    project.characters = vec![character("anna", &[]), character("bob", &[])];
+    project.scenes = vec![scene("aaaa", "1", "INT. SAAL – TAG", BookState::InBook)];
+    let book = format!("INT. SAAL – TAG #1#\n\n{body}\n\nBOB\nJa.\n\nBOB\nJa.\n\n");
+    klappe_store::save(&dir, &project, Some(&book)).unwrap();
+
+    Session::open(&dir).unwrap()
+}
+
+#[test]
+fn one_long_reply_outweighs_two_short_ones() {
+    let long = "ANNA\nEs war einmal ein sehr langer Satz, der auf einer einzigen Zeile steht.";
+    let mut s = open_one("stat-words", long);
+
+    let csv = lines(&mut s, Report::Statistics, "stat-words-file");
+
+    let at = csv.iter().position(|l| l == "Figuren").unwrap();
+    assert!(csv[at + 2].starts_with("ANNA,1,1,13,"), "{}", csv[at + 2]);
+    assert!(csv[at + 3].starts_with("BOB,1,2,2,"), "{}", csv[at + 3]);
+}
+
+#[test]
+fn marks_and_notes_are_no_words() {
+    let mut s = open_one("stat-plain", "ANNA\n*Laut* [[Regie]] hallo.");
+
+    let csv = lines(&mut s, Report::Statistics, "stat-plain-file");
+    let anna = dialogue(&mut s, "anna", "stat-plain-dialog");
+
+    // Two words each: BOB's two replies put him first.
+    assert!(csv.iter().any(|l| l.starts_with("ANNA,1,1,2,")), "{csv:?}");
+    assert_eq!(anna[1], "1  INT. SAAL – TAG,,Laut hallo.");
+}
+
+#[test]
+fn a_bracket_in_the_middle_keeps_its_place() {
+    let mut s = open_one("stat-mid", "ANNA\nEins.\n(leise)\nZwei.");
+
+    let csv = dialogue(&mut s, "anna", "stat-mid-file");
+
+    assert_eq!(
+        csv[1..],
+        [
+            "1  INT. SAAL – TAG,,Eins.",
+            "1  INT. SAAL – TAG,(leise),Zwei."
+        ]
+    );
+}
+
+#[test]
+fn a_character_is_found_by_id_name_or_alias() {
+    let s = open("dialog-find");
+
+    for given in ["anna", "ANNA", "anni", "Anni"] {
+        assert_eq!(s.figure_named(given).as_deref(), Some("anna"), "{given}");
+    }
+    assert_eq!(s.figure_named("nobody"), None);
 }

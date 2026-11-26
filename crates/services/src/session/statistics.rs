@@ -3,7 +3,7 @@
 //! no character of the project answers to has no row, as in the cast.
 //!
 //! ```text
-//! book scenes ─► replies (cue + brackets + lines) ─┬─► per character, share of lines
+//! book scenes ─► replies (cue + brackets + lines) ─┬─► per character, share of words
 //!             │                                    └─► one character's rows
 //!             └► length in eighths ─► per place, per time of day
 //! ```
@@ -12,7 +12,7 @@ use std::collections::HashMap;
 
 use klappe_export::ReportTable;
 use klappe_model::{Character, Scene};
-use klappe_script::{length_text, Element};
+use klappe_script::{length_text, plain_text, Element};
 use serde::Serialize;
 
 use super::uses::time_of;
@@ -27,13 +27,54 @@ const PERCENT: f64 = 100.0;
 const SHARE_DECIMALS: usize = 1;
 const GERMAN_DECIMAL: char = ',';
 
-/// What a character says in a row: its cue, the brackets and the lines under it.
+/// A stretch of a reply: the bracket that opens it (empty for the first) and what is said
+/// after it, without marks and notes.
+#[derive(Default)]
+struct Part {
+    bracket: String,
+    text: String,
+}
+
+/// What a character says in a row: its cue and the stretches under it.
 struct Reply<'a> {
     scene: &'a Scene,
     character: &'a Character,
-    brackets: Vec<String>,
-    /// A line of the script each, as written.
-    lines: Vec<String>,
+    parts: Vec<Part>,
+}
+
+impl Reply<'_> {
+    /// A bracket opens a new stretch, unless the stretch before it has said nothing yet.
+    fn add_bracket(&mut self, text: &str) {
+        let bracket = format!("({text})");
+        match self.parts.last_mut() {
+            Some(last) if last.text.is_empty() && !last.bracket.is_empty() => {
+                last.bracket = format!("{}{WORD_SEPARATOR}{bracket}", last.bracket);
+            }
+            _ => self.parts.push(Part {
+                bracket,
+                text: String::new(),
+            }),
+        }
+    }
+
+    fn add_text(&mut self, text: &str) {
+        if self.parts.is_empty() {
+            self.parts.push(Part::default());
+        }
+        if let Some(last) = self.parts.last_mut() {
+            if !last.text.is_empty() {
+                last.text.push_str(WORD_SEPARATOR);
+            }
+            last.text.push_str(text);
+        }
+    }
+
+    fn words(&self) -> usize {
+        self.parts
+            .iter()
+            .map(|p| p.text.split_whitespace().count())
+            .sum()
+    }
 }
 
 /// A character of the dialogue choice: who speaks in the book, and how often.
@@ -49,7 +90,7 @@ pub struct DialogueFigure {
 struct Tally<'a> {
     scenes: Vec<&'a str>,
     replies: usize,
-    lines: usize,
+    words: usize,
 }
 
 impl Session {
@@ -71,6 +112,17 @@ impl Session {
         figures.sort_by(|a, b| b.replies.cmp(&a.replies).then_with(|| a.name.cmp(&b.name)));
 
         figures
+    }
+
+    /// The id of the character `given` names: its id, its name or an alias, in any case.
+    pub fn figure_named(&self, given: &str) -> Option<String> {
+        let characters = &self.project.characters;
+        let found = characters
+            .iter()
+            .find(|c| c.id == given)
+            .or_else(|| characters.iter().find(|c| c.is_called(given)));
+
+        found.map(|c| c.id.clone())
     }
 
     /// The replies of the book scenes in book order.
@@ -104,19 +156,18 @@ impl Session {
                         out.push(Reply {
                             scene,
                             character,
-                            brackets: Vec::new(),
-                            lines: Vec::new(),
+                            parts: Vec::new(),
                         });
                     }
                 }
                 Element::Parenthetical(text) if open => {
                     if let Some(reply) = out.last_mut() {
-                        reply.brackets.push(format!("({text})"));
+                        reply.add_bracket(text);
                     }
                 }
                 Element::Dialogue(text) if open => {
                     if let Some(reply) = out.last_mut() {
-                        reply.lines.extend(text.split('\n').map(str::to_owned));
+                        reply.add_text(&plain_text(text));
                     }
                 }
                 // These stand between lines without ending a reply.
@@ -147,7 +198,7 @@ impl Session {
                     t("report.figure"),
                     t("report.dialogueScenes"),
                     t("report.replies"),
-                    t("report.dialogueLines"),
+                    t("report.words"),
                     t("report.share"),
                 ],
                 rows: self.figure_rows(language),
@@ -184,8 +235,8 @@ impl Session {
         ]
     }
 
-    /// A row per character with a reply: scenes with dialogue, replies, lines and the share of
-    /// all lines; most replies first, then by name.
+    /// A row per character with a reply: scenes with dialogue, replies, words and the share of
+    /// all words; most words first, then by name.
     fn figure_rows(&self, language: Language) -> Vec<Vec<String>> {
         let replies = self.replies();
         let mut tallies: HashMap<&str, Tally> = HashMap::new();
@@ -195,17 +246,23 @@ impl Session {
                 tally.scenes.push(&reply.scene.id);
             }
             tally.replies += 1;
-            tally.lines += reply.lines.len();
+            tally.words += reply.words();
         }
 
-        let all_lines: usize = tallies.values().map(|t| t.lines).sum();
+        let all_words: usize = tallies.values().map(|t| t.words).sum();
         let mut rows: Vec<(&Character, Tally)> = self
             .project
             .characters
             .iter()
             .filter_map(|c| Some((c, tallies.remove(c.id.as_str())?)))
             .collect();
-        rows.sort_by(|(a, x), (b, y)| y.replies.cmp(&x.replies).then_with(|| a.name.cmp(&b.name)));
+        rows.sort_by(|(a, x), (b, y)| {
+            let by_words = y.words.cmp(&x.words);
+
+            by_words
+                .then_with(|| y.replies.cmp(&x.replies))
+                .then_with(|| a.name.cmp(&b.name))
+        });
 
         rows.into_iter()
             .map(|(c, t)| {
@@ -213,8 +270,8 @@ impl Session {
                     c.name.clone(),
                     t.scenes.len().to_string(),
                     t.replies.to_string(),
-                    t.lines.to_string(),
-                    share_text(t.lines, all_lines, language),
+                    t.words.to_string(),
+                    share_text(t.words, all_words, language),
                 ]
             })
             .collect()
@@ -251,8 +308,8 @@ impl Session {
         (by_place.rows(), by_time.rows())
     }
 
-    /// Scene, brackets and text of every reply of the character `figure`, in book order. A
-    /// brackets line stays with its reply; the text is the reply's lines in one.
+    /// Scene, bracket and text of every stretch of the replies of the character `figure`, in
+    /// book order; a bracket in the middle of a reply opens a row of its own.
     pub(super) fn dialogue_table(
         &self,
         figure: &str,
@@ -266,14 +323,12 @@ impl Session {
             .replies()
             .iter()
             .filter(|r| r.character.id == character.id)
-            .map(|r| {
-                vec![
-                    format!("{}{NUMBER_SEPARATOR}{}", r.scene.number, r.scene.heading)
-                        .trim()
-                        .to_owned(),
-                    r.brackets.join(WORD_SEPARATOR),
-                    r.lines.join(WORD_SEPARATOR),
-                ]
+            .flat_map(|r| {
+                let scene = format!("{}{NUMBER_SEPARATOR}{}", r.scene.number, r.scene.heading);
+
+                r.parts
+                    .iter()
+                    .map(move |p| vec![scene.trim().to_owned(), p.bracket.clone(), p.text.clone()])
             })
             .collect();
 

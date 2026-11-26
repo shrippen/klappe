@@ -25,7 +25,8 @@ TestCase {
         function exportFile(extension) { return "file:///work/Wartburg-Plan-A." + extension }
         function exportTo(kind, order, paper, path) { return call("exportTo", [kind, order, paper, path]) }
         // The characters of the dialogue report (services `DialogueFigure`).
-        function dialogueFigures() { return JSON.stringify([{ id: "anna", name: "ANNA", replies: 3 }, { id: "bob", name: "BOB", replies: 2 }]) }
+        property var figures: [{ id: "anna", name: "ANNA", replies: 3 }, { id: "bob", name: "BOB", replies: 2 }]
+        function dialogueFigures() { return JSON.stringify(figures) }
         function exportDialogue(figure, format, path) { return call("exportDialogue", [figure, format, path]) }
         function reportFile(report) { return "file:///work/" + report + ".pdf" }
     }
@@ -57,6 +58,7 @@ TestCase {
 
     function init() {
         fake.calls = []
+        fake.figures = [{ id: "anna", name: "ANNA", replies: 3 }, { id: "bob", name: "BOB", replies: 2 }]
     }
 
     function make() {
@@ -247,5 +249,16 @@ TestCase {
 
         verify(findChild(dialog.contentItem, "paper").visible)
         verify(!findChild(dialog.contentItem, "figureBox").visible)
+    }
+
+    // A book without a reply has nobody to choose: nothing opens, the controller says why.
+    function test_the_dialogue_report_without_a_reply_opens_nothing() {
+        const dialog = make()
+        fake.figures = []
+
+        dialog.requestReport("dialog")
+
+        verify(!dialog.opened)
+        verify(!findChild(dialog, "files").visible)
     }
 }

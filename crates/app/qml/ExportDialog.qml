@@ -59,7 +59,11 @@ FormDialog {
             return
         }
         figures = JSON.parse(controller.dialogueFigures())
-        figure = figures.length > 0 ? figures[0].id : ""
+        // The controller has said why there is nobody to choose.
+        if (figures.length === 0) {
+            return
+        }
+        figure = figures[0].id
         open()
     }
 

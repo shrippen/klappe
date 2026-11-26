@@ -92,8 +92,8 @@ enum Command {
         /// `szenen`, `spielorte`, `figuren`, `auszug`, `kontakte`, `statistik` or `dialog`.
         #[arg(long, value_parser = report_arg())]
         report: Report,
-        /// The character of `dialog`, by id or name.
-        #[arg(long)]
+        /// The character of `dialog`, by id, name or alias.
+        #[arg(long, required_if_eq("report", "dialog"))]
         figure: Option<String>,
         /// Language of the headings; the system's if left out.
         #[arg(long, value_enum)]
@@ -249,7 +249,9 @@ fn write_report(
 
             let written = match report {
                 Report::Dialogue => {
-                    let id = figure_id(&session, figure);
+                    let id = session
+                        .figure_named(figure)
+                        .unwrap_or_else(|| figure.to_owned());
 
                     session.export_dialogue(&id, format, out, language)
                 }
@@ -262,17 +264,6 @@ fn write_report(
         Ok(()) => ExitCode::SUCCESS,
         Err(message) => refuse(message),
     }
-}
-
-/// The id of the character `given` names, by id or by name in any case; `given` as it is when
-/// no character with a reply has either.
-fn figure_id(session: &Session, given: &str) -> String {
-    let figures = session.dialogue_figures();
-    let named = figures
-        .iter()
-        .find(|f| f.id == given || f.name.to_lowercase() == given.to_lowercase());
-
-    named.map_or_else(|| given.to_owned(), |f| f.id.clone())
 }
 
 /// Writes the screenplay; `paper` replaces the project's for this one PDF.

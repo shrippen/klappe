@@ -989,10 +989,11 @@ pub mod qobject {
         ) -> bool;
 
         /// The characters with a reply in the book, most replies first, as
-        /// `[{ id, name, replies }]`; the choice before the dialogue report.
+        /// `[{ id, name, replies }]`; the choice before the dialogue report. A book without a
+        /// reply says so on the status line.
         #[qinvokable]
         #[cxx_name = "dialogueFigures"]
-        fn dialogue_figures(self: &Self) -> QString;
+        fn dialogue_figures(self: Pin<&mut Self>) -> QString;
 
         /// The file URL a report is offered under: next to the project folder, named by the
         /// report as a PDF; empty without a project.

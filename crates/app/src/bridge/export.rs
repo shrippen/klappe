@@ -219,14 +219,19 @@ impl qobject::Controller {
     }
 
     /// The characters with a reply in the book, most replies first, as
-    /// `[{ id, name, replies }]`; the choice before the dialogue report.
-    pub(super) fn dialogue_figures(&self) -> QString {
+    /// `[{ id, name, replies }]`; the choice before the dialogue report. A book without one
+    /// says so on the status line.
+    pub(super) fn dialogue_figures(mut self: Pin<&mut Self>) -> QString {
         let figures = self
             .rust()
             .session
             .as_ref()
             .map(Session::dialogue_figures)
             .unwrap_or_default();
+        if figures.is_empty() {
+            let message = self.rust().language.text("error.noReplies");
+            self.as_mut().say(message);
+        }
 
         QString::from(serde_json::json!(figures).to_string())
     }

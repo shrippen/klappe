@@ -143,5 +143,6 @@ fn the_dialogue_without_a_character_is_refused() {
     let output = report("dialog", &out);
 
     assert!(!output.status.success());
+    assert!(stderr(&output).contains("--figure"), "{}", stderr(&output));
     assert!(!out.exists());
 }
