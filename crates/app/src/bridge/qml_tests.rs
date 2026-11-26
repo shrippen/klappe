@@ -23,6 +23,11 @@ const LOOKS_PROJECT: &str = "looks-projekt";
 const VERSIONS_PROJECT: &str = "versionen-projekt";
 /// The copy of the example `versions_outside.qml` changes from two controllers.
 const VERSIONS_OUTSIDE_PROJECT: &str = "versionen-aussen-projekt";
+/// The copy of the example `versions_unreadable.qml` opens: its list names a version whose text
+/// file is not there.
+const VERSIONS_UNREADABLE_PROJECT: &str = "versionen-fehlt-projekt";
+/// The list of that copy: one version, no `drehbuch/fassungen/fehlt.fountain`.
+const UNREADABLE_LIST: &str = "[[fassung]]\nid = \"fehlt\"\nname = \"Drehfassung\"\ndatum = \"2026-11-25\"\nfarbe = \"white\"\n";
 /// The scripted location of the example, and the name the copy has before the scenario renames it.
 const PLACE_NAME: &str = "SÄNGERSAAL";
 const PLACE_OLD_NAME: &str = "FESTSAAL";
@@ -67,6 +72,11 @@ fn copy_example(base: &Path) {
     copy_dir(&example, &base.join(LOOKS_PROJECT));
     copy_dir(&example, &base.join(VERSIONS_PROJECT));
     copy_dir(&example, &base.join(VERSIONS_OUTSIDE_PROJECT));
+    copy_dir(&example, &base.join(VERSIONS_UNREADABLE_PROJECT));
+
+    let unreadable = base.join(VERSIONS_UNREADABLE_PROJECT).join("drehbuch");
+    std::fs::create_dir_all(&unreadable).unwrap();
+    std::fs::write(unreadable.join("fassungen.toml"), UNREADABLE_LIST).unwrap();
 
     // The heading says SÄNGERSAAL: the book renamed what the file calls FESTSAAL.
     let places = base.join(PLACE_PROJECT).join("orte.toml");

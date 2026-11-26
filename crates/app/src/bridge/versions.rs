@@ -8,7 +8,7 @@ use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
 use klappe_services::{
     color_text, error_text, Comparison, Draft, Edit, Language, OnOutside, RevisionColor, Saved,
-    ScenePlace, SceneStatus, Version,
+    ScenePlace, SceneStatus, ServiceError, Version,
 };
 use serde_json::json;
 
@@ -160,22 +160,44 @@ impl qobject::Controller {
     }
 
     pub(super) fn revision_json(mut self: Pin<&mut Self>) -> QString {
+        let language = self.rust().language;
         let Some(s) = self.as_mut().session() else {
             return q("[]");
         };
-        let lines = s.revision().map(|c| c.marked_lines()).unwrap_or_default();
+        let result = s.revision();
+        let comparison = self.as_mut().told(result, language);
 
-        q(&json!(lines).to_string())
+        q(&json!(comparison.marked_lines()).to_string())
     }
 
     pub(super) fn compare_json(mut self: Pin<&mut Self>, from: &QString, to: &QString) -> QString {
         let (from, to) = (draft_of(from), draft_of(to));
+        let language = self.rust().language;
         let Some(s) = self.as_mut().session() else {
             return q("[]");
         };
-        let comparison = s.compare_drafts(&from, &to).unwrap_or_default();
+        let result = s.compare_drafts(&from, &to);
+        let comparison = self.as_mut().told(result, language);
 
         q(&compare_json(&comparison))
+    }
+
+    /// The comparison, or none after saying in the status line why there is none; "no version
+    /// yet" is no error to say.
+    fn told(
+        mut self: Pin<&mut Self>,
+        result: Result<Comparison, ServiceError>,
+        language: Language,
+    ) -> Comparison {
+        match result {
+            Ok(comparison) => comparison,
+            Err(ServiceError::NoVersions) => Comparison::default(),
+            Err(e) => {
+                self.as_mut().say(error_text(language, &e));
+
+                Comparison::default()
+            }
+        }
     }
 }
 
