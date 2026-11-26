@@ -21,8 +21,8 @@ Item {
 
     required property var texts
     required property var controller
-    /// The text area searched in.
-    required property var area
+    /// The text searched in (ScriptDoc).
+    required property var doc
     /// Shows the stretch `from` to `to` of the text selected and in view.
     required property var showText
     /// Puts `text` in place of `from` to `to` as one undo step, no typing.
@@ -49,7 +49,7 @@ Item {
     /// The names of the text now; the choice stays when the cue is still there.
     function refreshSpeakers() {
         const chosen = speaker
-        const names = JSON.parse(controller.scriptSpeakers(area.text))
+        const names = JSON.parse(controller.scriptSpeakers(doc.read()))
         if (JSON.stringify(names) === JSON.stringify(speakers)) {
             return
         }
@@ -72,7 +72,7 @@ Item {
 
     function find() {
         refreshSpeakers()
-        hits = findField.text === "" ? [] : JSON.parse(controller.findInScript(area.text, findField.text, caseMode, speaker))
+        hits = findField.text === "" ? [] : JSON.parse(controller.findInScript(doc.read(), findField.text, caseMode, speaker))
     }
 
     /// The first hit at or after `at`, wrapping to the first.
@@ -83,14 +83,14 @@ Item {
     }
 
     function next() {
-        from(area.selectionStart === area.selectionEnd ? area.cursorPosition : area.selectionStart + 1)
+        from(doc.selectionStart === doc.selectionEnd ? doc.cursor : doc.selectionStart + 1)
     }
 
     /// The last hit before the selection, wrapping to the last.
     function previous() {
         find()
         let i = -1
-        hits.forEach((h, n) => { if (h[0] < area.selectionStart) { i = n } })
+        hits.forEach((h, n) => { if (h[0] < doc.selectionStart) { i = n } })
         show(hits.length === 0 ? -1 : (i < 0 ? hits.length - 1 : i))
     }
 
@@ -105,18 +105,18 @@ Item {
     /// (typing moved it off) only the next one is shown.
     function replaceOne() {
         find()
-        const marked = hits.findIndex(h => h[0] === area.selectionStart && h[1] === area.selectionEnd)
+        const marked = hits.findIndex(h => h[0] === doc.selectionStart && h[1] === doc.selectionEnd)
         if (marked < 0) {
             next()
             return
         }
         const after = hits[marked][0] + replaceField.text.length
-        put(controller.replaceInScript(area.text, findField.text, caseMode, speaker, replaceField.text, marked))
+        put(controller.replaceInScript(doc.read(), findField.text, caseMode, speaker, replaceField.text, marked))
         from(after)
     }
 
     function replaceAll() {
-        put(controller.replaceInScript(area.text, findField.text, caseMode, speaker, replaceField.text, -1))
+        put(controller.replaceInScript(doc.read(), findField.text, caseMode, speaker, replaceField.text, -1))
         find()
         current = -1
     }
@@ -151,7 +151,7 @@ Item {
                 Layout.fillWidth: true
                 placeholderText: bar.texts.t("search.find")
                 Accessible.name: bar.texts.t("search.find")
-                onTextEdited: bar.from(bar.area.selectionStart)
+                onTextEdited: bar.from(bar.doc.selectionStart)
                 Keys.onReturnPressed: event => (event.modifiers & Qt.ShiftModifier) ? bar.previous() : bar.next()
                 Keys.onEnterPressed: event => (event.modifiers & Qt.ShiftModifier) ? bar.previous() : bar.next()
                 Keys.onEscapePressed: bar.close()
@@ -237,14 +237,14 @@ Item {
                 Layout.fillWidth: true
                 model: [bar.texts.t("search.everyone")].concat(bar.speakers)
                 Accessible.name: bar.texts.t("search.speaker")
-                onActivated: bar.from(bar.area.selectionStart)
+                onActivated: bar.from(bar.doc.selectionStart)
                 Keys.onEscapePressed: bar.close()
             }
             KanteSwitch {
                 id: caseSwitch
                 objectName: "caseSwitch"
                 text: bar.texts.t("search.matchCase")
-                onToggled: bar.from(bar.area.selectionStart)
+                onToggled: bar.from(bar.doc.selectionStart)
             }
         }
     }

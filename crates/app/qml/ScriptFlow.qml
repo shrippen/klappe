@@ -13,10 +13,8 @@ import QtQuick
 QtObject {
     id: flow
 
-    required property var area
+    required property var doc
     required property var controller
-    /// The native tools (ScriptTools), for a change that is one step of the history.
-    property var tools: null
     /// The line Enter or Tab made an element, and its kind (a letter of `scriptKinds`); -1 for
     /// none.
     property int pendingLine: -1
@@ -36,14 +34,14 @@ QtObject {
 
     /// The lines of the text now; read again each time, as a binding lags behind an edit.
     function rows() {
-        return area.text.split("\n")
+        return doc.read().split("\n")
     }
 
     /// The pending line changed: the editor shows the lines anew.
     signal pendingMoved()
 
     function cursorLine() {
-        return area.text.slice(0, area.cursorPosition).split("\n").length - 1
+        return doc.read().slice(0, doc.cursor).split("\n").length - 1
     }
 
     function lineStart(line) {
@@ -90,7 +88,7 @@ QtObject {
     /// Enter; false leaves the plain line break to the text area, also over a selection, which
     /// it replaces.
     function enter() {
-        if (area.selectedText !== "") {
+        if (doc.selectedText !== "") {
             return false
         }
         if (suggestions) {
@@ -101,14 +99,14 @@ QtObject {
         const start = lineStart(line)
         const text = all[line]
         const below = line + 1 < all.length ? all[line + 1] : ""
-        const step = JSON.parse(controller.enterStep(text, area.cursorPosition - start, shown[line] || letters.action, below))
+        const step = JSON.parse(controller.enterStep(text, doc.cursor - start, shown[line] || letters.action, below))
 
         switch (step.step) {
         case "retag":
             tab()
             return true
         case "below":
-            area.cursorPosition = start + text.length + 1 + below.length
+            doc.setCursor(start + text.length + 1 + below.length)
             return true
         case "next":
             openAfter(line, start + text.length, step)
@@ -120,8 +118,8 @@ QtObject {
     /// The next element after the end of `line`, after a blank line if the gap asks for one.
     function openAfter(line, end, step) {
         const breaks = step.gap === "blank" ? "\n\n" : "\n"
-        area.insert(end, breaks)
-        area.cursorPosition = end + breaks.length
+        doc.insert(end, breaks)
+        doc.setCursor(end + breaks.length)
         setPending(line + breaks.length, step.kind)
     }
 
@@ -141,25 +139,25 @@ QtObject {
 
         const step = JSON.parse(found)
         const start = lineStart(line)
-        replace(start, start + text.length, step.text)
-        area.cursorPosition = start + step.col
+        doc.replace(start, start + text.length, step.text)
+        doc.setCursor(start + step.col)
         setPending(line, step.kind)
     }
 
     /// The choices for the end of the cursor line; null while the cursor is elsewhere, a selection
     /// is made, the editor has no focus or Esc closed them for this text.
     function findSuggest() {
-        if (!area.activeFocus || area.selectedText !== "" || area.text === dismissedText) {
+        if (!doc.focused || doc.selectedText !== "" || doc.read() === dismissedText) {
             return null
         }
         const line = cursorLine()
         const text = rows()[line]
-        if (area.cursorPosition !== lineStart(line) + text.length) {
+        if (doc.cursor !== lineStart(line) + text.length) {
             return null
         }
 
         const pending = line === pendingLine ? pendingKind : ""
-        const found = controller.scriptSuggest(area.text, line, readKinds[line] || letters.action, pending)
+        const found = controller.scriptSuggest(doc.read(), line, readKinds[line] || letters.action, pending)
         return found === "" ? null : JSON.parse(found)
     }
 
@@ -178,7 +176,7 @@ QtObject {
     }
 
     function dismissSuggest() {
-        dismissedText = area.text
+        dismissedText = doc.read()
         suggestions = null
     }
 
@@ -196,9 +194,9 @@ QtObject {
         const all = rows()
         const start = lineStart(line)
         const choice = open.options[suggestSel]
-        replace(start + open.from, start + all[line].length, choice)
+        doc.replace(start + open.from, start + all[line].length, choice)
         const end = start + open.from + choice.length
-        area.cursorPosition = end
+        doc.setCursor(end)
 
         const below = line + 1 < all.length ? all[line + 1] : ""
         if (open.finishes && below.trim() === "") {
@@ -212,24 +210,15 @@ QtObject {
         const line = cursorLine()
         // A pending heading takes capitals once it is one (`INT.`), not while it may be prose.
         const pending = line === pendingLine && pendingKind !== letters.heading ? pendingKind : ""
-        const caps = controller.typedCaps(area.text, line, pending)
+        const caps = controller.typedCaps(doc.read(), line, pending)
         if (caps === "") {
             return false
         }
 
-        const at = area.cursorPosition
+        const at = doc.cursor
         const start = lineStart(line)
-        replace(start, start + rows()[line].length, caps)
-        area.cursorPosition = at
+        doc.replace(start, start + rows()[line].length, caps)
+        doc.setCursor(at)
         return true
-    }
-
-    function replace(from, to, text) {
-        if (tools && tools.replace) {
-            tools.replace(from, to, text)
-            return
-        }
-        area.remove(from, to)
-        area.insert(from, text)
     }
 }
