@@ -48,10 +48,27 @@ impl Frag {
     }
 }
 
-/// The paragraph's text as Fountain. Literal special characters get a backslash so they
-/// stay text (`/*` is protected when the book is written); `lost` counts the runs that
-/// had to give up their style.
-pub(crate) fn marked_text(par: &Node, lost: &mut usize) -> String {
+/// How Klappe reads the text of an element kind.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Reading {
+    /// With the inline syntax of Fountain (action, dialogue): marks make styles.
+    Inline,
+    /// As it stands (heading, name, transition): no marks, nothing to escape.
+    Literal,
+}
+
+/// The paragraph's text as Fountain. Read `Inline`, literal special characters get a
+/// backslash so they stay text (`/*` is protected when the book is written); read `Literal`,
+/// the text stands as it is. `lost` counts the runs that had to give up their style, and
+/// every styled run of a `Literal` paragraph.
+pub(crate) fn marked_text(par: &Node, reading: Reading, lost: &mut usize) -> String {
+    if reading == Reading::Literal {
+        let runs = runs(par);
+        *lost += runs.iter().filter(|(s, _)| *s != Style::default()).count();
+
+        return runs.into_iter().map(|(_, text)| text).collect();
+    }
+
     let mut lines: Vec<Vec<Frag>> = vec![Vec::new()];
 
     for (style, text) in runs(par) {

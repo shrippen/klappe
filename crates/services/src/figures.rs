@@ -222,4 +222,16 @@ mod tests {
             &FigureChoice::Assign("b".into())
         ));
     }
+
+    #[test]
+    fn a_cue_with_an_underscore_of_a_final_draft_file_is_known() {
+        let xml =
+            "<FinalDraft><Content><Paragraph Type=\"Character\"><Text>MAX_M</Text></Paragraph>\
+            <Paragraph Type=\"Dialogue\"><Text>Hallo</Text></Paragraph></Content></FinalDraft>";
+        let (script, _) = klappe_script::read_fdx(xml).unwrap();
+        let mut project = Project::new("Test");
+        project.characters = vec![figure("m", "Max_M", &[])];
+
+        assert!(pending(&project, &script).is_empty());
+    }
 }
