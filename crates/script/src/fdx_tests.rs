@@ -1,4 +1,6 @@
 use super::*;
+use crate::fdx::Style;
+use crate::inline::visible_runs;
 
 /// The script of a file, without the loss.
 fn read(text: &str) -> Result<Script, FdxError> {
@@ -544,4 +546,103 @@ fn a_style_given_up_is_judged_again_against_the_run_before() {
         vec![Element::Action("**aa**bbb**cccc**".to_owned())]
     );
     assert_eq!(loss.styles, 1);
+}
+
+#[test]
+fn runs_meeting_at_a_backslash_keep_it_text() {
+    let cases = [
+        (
+            format!("{}{}", run("Underline", "C:\\"), run("", "_tmp_")),
+            "C:\\_tmp_",
+        ),
+        (
+            format!("{}{}", run("Bold", "a\\"), run("", "_b_")),
+            "a\\_b_",
+        ),
+        (
+            format!(
+                "{}{}{}{}",
+                run("", "a\\"),
+                run("Bold", "*x"),
+                run("", " "),
+                run("Italic", "y")
+            ),
+            "a\\*x y",
+        ),
+    ];
+
+    for (runs, expected) in cases {
+        assert_eq!(through_fountain(&runs), expected, "{runs}");
+    }
+}
+
+/// Small deterministic generator, so the sequences are the same on every run.
+fn next_random(state: &mut u64) -> usize {
+    *state = state
+        .wrapping_mul(6_364_136_223_846_793_005)
+        .wrapping_add(1_442_695_040_888_963_407);
+
+    (*state >> 33) as usize
+}
+
+#[test]
+fn random_runs_keep_text_and_style_per_character() {
+    const PIECES: [&str; 5] = ["\\", "*", "_", "a", " "];
+    let styles = all_styles();
+    let mut state = 7;
+
+    for _ in 0..3000 {
+        let mut runs = String::new();
+        let mut wanted: Vec<(char, Style)> = Vec::new();
+        for _ in 0..=next_random(&mut state) % 4 {
+            let style = styles[next_random(&mut state) % styles.len()];
+            let text: String = (0..=next_random(&mut state) % 3)
+                .map(|_| PIECES[next_random(&mut state) % PIECES.len()])
+                .collect();
+            runs.push_str(&run(style, &text));
+            wanted.extend(text.chars().map(|c| (c, Style::parse(style))));
+        }
+
+        // A blank paragraph is no element.
+        if wanted.iter().all(|(c, _)| c.is_whitespace()) {
+            continue;
+        }
+
+        let (script, loss) = read_fdx(&one_paragraph("Action", &runs)).unwrap();
+        let parsed = parse(&write(&script));
+        let [Element::Action(line)] = parsed.elements.as_slice() else {
+            panic!("{runs}: {:?}", parsed.elements);
+        };
+        let seen: Vec<(char, Style)> = visible_runs(line)
+            .iter()
+            .flat_map(|(m, t)| {
+                let style = Style {
+                    bold: m.bold,
+                    italic: m.italic,
+                    underline: m.underline,
+                };
+                t.chars().map(move |c| (c, style))
+            })
+            .collect();
+
+        // A paragraph's outer blanks are not kept by Fountain.
+        let trim = |mut v: Vec<(char, Style)>| {
+            while v.last().is_some_and(|(c, _)| c.is_whitespace()) {
+                v.pop();
+            }
+            v.into_iter()
+                .skip_while(|(c, _)| c.is_whitespace())
+                .collect::<Vec<_>>()
+        };
+        let (seen, wanted) = (trim(seen), trim(wanted));
+        let text = |v: &[(char, Style)]| v.iter().map(|(c, _)| *c).collect::<String>();
+        assert_eq!(text(&seen), text(&wanted), "{runs} -> {line}");
+
+        // Emphasis may be given up, but then it is counted.
+        let same = seen
+            .iter()
+            .zip(&wanted)
+            .all(|(s, w)| w.0.is_whitespace() || s.1 == w.1);
+        assert!(same || loss.styles > 0, "{runs} -> {line}");
+    }
 }

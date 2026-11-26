@@ -117,6 +117,15 @@ TestCase {
         compare(lost.text, "2 Hervorhebungen nicht übernommen")
     }
 
+    function test_one_lost_emphasis_reads_in_the_singular() {
+        fake.importReport = JSON.stringify({ scenes: 1, created: 0, pending: 0, notInBook: 0, stylesLost: 1 })
+        const imp = createTemporaryObject(importComponent, tc)
+        imp.load("file:///buch.fdx")
+
+        tryVerify(() => imp.report.opened)
+        compare(findChild(imp.report.contentItem, "reportStyles").text, "1 Hervorhebung nicht übernommen")
+    }
+
     function test_the_report_hides_the_emphasis_line_without_loss() {
         const imp = report(0, 0)
 

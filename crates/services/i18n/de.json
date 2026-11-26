@@ -317,6 +317,7 @@
  "script.fdxBoneyards": "Auskommentiertes {count}",
  "script.fdxStyles": "Hervorhebungen {count}",
  "script.reportStyles": "{count} Hervorhebungen nicht übernommen",
+ "script.reportStyles1": "1 Hervorhebung nicht übernommen",
  "script.fdxBreaks": "Seitenumbrüche {count}",
  "script.imported": "Drehbuch geladen.",
  "script.reportTitle": "Drehbuch geladen",

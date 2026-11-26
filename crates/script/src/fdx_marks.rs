@@ -205,16 +205,14 @@ fn mark_line(line: &str, style: Style) -> String {
     format!("{lead}{under}{stars}{core}{stars}{under}{trail}")
 }
 
-/// `line` as Fountain text that reads back as itself: a backslash before a character it
-/// would escape (`*`, `_`, `[` or another backslash) is escaped too.
+/// `line` as Fountain text that reads back as itself. Every backslash is escaped, not only
+/// one before a mark: the next run may begin with a mark, and `\\` always reads as one
+/// backslash.
 fn escape(line: &str) -> String {
-    let chars: Vec<char> = line.chars().collect();
     let mut out = String::with_capacity(line.len());
 
-    for (i, &c) in chars.iter().enumerate() {
-        let next = chars.get(i + 1).copied();
-        let escapes_next = c == '\\' && matches!(next, Some('*' | '_' | '[' | '\\'));
-        if matches!(c, '*' | '_') || escapes_next {
+    for c in line.chars() {
+        if matches!(c, '*' | '_' | '\\') {
             out.push('\\');
         }
         out.push(c);

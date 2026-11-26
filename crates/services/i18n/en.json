@@ -317,6 +317,7 @@
  "script.fdxBoneyards": "boneyards {count}",
  "script.fdxStyles": "emphasis {count}",
  "script.reportStyles": "{count} emphasis runs not kept",
+ "script.reportStyles1": "1 emphasis run not kept",
  "script.fdxBreaks": "page breaks {count}",
  "script.imported": "Screenplay loaded.",
  "script.reportTitle": "Screenplay loaded",

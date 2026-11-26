@@ -114,7 +114,8 @@ Item {
                 visible: imp.counts.stylesLost > 0
                 wrapMode: Text.WordWrap
                 color: KanteStyle.textColor
-                text: imp.texts.t("script.reportStyles", { count: imp.counts.stylesLost })
+                text: imp.counts.stylesLost === 1 ? imp.texts.t("script.reportStyles1")
+                    : imp.texts.t("script.reportStyles", { count: imp.counts.stylesLost })
             }
         }
     }
