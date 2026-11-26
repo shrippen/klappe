@@ -47,6 +47,14 @@ RowLayout {
     /// The last layout's page starts: `{ pages, breaks: [{ page, line }], scenes: [{ line, page }] }`
     /// (`scriptBreaksJson`). Shown as lines in the flowing text, used to find a scene's page.
     property var pageMap: ({ pages: 0, breaks: [], scenes: [] })
+    /// The sections, scenes and synopses of the text (`scriptOutlineJson`) for the scene list,
+    /// without what the folded sections hold. It follows the session's text, the last layout and
+    /// what the list has folded, so it is read again when one changes.
+    readonly property var outline: {
+        controller.scriptText
+        controller.projectJson
+        return JSON.parse(controller.scriptOutlineJson(JSON.stringify(Object.keys(sceneList.collapsed))))
+    }
     /// Typing since the last layout: the lines and the scene lengths are of an older text (DN-02).
     property bool stale: false
     /// The locked versions (DB-40), `{ id, name, date, color, colorName }`, and the colour of the
@@ -215,6 +223,13 @@ RowLayout {
         }
     }
 
+    /// The page of the first scene at or after text line `line` (a scene's own heading, or a
+    /// section's first scene); 0 when no scene follows.
+    function pageOfLine(line) {
+        const found = pageMap.scenes.find(s => s.line >= line)
+        return found ? found.page : 0
+    }
+
     /// The cursor at the heading of `scene`, a row of the scene list: its `line` is the heading's
     /// text line, null when the book does not hold the scene, which leaves the cursor where it is.
     function goToScene(scene) {
@@ -223,9 +238,9 @@ RowLayout {
         }
         // The print view stays: it scrolls to the page the heading stands on.
         if (layout === "print") {
-            const found = pageMap.scenes.find(s => s.line === scene.line)
-            if (found) {
-                printView.goToPage(found.page, pageMap.pages)
+            const page = pageOfLine(scene.line)
+            if (page > 0) {
+                printView.goToPage(page, pageMap.pages)
             }
             return
         }
@@ -272,6 +287,7 @@ RowLayout {
     }
     readonly property alias flow: flow
     readonly property alias search: search
+    readonly property alias sceneList: sceneList
     onLineLooksChanged: restyle()
 
     /// Ctrl+Z and Ctrl+Shift+Z in the text: the editor's own history, not the project's. A step
@@ -369,6 +385,25 @@ RowLayout {
         } else {
             event.accepted = false
         }
+    }
+
+    /// Alt+Up and Alt+Down in the scene list (DB-21): the scene or section whose heading is at text
+    /// line `line` swaps places with its neighbour, its text with it. One edit of the text (one
+    /// step of its undo history), sent to the session at once; the list keeps its focus on the block.
+    function moveBlock(line, way) {
+        flush()
+        const move = controller.moveOutline(line, way)
+        if (move === "") {
+            return
+        }
+        const m = JSON.parse(move)
+        // The block may have stepped into a folded section: open the sections around it.
+        sceneList.unfold(m.unfold)
+        const from = lineStart(area.text, m.from)
+        const end = lineStart(area.text, m.to)
+        putText(from, end < 0 ? area.text.length : end, m.lines.join("\n") + (end < 0 ? "" : "\n"))
+        flush()
+        sceneList.focusAt(m.line)
     }
 
     function moveCursor(at) {
@@ -491,13 +526,16 @@ RowLayout {
         KanteSectionLabel { text: view.texts.t("screenplay.scenes") }
 
         SceneList {
+            id: sceneList
             objectName: "sceneList"
             Layout.fillWidth: true
             Layout.fillHeight: true
             texts: view.texts
             controller: view.controller
             lengthsStale: view.stale
+            outline: view.outline
             onPicked: scene => view.goToScene(scene)
+            onMoveRequested: (line, way) => view.moveBlock(line, way)
         }
     }
 

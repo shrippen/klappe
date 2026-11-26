@@ -43,7 +43,9 @@ pub use flow::{enter_step, force_line, tab_step, upper, EnterStep, Forced, Gap, 
 pub use inline::{inline_runs, plain_text, Marks, Run};
 pub use kinds::{located_kinds, text_kinds, TextKind};
 pub use numbering::{is_omitted, number_scenes, NumberMode, NumberRules, OMITTED_DE, OMITTED_EN};
-pub use outline::{move_entry, outline, outline_of, visible, Entry, EntryKind, Moved, Way};
+pub use outline::{
+    move_entry, outline, outline_of, sections_around, visible, Entry, EntryKind, Moved, Way,
+};
 pub use pages::{
     carry, compare_labels, length_text, lines_text, page_label_after, page_starts, paginate,
     paginate_locked, Align, ContdAfterAction, Line, Margin, Page, PageKind, PageOptions, PageSize,

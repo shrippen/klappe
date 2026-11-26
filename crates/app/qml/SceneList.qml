@@ -11,11 +11,20 @@ import Kante
 // module with `picked`, so the screenplay view can move to its heading. The field above filters
 // by number or heading.
 //
-//  ┌ Szenen filtern ───┐
-//  │ 1  INT. SAAL  T P1 S5 │
-//  │ 2  EXT. HOF   T       │
-//  │ 3  INT. KELLER P2 S7  │  (dimmed, "nicht im Buch")
-//  └───────────────────┘
+// With an `outline` (DB-21, the screenplay view) the rows form a tree: a section row has an arrow
+// (click, or Left and Right) that folds what is inside it and the total of its scenes' lengths;
+// a synopsis is the pale second line of its scene or section; Alt+Up and Alt+Down ask to move the
+// scene or the section with its block (`moveRequested`). Scenes without text stay below the tree.
+// A filter shows the flat list. What is folded is remembered by level and title, as in the terminal.
+//
+//  ┌ Szenen filtern ───────────┐
+//  │ ▾ Akt I             1 3/8 │
+//  │   Es beginnt.             │
+//  │ 1   INT. SAAL  T P1 S5    │
+//  │ 2   EXT. HOF   T          │
+//  │ ▸ Akt II            2     │
+//  │ 3  INT. KELLER P2 S7      │  (dimmed, "nicht im Buch")
+//  └───────────────────────────┘
 ColumnLayout {
     id: list
 
@@ -23,15 +32,72 @@ ColumnLayout {
     required property var controller
     /// The lengths are of an older text than the one typed: shown pale (DN-02).
     property bool lengthsStale: false
-    /// A row was clicked and its scene is on view: `{ id, number, heading, inBook, plans, shots }`.
+    /// What the list shows of the text's outline (`scriptOutlineJson`, parsed, without what the
+    /// folded sections hold); empty gives the flat list. Each section has a `key` and says if it
+    /// is `folded`.
+    property var outline: []
+    /// The `key`s of the folded sections, as `{ key: true }`. The owner reads it to ask for the
+    /// outline without what they hold.
+    property var collapsed: ({})
+    /// A row was clicked and its scene is on view: `{ id, number, heading, inBook, plans, shots }`;
+    /// for a section row only `{ line }`, the line of its heading.
     signal picked(var scene)
+    /// Alt+Up or Alt+Down on the scene or section whose heading is at text line `line`; `way` is
+    /// `up` or `down`. The view moves the text, then calls `focusAt`.
+    signal moveRequested(int line, string way)
 
     readonly property var scenes: controller.projectJson ? JSON.parse(controller.projectJson).scenes : []
     readonly property string _needle: filter.text.trim().toLowerCase()
     readonly property var shown: scenes.filter(s => _needle === ""
         || s.number.toLowerCase().includes(_needle) || s.heading.toLowerCase().includes(_needle))
 
+    // A tap on a section's arrow is in progress: the row's own click must not show the heading.
+    property bool _arrowTapped: false
+    readonly property bool tree: outline.length > 0 && _needle === ""
+    readonly property var items: tree ? treeItems() : shown.map(s => ({ kind: "scene", depth: 0, scene: s }))
+
     spacing: Kirigami.Units.smallSpacing
+
+    // The row of the project for the scene whose heading is at text line `line`. Without one
+    // (the register does not hold it yet) a row of the outline's own.
+    function sceneAt(entry, byLine) {
+        return byLine[entry.line] ?? { id: "", number: entry.number ?? "", heading: entry.text,
+                                       inBook: true, plans: 0, shots: 0, line: entry.line, length: entry.length }
+    }
+
+    // The rows of the tree: the outline's sections and scenes (it holds what is to be shown), a
+    // synopsis put on the entry above it; the scenes the text does not have below.
+    function treeItems() {
+        const byLine = {}
+        for (const s of scenes) {
+            if (typeof s.line === "number") {
+                byLine[s.line] = s
+            }
+        }
+
+        const out = []
+        let above = null
+        for (const e of outline) {
+            if (e.kind === "synopsis") {
+                if (above) {
+                    above.synopsis = above.synopsis === "" ? e.text : above.synopsis + " " + e.text
+                }
+                continue
+            }
+
+            const item = { kind: e.kind, depth: e.depth, line: e.line, text: e.text, length: e.length, synopsis: "" }
+            if (e.kind === "section") {
+                item.key = e.key
+                item.folded = e.folded
+            } else {
+                item.scene = sceneAt(e, byLine)
+            }
+            out.push(item)
+            above = item
+        }
+
+        return out.concat(scenes.filter(s => !s.inBook).map(s => ({ kind: "scene", depth: 0, scene: s })))
+    }
 
     // What the row's meta figure holds: "T P1 S5", each part only when it applies.
     function marks(scene) {
@@ -58,6 +124,79 @@ ColumnLayout {
             all.push(texts.t("scenelist.length", { length: scene.length }))
         }
         return all.join(", ")
+    }
+
+    // What a screen reader says of a section row.
+    function describeSection(item) {
+        const all = [item.text, texts.t("scenelist.section"),
+                     texts.t(item.folded ? "scenelist.closed" : "scenelist.open")]
+        if (item.length !== "") {
+            all.push(texts.t("scenelist.length", { length: item.length }))
+        }
+        return all.join(", ")
+    }
+
+    // Folds or unfolds the section row `item`; the focus stays on it.
+    function setFolded(item, folded) {
+        const next = Object.assign({}, collapsed)
+        if (folded) {
+            next[item.key] = true
+        } else {
+            delete next[item.key]
+        }
+        collapsed = next
+        focusAt(item.line)
+    }
+
+    // Opens the sections with these `key`s (a block moved into them stays on screen).
+    function unfold(keys) {
+        const next = Object.assign({}, collapsed)
+        for (const key of keys) {
+            delete next[key]
+        }
+        collapsed = next
+    }
+
+    // Left and Right on a row: Right opens a folded section, Left folds an open one; Left on
+    // anything else goes to the section around it, as in a tree.
+    function foldKeyed(item, index, way) {
+        if (!tree) {
+            return
+        }
+        const section = item.kind === "section"
+        if (section && way === "open" && item.folded) {
+            setFolded(item, false)
+        } else if (section && way === "close" && !item.folded) {
+            setFolded(item, true)
+        } else if (way === "close") {
+            const parent = items.slice(0, index).reverse().find(i => i.kind === "section" && i.depth < item.depth)
+            if (parent) {
+                focusAt(parent.line)
+            }
+        }
+    }
+
+    // Up and Down: the focus steps; with Alt the scene or section moves in the book (DB-21).
+    function arrowKeyed(event, item, index, by) {
+        event.accepted = true
+        if (!(event.modifiers & Qt.AltModifier)) {
+            step(index, by)
+            return
+        }
+        if (tree && typeof item.line === "number") {
+            moveRequested(item.line, by < 0 ? "up" : "down")
+        }
+    }
+
+    // The focus on the row of the heading at text line `line`, after the rows were made anew.
+    function focusAt(line) {
+        const at = items.findIndex(i => i.line === line)
+        if (at < 0) {
+            return
+        }
+        rows.positionViewAtIndex(at, ListView.Contain)
+        rows.forceLayout()
+        rows.itemAtIndex(at)?.forceActiveFocus()
     }
 
     // Arrow keys: the focus moves from row to row and the view follows; up from the first row
@@ -111,38 +250,85 @@ ColumnLayout {
         Layout.fillWidth: true
         Layout.fillHeight: true
         clip: true
-        model: list.shown
+        model: list.items
         QQC2.ScrollBar.vertical: QQC2.ScrollBar {}
         delegate: KanteListRow {
+            id: row
             required property var modelData
             required property int index
-            objectName: "scene." + modelData.id
+            readonly property bool section: modelData.kind === "section"
+            readonly property var scene: modelData.scene ?? ({})
+            objectName: section ? "section." + modelData.line : "scene." + scene.id
             width: ListView.view.width
             density: KanteListRow.Density.Compact
-            opacity: modelData.inBook ? 1 : KanteStyle.dimOpacity
-            leadingText: modelData.number
+            opacity: section || scene.inBook ? 1 : KanteStyle.dimOpacity
+            leadingText: section ? "" : scene.number
             leadingWidth: Kirigami.Units.gridUnit * 2
-            text: modelData.heading !== "" ? modelData.heading : list.texts.t("scene.notInBook")
-            subtitle: !modelData.inBook && modelData.heading !== "" ? list.texts.t("scene.notInBook") : ""
-            meta: list.marks(modelData)
-            // Its length on the page (DB-32), as in the terminal: `1 3/8`; pale while out of date.
+            text: section ? (modelData.text !== "" ? modelData.text : list.texts.t("scenelist.section"))
+                          : (scene.heading !== "" ? scene.heading : list.texts.t("scene.notInBook"))
+            subtitle: modelData.synopsis ? modelData.synopsis
+                      : (!section && !scene.inBook && scene.heading !== "" ? list.texts.t("scene.notInBook") : "")
+            meta: section ? "" : list.marks(scene)
+            // The indent of the tree, and a section's arrow.
+            Row {
+                Item {
+                    width: modelData.depth * Kirigami.Units.largeSpacing
+                    height: 1
+                }
+                // The terminal's marks: down open, right folded.
+                Text {
+                    id: arrow
+                    objectName: "fold." + modelData.line
+                    visible: row.section
+                    width: Kirigami.Units.iconSizes.small
+                    horizontalAlignment: Text.AlignHCenter
+                    text: modelData.folded ? "\u25B8" : "\u25BE"
+                    font: KanteStyle.defaultFont
+                    color: KanteStyle.mutedTextColor
+                    // Only a tap on the arrow folds; Enter on the row shows the heading.
+                    TapHandler {
+                        id: arrowTap
+                        objectName: "arrowTap." + modelData.line
+                        onTapped: {
+                            list._arrowTapped = true
+                            Qt.callLater(() => list._arrowTapped = false)
+                            list.setFolded(modelData, !modelData.folded)
+                        }
+                    }
+                }
+            }
+            // Its length on the page (DB-32), as in the terminal: `1 3/8`; a section's the total of
+            // its scenes; pale while out of date.
             trailing: [
                 QQC2.Label {
-                    objectName: "length." + modelData.id
-                    visible: !!modelData.length
-                    text: modelData.length ?? ""
+                    objectName: "length." + (row.section ? "section." + modelData.line : row.scene.id)
+                    readonly property string figure: row.section ? modelData.length : (row.scene.length ?? "")
+                    visible: figure !== ""
+                    text: figure
                     color: KanteStyle.mutedTextColor
                     font: KanteStyle.monoFont(KanteStyle.labelFont().pointSize, false)
                     opacity: list.lengthsStale ? KanteStyle.dimOpacity : 1
                 }
             ]
-            selected: modelData.id === list.controller.sceneId
-            Accessible.description: list.describe(modelData)
-            Keys.onDownPressed: list.step(index, 1)
-            Keys.onUpPressed: list.step(index, -1)
+            selected: !section && scene.id !== "" && scene.id === list.controller.sceneId
+            Accessible.description: section ? list.describeSection(modelData) : list.describe(scene)
+            Keys.onDownPressed: event => list.arrowKeyed(event, modelData, index, 1)
+            Keys.onUpPressed: event => list.arrowKeyed(event, modelData, index, -1)
+            Keys.onLeftPressed: list.foldKeyed(modelData, index, "close")
+            Keys.onRightPressed: list.foldKeyed(modelData, index, "open")
             onClicked: {
-                list.controller.selectScene(modelData.id)
-                list.picked(modelData)
+                // The tap on the arrow has folded; the rest of a section row shows its heading.
+                if (list._arrowTapped) {
+                    return
+                }
+                if (section) {
+                    list.picked({ line: modelData.line })
+                    return
+                }
+                if (scene.id !== "") {
+                    list.controller.selectScene(scene.id)
+                }
+                list.picked(scene)
             }
         }
     }

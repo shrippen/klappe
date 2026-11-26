@@ -3,9 +3,9 @@ import QtTest
 import "../../qml"
 
 // ScreenplayView (E-09, D-15): the scene list shows the project's scenes (D-13), a click shows
-// the scene and moves the cursor to its heading when the text holds it, typing reaches the controller after the pause, and a change from outside (an
-// import) shows in the text. Each line gets the look of its kind, in the page's columns scaled
-// to the text's width.
+// the scene and moves the cursor to its heading when the text holds it, typing reaches the
+// controller after the pause, and a change from outside (an import) shows in the text. Each line
+// gets the look of its kind, in the page's columns scaled to the text's width.
 TestCase {
     id: tc
     name: "ScreenplayView"
@@ -45,6 +45,7 @@ TestCase {
         property var pages: ({ pages: 2, breaks: [{ page: 2, label: "2", line: 6 }],
                                scenes: [{ line: 2, page: 1 }, { line: 6, page: 2 }] })
         function scriptBreaksJson() { return JSON.stringify(pages) }
+        function scriptOutlineJson() { return "[]" }
         function versionsJson() { return JSON.stringify({ versions: [], next: null }) }
         function revisionJson() { return "[]" }
         // A heading's line is "h", every other line "a": enough to see the kinds arrive.
@@ -77,7 +78,6 @@ TestCase {
         }
         // The session's rules, as far as the tests need them.
         function sameFigureName(a, b) { return a.trim().toUpperCase() === b.trim().toUpperCase() }
-
         function scriptSpeakers(text) {
             return JSON.stringify(speakers)
         }
@@ -428,6 +428,18 @@ TestCase {
         compare(view.layout, "print")
         verify(!view.area.activeFocus)
         compare(view.area.text, book)
+    }
+
+    // Review of PR 349: a section row of the scene list shows the page of the first scene in the
+    // section, else of the next scene after it; a heading after the last scene shows none.
+    function test_a_section_shows_the_page_of_its_next_scene() {
+        const view = make()
+
+        compare(view.pageOfLine(2), 1)
+        compare(view.pageOfLine(1), 1)
+        compare(view.pageOfLine(4), 2)
+        compare(view.pageOfLine(6), 2)
+        compare(view.pageOfLine(7), 0)
     }
 
     // "Neu schreiben" in the print view goes to the text it writes in.

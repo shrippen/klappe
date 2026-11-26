@@ -6,11 +6,12 @@ use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
 use klappe_services::{
-    can_suggest, enter_step, error_text, heading_like, parse_located, suggest, tab_step,
-    text_kinds, typed_caps, Align, Context, EnterStep, Gap, HeaderLine, ImportReport, Laid,
-    PrintFace, Revisions, SceneNumbering, SceneNumbers, ScriptLanguage, ScriptPages, ScriptPaper,
-    ScriptPrint, ScriptSetup, ScriptWords, SheetPage, Slot, Stage, TextKind, Vocabulary,
-    SCRIPT_ASCENT_PT, SCRIPT_FONT_PT, TEXT_COLUMNS,
+    can_suggest, enter_step, error_text, heading_like, length_text, move_entry, outline,
+    parse_located, sections_around, suggest, tab_step, text_kinds, typed_caps, visible_entries,
+    Align, Context, EnterStep, Gap, HeaderLine, ImportReport, Laid, MoveWay, OutlineEntry,
+    OutlineKind, PrintFace, Revisions, SceneNumbering, SceneNumbers, SceneSpan, ScriptLanguage,
+    ScriptPages, ScriptPaper, ScriptPrint, ScriptSetup, ScriptWords, SheetPage, Slot, Stage,
+    TextKind, Vocabulary, SCRIPT_ASCENT_PT, SCRIPT_FONT_PT, TEXT_COLUMNS,
 };
 use serde_json::{json, Map, Value};
 
@@ -199,6 +200,134 @@ pub(super) fn breaks_json(pages: Option<&ScriptPages>) -> String {
     json!({ "pages": pages.pages, "breaks": breaks, "scenes": scenes }).to_string()
 }
 
+/// The page span of the scene `index` of `entries` in the last layout: by position while the
+/// layout has as many scenes as the text, else by the heading's line (typing since).
+fn span_of<'a>(
+    pages: &'a ScriptPages,
+    scenes: usize,
+    entry: &OutlineEntry,
+) -> Option<&'a SceneSpan> {
+    if pages.scenes.len() == scenes {
+        return pages.scenes.get(entry.scene?);
+    }
+
+    pages.scenes.iter().find(|s| s.line == entry.line)
+}
+
+/// What a folded section is remembered by: its level and title. Typing above it does not move
+/// it; renaming it opens it.
+fn fold_key(entry: &OutlineEntry) -> String {
+    match entry.kind {
+        OutlineKind::Section(level) => format!("{level}{}", entry.text),
+        _ => String::new(),
+    }
+}
+
+/// The entries of the scene list: `[{ kind: section | scene | synopsis, level (sections: 1 for
+/// `#`), depth, line, end, text, number, length, key, folded }]` in text order, without what a
+/// folded section holds (`folded`: the `key`s of the folded sections). A section's `length` is
+/// the total of its scenes, a scene's its own, both from the last layout.
+pub(super) fn outline_json(text: &str, pages: Option<&ScriptPages>, folded: &[String]) -> String {
+    let entries = outline(text);
+    let is_folded = |e: &OutlineEntry| folded.contains(&fold_key(e));
+    let scenes = entries.iter().filter(|e| e.scene.is_some()).count();
+    let eighths = |e: &OutlineEntry| -> usize {
+        let Some(span) = pages.and_then(|p| span_of(p, scenes, e)) else {
+            return 0;
+        };
+        span.eighths
+    };
+
+    let rows: Vec<_> = visible_entries(&entries, &is_folded, "")
+        .into_iter()
+        .map(|i| {
+            let e = &entries[i];
+            let (kind, level, length) = match e.kind {
+                OutlineKind::Section(level) => {
+                    let total: usize = entries
+                        .iter()
+                        .filter(|n| n.scene.is_some() && n.line > e.line && n.line < e.end)
+                        .map(eighths)
+                        .sum();
+                    let length = if total > 0 {
+                        length_text(total)
+                    } else {
+                        String::new()
+                    };
+                    ("section", level, length)
+                }
+                OutlineKind::Scene => {
+                    let length = pages
+                        .and_then(|p| span_of(p, scenes, e))
+                        .map(|s| s.length.clone())
+                        .unwrap_or_default();
+                    ("scene", 0, length)
+                }
+                OutlineKind::Synopsis => ("synopsis", 0, String::new()),
+            };
+            json!({
+                "kind": kind,
+                "level": level,
+                "depth": e.depth,
+                "line": e.line,
+                "end": e.end,
+                "text": e.text,
+                "number": e.number,
+                "length": length,
+                "key": fold_key(e),
+                "folded": is_folded(e),
+            })
+        })
+        .collect();
+
+    Value::Array(rows).to_string()
+}
+
+/// Moving the scene or section at text line `line` one place (`up` or `down`), as `moveOutline`
+/// describes it: `{ from, to, lines, line }`, the text lines `from..to` replaced by `lines`,
+/// the block at `line` now, `unfold` the `key`s of the sections around it there; empty where it
+/// cannot move.
+pub(super) fn move_json(text: &str, line: usize, way: &str) -> String {
+    let way = match way {
+        "up" => MoveWay::Up,
+        "down" => MoveWay::Down,
+        _ => return String::new(),
+    };
+    let entries = outline(text);
+    let lines: Vec<String> = text.lines().map(str::to_owned).collect();
+    let Some(index) = entries
+        .iter()
+        .position(|e| e.line == line && e.kind != OutlineKind::Synopsis)
+    else {
+        return String::new();
+    };
+    let Some(moved) = move_entry(&lines, &entries, index, way) else {
+        return String::new();
+    };
+
+    // The sections around the block after the move: it may have stepped into a folded one.
+    let mut moved_lines = lines;
+    moved_lines.splice(moved.from..moved.to, moved.lines.clone());
+    let after = outline(&moved_lines.join("\n"));
+    let unfold: Vec<String> = after
+        .iter()
+        .position(|e| e.line == moved.line)
+        .map(|i| sections_around(&after, i))
+        .unwrap_or_default()
+        .into_iter()
+        .map(|i| fold_key(&after[i]))
+        .collect();
+
+    json!({
+        "from": moved.from,
+        "to": moved.to,
+        "lines": moved.lines,
+        "line": moved.line,
+        "unfold": unfold,
+    })
+    .to_string()
+}
+
 /// The counts of an import for the report dialog.
 fn report_json(report: &ImportReport) -> String {
     json!({
@@ -240,6 +369,24 @@ impl qobject::Controller {
         };
 
         q(&breaks_json(s.script_pages()))
+    }
+
+    pub(super) fn script_outline_json(mut self: Pin<&mut Self>, folded: &QString) -> QString {
+        let folded: Vec<String> = serde_json::from_str(&folded.to_string()).unwrap_or_default();
+        let Some(s) = self.as_mut().session() else {
+            return q("[]");
+        };
+
+        q(&outline_json(s.script_text(), s.script_pages(), &folded))
+    }
+
+    pub(super) fn move_outline(mut self: Pin<&mut Self>, line: i32, way: &QString) -> QString {
+        let Some(s) = self.as_mut().session() else {
+            return QString::default();
+        };
+        let line = usize::try_from(line).unwrap_or_default();
+
+        q(&move_json(s.script_text(), line, &way.to_string()))
     }
 
     pub(super) fn enter_step(
@@ -362,206 +509,4 @@ impl qobject::Controller {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::{
-        breaks_json, enter_json, kinds_text, looks_json, print_json, report_json, suggest_json,
-        tab_json, ImportReport,
-    };
-
-    /// Enter at the end of a heading opens an action after a blank line; at the end of a cue
-    /// the dialogue right below; in the middle of a line it is a plain break.
-    #[test]
-    fn enter_follows_the_element_flow() {
-        let next = |line: &str, kind: &str| -> serde_json::Value {
-            serde_json::from_str(&enter_json(line, line.chars().count(), kind, None)).unwrap()
-        };
-
-        assert_eq!(next("INT. SAAL", "h")["kind"], "a");
-        assert_eq!(next("INT. SAAL", "h")["gap"], "blank");
-        assert_eq!(next("ANNA", "c")["kind"], "d");
-        assert_eq!(next("ANNA", "c")["gap"], "none");
-        let middle: serde_json::Value =
-            serde_json::from_str(&enter_json("ANNA", 2, "c", None)).unwrap();
-        assert_eq!(middle["step"], "break");
-    }
-
-    /// Only the six elements of the flow take part: Enter leaves the others alone, Tab
-    /// counts them as action, and each flow element comes back as its own letter.
-    #[test]
-    fn the_flow_knows_six_letters() {
-        let json = |s: String| -> serde_json::Value { serde_json::from_str(&s).unwrap() };
-        let end = |line: &str, kind: &str| json(enter_json(line, line.chars().count(), kind, None));
-
-        for letter in ["m", "t", " ", "s", "y", "n", "b", "l", "x", ""] {
-            assert_eq!(end("Text", letter)["step"], "break", "Enter on {letter:?}");
-            assert_eq!(json(tab_json("", letter))["kind"], "c", "Tab on {letter:?}");
-        }
-        assert_eq!(tab_json("", "h"), "");
-        assert_eq!(tab_json("", "r"), "");
-        assert_eq!(end("Text", "r")["kind"], "h");
-        assert_eq!(end("Text", "d")["kind"], "a");
-        assert_eq!(end("Text", "a")["kind"], "a");
-        assert_eq!(end("(leise)", "p")["kind"], "d");
-        assert_eq!(json(tab_json("", "p"))["kind"], "d");
-        assert_eq!(json(tab_json("", "d"))["kind"], "p");
-        assert_eq!(json(tab_json("", "a"))["kind"], "c");
-        assert_eq!(json(tab_json("", "c"))["kind"], "a");
-    }
-
-    /// Tab turns an empty action line into a cue, an empty dialogue into `()`.
-    #[test]
-    fn tab_turns_an_empty_line() {
-        let cue: serde_json::Value = serde_json::from_str(&tab_json("", "a")).unwrap();
-        let paren: serde_json::Value = serde_json::from_str(&tab_json("", "d")).unwrap();
-
-        assert_eq!(cue["kind"], "c");
-        assert_eq!(paren["text"], "()");
-        assert_eq!(paren["col"], 1);
-        assert_eq!(tab_json("Text", "a"), "");
-    }
-    use klappe_services::{PageBreak, Placed, PrintFace, SceneSpan, ScriptPages, SheetPage};
-
-    /// Texts keep their place in points and their face.
-    #[test]
-    fn a_page_lists_its_texts_in_points() {
-        let page = SheetPage {
-            width_pt: 595.0,
-            height_pt: 842.0,
-            texts: vec![Placed {
-                x_pt: 108.0,
-                baseline_pt: 82.0,
-                face: PrintFace::Bold,
-                text: "INT. SAAL".into(),
-            }],
-        };
-
-        let v: serde_json::Value = serde_json::from_str(&print_json(&[page])).unwrap();
-        let text = &v["pages"][0]["texts"][0];
-        assert_eq!(v["fontPt"], 12.0);
-        assert_eq!(v["pages"][0]["height"], 842.0);
-        assert_eq!(text["x"], 108.0);
-        assert_eq!(text["y"], 82.0);
-        assert_eq!(text["bold"], true);
-    }
-
-    /// The layout reaches the editor as the lines the pages start at and each scene's page;
-    /// without a layout it is empty.
-    #[test]
-    fn breaks_list_pages_and_scene_pages() {
-        let pages = ScriptPages {
-            breaks: vec![PageBreak {
-                page: 2,
-                label: "2".into(),
-                line: 59,
-            }],
-            scenes: vec![
-                SceneSpan {
-                    line: 0,
-                    page: 1,
-                    eighths: 4,
-                    length: "4/8".into(),
-                },
-                SceneSpan {
-                    line: 60,
-                    page: 2,
-                    eighths: 8,
-                    length: "1".into(),
-                },
-            ],
-            pages: 2,
-            eighths: 12,
-            minutes: 1.5,
-            length: "1 4/8".into(),
-        };
-
-        let v: serde_json::Value = serde_json::from_str(&breaks_json(Some(&pages))).unwrap();
-        assert_eq!(v["pages"], 2);
-        assert_eq!(v["breaks"][0]["page"], 2);
-        assert_eq!(v["breaks"][0]["label"], "2");
-        assert_eq!(v["breaks"][0]["line"], 59);
-        assert_eq!(v["scenes"][1]["line"], 60);
-        assert_eq!(v["scenes"][1]["page"], 2);
-
-        let none: serde_json::Value = serde_json::from_str(&breaks_json(None)).unwrap();
-        assert_eq!(none["pages"], 0);
-        assert_eq!(none["breaks"].as_array().map(Vec::len), Some(0));
-    }
-
-    /// The import report carries what an FDX import could not keep, for the report dialog.
-    #[test]
-    fn the_import_report_names_the_lost_styles() {
-        let report = ImportReport {
-            scenes: 2,
-            styles_lost: 3,
-            ..ImportReport::default()
-        };
-
-        let v: serde_json::Value = serde_json::from_str(&report_json(&report)).unwrap();
-
-        assert_eq!(v["scenes"], 2);
-        assert_eq!(v["stylesLost"], 3);
-    }
-
-    /// A cue and its line get their own letter, and the looks place the cue as the page does.
-    #[test]
-    fn a_cue_is_set_in_the_columns_of_the_page() {
-        assert_eq!(kinds_text("INT. SAAL\n\nANNA\nHallo.\n\nCUT TO:"), "h cd r");
-
-        let v: serde_json::Value = serde_json::from_str(&looks_json()).unwrap();
-        assert_eq!(v["columns"], 60);
-        assert_eq!(v["looks"]["c"]["kind"], "character");
-        assert_eq!(v["looks"]["c"]["x"], 22);
-        assert_eq!(v["looks"]["r"]["align"], "right");
-        assert!(v["looks"]["s"].get("x").is_none());
-        assert_eq!(v["letters"]["blank"], " ");
-        assert_eq!(v["letters"]["action"], "a");
-        assert_eq!(v["letters"]["heading"], "h");
-    }
-
-    /// A cue prefix lists the names most frequent first, at most eight; a finished name goes on
-    /// to the dialogue, a time of day to the action; an empty cue after two speakers proposes
-    /// the other one.
-    #[test]
-    fn suggestions_list_names_and_say_what_follows() {
-        let json = |s: String| -> serde_json::Value { serde_json::from_str(&s).unwrap() };
-        let book = "A\n\nANNA\nx\n\nBEN\ny\n\nANNA\nz\n\n";
-
-        let names = json(suggest_json(&format!("{book}A"), 11, "c", ""));
-        assert_eq!(names["options"], serde_json::json!(["ANNA"]));
-        assert_eq!(names["from"], 0);
-        assert_eq!(names["finishes"], true);
-        assert_eq!(names["kind"], "d");
-        assert_eq!(names["gap"], "none");
-
-        let other = json(suggest_json(book, 11, "c", ""));
-        assert_eq!(other["options"], serde_json::json!(["BEN"]));
-
-        let time = json(suggest_json("INT. SAAL - TA", 0, "h", ""));
-        assert_eq!(time["options"][0], "TAG");
-        assert_eq!(time["kind"], "a");
-        assert_eq!(time["gap"], "blank");
-        assert_eq!(time["from"], 12);
-
-        assert_eq!(suggest_json("Sie kommt.", 0, "a", ""), "");
-        assert_eq!(suggest_json("INT. SAAL", 5, "h", ""), "");
-
-        // An opened heading line with prose is an action: no location offered.
-        let book = "INT. GARTEN - TAG\n\nAnna liest.\n\nCUT TO:\n\nSie g";
-        assert_eq!(suggest_json(book, 6, "a", "h"), "");
-        assert!(!suggest_json("INT. GARTEN - TAG\n\nINT. G", 2, "h", "h").is_empty());
-
-        // The open element counts only while the reader sees plain text: a line that became a
-        // heading by what was typed is one, whatever Tab made it before.
-        let book = "INT. GARTEN - TAG\n\nAnna liest.\n\nINT. G";
-        assert!(!suggest_json(book, 4, "h", "c").is_empty());
-    }
-
-    #[test]
-    fn at_most_eight_suggestions_show() {
-        let names: String = ('A'..='L').map(|c| format!("FIG{c}\nx\n\n")).collect();
-        let found: serde_json::Value =
-            serde_json::from_str(&suggest_json(&format!("{names}FIG"), 36, "c", "")).unwrap();
-
-        assert_eq!(found["options"].as_array().map(Vec::len), Some(8));
-    }
-}
+mod tests;
