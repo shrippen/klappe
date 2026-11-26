@@ -47,6 +47,23 @@ pub fn page_label_after(label: &str) -> String {
     format!("{digits}{}", String::from_utf8_lossy(&out))
 }
 
+/// The place of a page label in the script: by its number, then by its letters (`A` before
+/// `Z` before `AA`).
+pub fn compare_labels(a: &str, b: &str) -> std::cmp::Ordering {
+    let split = |label: &str| {
+        let digits: String = label.chars().take_while(char::is_ascii_digit).collect();
+        let letters = label[digits.len()..].len();
+        let value = label[digits.len()..]
+            .bytes()
+            .filter(u8::is_ascii_uppercase)
+            .fold(0, |n: usize, b| n * LETTERS + usize::from(b - b'A') + 1);
+
+        (digits.parse::<usize>().unwrap_or_default(), letters, value)
+    };
+
+    split(a).cmp(&split(b))
+}
+
 /// The lines of `text` as the parser counts them: CR and CRLF are one break.
 fn lines_of(text: &str) -> Vec<String> {
     let text = text.replace("\r\n", "\n").replace('\r', "\n");
@@ -88,10 +105,15 @@ pub fn carry(old: &str, new: &str, starts: &[PageStart]) -> Vec<PageStart> {
             return (new.len(), 0);
         };
 
-        match at == start.line {
-            true => (line, start.offset),
-            false => (line, 0),
+        if at == start.line {
+            return (line, start.offset);
         }
+
+        // The line is gone or changed: the page starts where it stood, on the first line
+        // after the last kept one before it, so a changed heading keeps its page (DB-31).
+        let before = (0..start.line).rev().find_map(|i| map[i]);
+
+        (before.map_or(0, |b| b + 1).min(line), 0)
     };
 
     starts
@@ -149,7 +171,7 @@ pub fn page_starts(pages: &Pagination, located: &[Located], line_count: usize) -
 /// The text line of byte `offset` of the text of `element`, and the byte in that line.
 fn spot_of(located: &[Located], element: usize, offset: usize) -> Option<(usize, usize)> {
     let located = located.get(element)?;
-    let text = text_of(&located.element);
+    let text = lines_text(&located.element);
     let before = text.get(..offset).unwrap_or_default();
     let nth = before.matches('\n').count();
     let column = before.len() - before.rfind('\n').map_or(0, |at| at + 1);
@@ -159,7 +181,7 @@ fn spot_of(located: &[Located], element: usize, offset: usize) -> Option<(usize,
 }
 
 /// The text of an element whose lines may be several.
-fn text_of(element: &Element) -> &str {
+pub fn lines_text(element: &Element) -> &str {
     match element {
         Element::Action(t) | Element::Dialogue(t) | Element::Lyrics(t) => t,
         _ => "",
@@ -195,7 +217,7 @@ fn in_element(located: &Located, start: &PageStart) -> Option<usize> {
         return Some(0);
     }
 
-    let before: usize = text_of(&located.element)
+    let before: usize = lines_text(&located.element)
         .split('\n')
         .take(nth)
         .map(|line| line.len() + 1)

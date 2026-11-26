@@ -23,7 +23,7 @@ mod tests;
 use crate::Element;
 use klappe_model::PageStart;
 
-pub use locked::{carry, page_label_after, page_starts};
+pub use locked::{carry, compare_labels, lines_text, page_label_after, page_starts};
 
 /// Columns of the text area: 6 inches.
 pub const TEXT_COLUMNS: usize = 60;

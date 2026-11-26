@@ -9,7 +9,7 @@
 use klappe_export::{Face, Paper, Revised, ScriptLine, ScriptPage, ScriptSheet, TitlePage};
 use klappe_model::{PageStart, ScriptLanguage, ScriptPaper, ScriptSetup, ScriptWords};
 use klappe_script::{
-    carry, length_text, page_starts, paginate_locked, parse_located, title_fields,
+    carry, length_text, lines_text, page_starts, paginate_locked, parse_located, title_fields,
     ContdAfterAction, Element, Located, PageKind, PageOptions, PageSize, Pagination, Words,
     TEXT_COLUMNS, TITLE_KEYS,
 };
@@ -182,10 +182,7 @@ pub(crate) fn lay_out(
 /// Bytes of the text before `at`, as the line of the element it falls on.
 fn text_line(located: &[Located], element: usize, offset: usize) -> Option<usize> {
     let located = located.get(element)?;
-    let text = match &located.element {
-        Element::Action(t) | Element::Dialogue(t) => t.as_str(),
-        _ => "",
-    };
+    let text = lines_text(&located.element);
     let before = text.get(..offset).unwrap_or_default();
     let nth = before.matches('\n').count();
 
@@ -387,5 +384,15 @@ mod tests {
         }
         let international = setup(Some(ScriptLanguage::De), ScriptWords::International);
         assert_eq!(words(&international, Language::German), Words::ENGLISH);
+    }
+
+    #[test]
+    fn a_line_of_a_lyrics_block_is_found_like_one_of_an_action() {
+        let lyrics = Located {
+            element: Element::Lyrics("a\nb\nc".into()),
+            lines: vec![4, 5, 6],
+        };
+
+        assert_eq!(text_line(&[lyrics], 0, 2), Some(5));
     }
 }

@@ -14,11 +14,13 @@
 //! the chain and the block after it are placed on a copy; if a heading would end a page,
 //! the page ends first, once.
 
-use std::collections::HashSet;
+use std::cmp::Ordering;
 
 use super::block::{blocks, column, with_contd, Block, MIN_SPLIT_ROWS};
 use super::locked::{split_blocks, Start};
-use super::{page_label_after, Line, Page, PageKind, PageOptions, Pagination, SceneLength};
+use super::{
+    compare_labels, page_label_after, Line, Page, PageKind, PageOptions, Pagination, SceneLength,
+};
 use super::{Words, TEXT_COLUMNS};
 use crate::Element;
 
@@ -226,15 +228,15 @@ struct Flow<'a> {
     section: Option<Section>,
     /// Labels of locked pages that got no text, for the sheet before the next page.
     struck: Vec<String>,
-    /// Every locked label: an added page never takes one of them.
-    locked: HashSet<String>,
+    /// The label of the last page made.
+    last: Option<String>,
 }
 
 /// The run of pages from one locked page start to the next (DB-34).
 struct Section {
     label: String,
-    /// The label of the last page made in it.
-    last: Option<String>,
+    /// A page was made in it.
+    made: bool,
 }
 
 pub(super) fn run(elements: &[Element], options: &PageOptions, spots: &[Start]) -> Pagination {
@@ -255,7 +257,7 @@ pub(super) fn run(elements: &[Element], options: &PageOptions, spots: &[Start]) 
         total: 0,
         section: None,
         struck: Vec::new(),
-        locked: spots.iter().map(|s| s.label.clone()).collect(),
+        last: None,
     };
 
     for (i, block) in blocks.iter().enumerate() {
@@ -345,24 +347,37 @@ impl Flow<'_> {
         });
     }
 
-    /// The label of the page being finished: its locked one, or the one after the last page
-    /// of the same locked page that no other locked page has.
+    /// The label of the page being finished. The first page of a locked page carries its
+    /// label if that is past the last one given, else (the pages before ran over into it)
+    /// the next after the last; so the labels are unique and rise.
     fn next_label(&mut self, number: usize) -> String {
-        let Some(section) = &mut self.section else {
-            return number.to_string();
-        };
+        // Before the first locked page (or without any) the pages are numbered in a row.
+        if self.section.is_none() {
+            let label = number.to_string();
+            self.last = Some(label.clone());
 
-        let mut label = section.label.clone();
-        if let Some(last) = &section.last {
-            label = last.clone();
-            loop {
-                label = page_label_after(&label);
-                if !self.locked.contains(&label) {
-                    break;
-                }
-            }
+            return label;
         }
-        section.last = Some(label.clone());
+
+        let wanted = self
+            .section
+            .as_ref()
+            .filter(|s| !s.made)
+            .map(|s| s.label.clone());
+        if let Some(section) = &mut self.section {
+            section.made = true;
+        }
+
+        let label = match (&self.last, wanted) {
+            (None, None) => number.to_string(),
+            (None, Some(label)) => label,
+            (Some(last), None) => page_label_after(last),
+            (Some(last), Some(label)) => match compare_labels(&label, last) {
+                Ordering::Greater => label,
+                _ => page_label_after(last),
+            },
+        };
+        self.last = Some(label.clone());
 
         label
     }
@@ -371,14 +386,14 @@ impl Flow<'_> {
     fn start_section(&mut self, label: String) {
         self.end_page();
         self.close_section();
-        self.section = Some(Section { label, last: None });
+        self.section = Some(Section { label, made: false });
     }
 
     fn close_section(&mut self) {
         let Some(section) = self.section.take() else {
             return;
         };
-        if section.last.is_none() {
+        if !section.made {
             self.struck.push(section.label);
         }
     }

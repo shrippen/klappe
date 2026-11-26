@@ -286,11 +286,156 @@ fn a_page_start_within_a_line_follows_an_unchanged_line_only() {
     let gone = carry(old, "one\ntwo\nfour", &[first.clone(), start(2, 5)]);
     assert_eq!((gone[1].line, gone[1].offset), (2, 0));
 
-    // The line is changed: it counts as gone.
+    // The line is changed: the page starts where it stood, at the line's start.
     let changed = carry(old, "one\ntwo\nthree!\nfour", &[first.clone(), start(2, 5)]);
-    assert_eq!((changed[1].line, changed[1].offset), (3, 0));
+    assert_eq!((changed[1].line, changed[1].offset), (2, 0));
 
     // Nothing kept from the line on: the end.
     let end = carry(old, "one\ntwo", &[first, start(2, 5)]);
     assert_eq!(end[1].line, 2);
+}
+
+/// `count` scenes of a heading and three paragraphs.
+fn scenes(count: usize) -> String {
+    let mut text = String::new();
+
+    for n in 1..=count {
+        text.push_str(&format!("INT. ROOM {n} - DAY\n\n"));
+        for p in 1..=3 {
+            text.push_str(&format!(
+                "Paragraph {p} of scene {n} is long enough to run over two rows of the \
+                 page, no more. It ends here.\n\n"
+            ));
+        }
+    }
+
+    text
+}
+
+#[test]
+fn a_changed_heading_at_a_page_start_stays_with_its_text() {
+    let text = scenes(10);
+    let (pages, starts) = lock(&text);
+
+    // Every scene heading that starts a page is changed once, then struck out.
+    for (n, page) in pages.pages.iter().enumerate().skip(1) {
+        let head = first_text(page);
+        if !head.starts_with("INT. ROOM") {
+            continue;
+        }
+        let changed = text.replacen(head, &head.replace("DAY", "NIGHT"), 1);
+
+        let now = locked(&text, &starts, &changed);
+
+        assert_eq!(labels(&now), labels(&pages), "page {n} changed");
+        assert_eq!(first_text(&now.pages[n]), head.replace("DAY", "NIGHT"));
+    }
+}
+
+#[test]
+fn a_struck_heading_at_a_page_start_leaves_no_heading_alone() {
+    let text = scenes(10);
+    let (pages, starts) = lock(&text);
+    let head = pages
+        .pages
+        .iter()
+        .skip(1)
+        .map(first_text)
+        .find(|t| t.starts_with("INT. ROOM"))
+        .unwrap();
+
+    let struck = text.replacen(&format!("{head}\n\n"), "", 1);
+    let now = locked(&text, &starts, &struck);
+
+    // No page ends in a heading (DB-31), and none is added.
+    for page in &now.pages {
+        let last = page.lines.iter().map(|l| l.row).max();
+        let ends = page
+            .lines
+            .iter()
+            .any(|l| Some(l.row) == last && l.kind == PageKind::Heading);
+        assert!(!ends);
+    }
+    assert_eq!(now.pages.len(), pages.pages.len());
+}
+
+/// Nine paragraphs of their own.
+fn nine() -> String {
+    (1..=9)
+        .map(|n| {
+            format!(
+                "Nine {n} is long enough to run over two rows of the page, no more. \
+                 It ends here.\n\n"
+            )
+        })
+        .collect()
+}
+
+/// The line after the blank line that ends the paragraph `line` is in.
+fn after_paragraph(text: &str, line: usize) -> usize {
+    let lines: Vec<&str> = text.split('\n').collect();
+
+    (line..lines.len())
+        .find(|&i| lines[i].is_empty())
+        .map_or(lines.len(), |i| i + 1)
+}
+
+#[test]
+fn added_pages_of_two_sections_are_unique_and_rise() {
+    use std::cmp::Ordering;
+
+    let text = story(24);
+    let (pages, starts) = lock(&text);
+    assert!(pages.pages.len() >= 6);
+
+    // Second lock: page 3 has grown a page 3A.
+    let at = paragraph(&text, starts[3].line);
+    let grown = replace_lines(&text, at, at, EXTRA);
+    let located = parse_located(&grown);
+    let elements: Vec<Element> = located.iter().map(|l| l.element.clone()).collect();
+    let second = paginate_locked(
+        &elements,
+        &located,
+        &options(),
+        &carry(&text, &grown, &starts),
+    );
+    let starts2 = page_starts(&second, &located, lines(&grown));
+    let line_of = |label: &str| starts2.iter().find(|s| s.label == label).unwrap().line;
+    assert!(starts2.iter().any(|s| s.label == "3A"));
+
+    // Both sections of the second lock grow by nine paragraphs.
+    let (three, three_a) = (line_of("3"), line_of("3A"));
+    let mut edited = replace_lines(
+        &grown,
+        after_paragraph(&grown, three_a),
+        after_paragraph(&grown, three_a),
+        &nine(),
+    );
+    edited = replace_lines(
+        &edited,
+        after_paragraph(&edited, three),
+        after_paragraph(&edited, three),
+        &nine(),
+    );
+
+    let now = locked(&grown, &starts2, &edited);
+
+    let names = labels(&now);
+    let order = |a: &&str, b: &&str| compare_labels(a, b);
+    for pair in names.windows(2) {
+        assert_eq!(order(&pair[0], &pair[1]), Ordering::Less, "{names:?}");
+    }
+    // Both sections ran over: more than the one page 3A had.
+    assert!(names.len() > pages.pages.len() + 2, "{names:?}");
+}
+
+#[test]
+fn labels_sort_by_number_then_letters() {
+    use std::cmp::Ordering::{Greater, Less};
+
+    assert_eq!(compare_labels("3", "3A"), Less);
+    assert_eq!(compare_labels("3Z", "3AA"), Less);
+    assert_eq!(compare_labels("3AA", "3AB"), Less);
+    assert_eq!(compare_labels("3AB", "4"), Less);
+    assert_eq!(compare_labels("10", "9"), Greater);
 }
