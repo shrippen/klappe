@@ -268,10 +268,27 @@ RowLayout {
         _replaying = false
     }
 
+    /// Up, Down and Esc while the choices are open (Enter and Tab take one: `flow`).
+    function suggestKey(event) {
+        const moves = { [Qt.Key_Down]: 1, [Qt.Key_Up]: -1 }
+        if (event.key === Qt.Key_Escape) {
+            flow.dismissSuggest()
+        } else if (event.key in moves) {
+            flow.moveSuggest(moves[event.key])
+        } else {
+            return false
+        }
+        return true
+    }
+
     /// The keys of the text that are not typing: the element flow, the search, the text's undo.
     function keyPressed(event) {
         // The pad's Enter comes with the keypad modifier; it is a plain Enter all the same.
         const plain = (event.modifiers & ~Qt.KeypadModifier) === Qt.NoModifier
+        if (plain && flow.suggestions && suggestKey(event)) {
+            event.accepted = true
+            return
+        }
         const enter = event.key === Qt.Key_Return || event.key === Qt.Key_Enter
         if (plain && enter) {
             event.accepted = flow.enter()
@@ -534,6 +551,7 @@ RowLayout {
                         }
                         push.restart()
                         relayout.restart()
+                        Qt.callLater(flow.updateSuggest)
                         view.stale = true
                         if (!view._replaying && flow.capitalize()) {
                             return
@@ -577,9 +595,19 @@ RowLayout {
                         }
                     }
                     // Later: while an edit runs, the cursor has moved but `text` is still the old one.
-                    onCursorPositionChanged: Qt.callLater(flow.leaveIfMoved)
+                    onCursorPositionChanged: {
+                        Qt.callLater(flow.leaveIfMoved)
+                        Qt.callLater(flow.updateSuggest)
+                    }
+                    ScriptSuggest {
+                        objectName: "scriptSuggest"
+                        flow: view.flow
+                        area: area
+                        texts: view.texts
+                    }
                     // A leaving focus is a good moment to send: a menu or dialog may save next.
                     onActiveFocusChanged: {
+                        Qt.callLater(flow.updateSuggest)
                         if (!activeFocus) {
                             view.flush()
                         }
