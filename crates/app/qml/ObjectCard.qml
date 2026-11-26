@@ -3,6 +3,7 @@ import QtQuick.Layouts
 import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 import Kante
+import "ProjectData.js" as ProjectData
 
 // An object is selected (LH-25, LH-12, LH-17, LH-90), a section of the selection card (D-04):
 // its name or kind, its size as two fields; under "More" its height (empty is none), its
@@ -44,7 +45,7 @@ ColumnLayout {
         }))
     }
     /// The breakdown's elements the object can stand for (D-22), each as the box shows it.
-    readonly property var elements: card.controller.projectJson ? (JSON.parse(card.controller.projectJson).elements || []) : []
+    readonly property var elements: ProjectData.of(card.controller.projectJson).elements || []
     readonly property var elementNames: elements.map(e => card.texts.t("object.elementEntry",
         { category: card.texts.t("elementCategory." + e.category), name: e.name }))
     /// Entry 0 of the box is "none".

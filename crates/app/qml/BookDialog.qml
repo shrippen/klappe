@@ -3,6 +3,7 @@ import QtQuick.Layouts
 import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 import Kante
+import "ProjectData.js" as ProjectData
 
 // The open questions about the book (DATENMODELL §4): a register entry the screenplay could not
 // place, then a name of a cue no character is called by (DB-50), then a place name of the scene
@@ -18,7 +19,7 @@ Item {
     /// The open questions in the order they are asked, worded by the session:
     /// `[{ kind, key, title, ask, answers: [{ number, text }] }]`.
     readonly property var questions: {
-        const project = controller.projectJson ? JSON.parse(controller.projectJson) : {}
+        const project = ProjectData.of(controller.projectJson)
         return project.questions || []
     }
     readonly property var question: questions.length > 0 ? questions[0] : null

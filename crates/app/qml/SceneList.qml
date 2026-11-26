@@ -3,6 +3,7 @@ import QtQuick.Layouts
 import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 import Kante
+import "ProjectData.js" as ProjectData
 
 // D-13: the list of every scene of the project, the same in each module. A row shows the number,
 // the heading and small markers: its length in pages (`1 3/8`), T the scene is in the screenplay, P the number of its plans,
@@ -46,7 +47,7 @@ ColumnLayout {
     /// `up` or `down`. The view moves the text, then calls `focusAt`.
     signal moveRequested(int line, string way)
 
-    readonly property var scenes: controller.projectJson ? JSON.parse(controller.projectJson).scenes : []
+    readonly property var scenes: ProjectData.of(controller.projectJson).scenes
     readonly property string _needle: filter.text.trim().toLowerCase()
     readonly property var shown: scenes.filter(s => _needle === ""
         || s.number.toLowerCase().includes(_needle) || s.heading.toLowerCase().includes(_needle))

@@ -4,6 +4,7 @@ import QtQuick.Controls as QQC2
 import QtCore
 import org.kde.kirigami as Kirigami
 import Kante
+import "ProjectData.js" as ProjectData
 
 // D-09 (planung/DESIGN.md): the work area under the tool bar, in three steps by its width.
 //
@@ -38,7 +39,7 @@ Item {
         if (!controller.projectJson || !controller.sceneId) {
             return null
         }
-        return JSON.parse(controller.projectJson).scenes.find(s => s.id === controller.sceneId) || null
+        return ProjectData.of(controller.projectJson).scenes.find(s => s.id === controller.sceneId) || null
     }
 
     // The script's cards ask to change a scene (`kind` "scene") or a character in the project dialog.

@@ -3,6 +3,7 @@ import QtQuick.Layouts
 import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 import Kante
+import "ProjectData.js" as ProjectData
 
 // D-22: the sheet of the scene on view. Story day, pre-stop, planned shooting time, continuity and
 // the note for the production; the figures (those with a cue are fixed, silent ones and extras
@@ -25,7 +26,7 @@ Flickable {
     required property var texts
     required property var controller
 
-    readonly property var project: controller.projectJson ? JSON.parse(controller.projectJson) : ({})
+    readonly property var project: ProjectData.of(controller.projectJson)
     readonly property var sheet: project.sheet || null
     readonly property var scene: (project.scenes || []).find(s => s.id === controller.sceneId) || null
     readonly property var categories: project.element_categories || []

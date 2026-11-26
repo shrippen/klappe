@@ -4,6 +4,7 @@ import QtQuick.Controls as QQC2
 import QtQml
 import org.kde.kirigami as Kirigami
 import Kante
+import "ProjectData.js" as ProjectData
 
 // D-23: the text of the scene on view beside its sheet, read only. Words chosen with the mouse
 // or the keyboard open a menu at the selection: elements of a similar name first, then the
@@ -24,7 +25,7 @@ ColumnLayout {
     required property var texts
     required property var controller
 
-    readonly property var project: controller.projectJson ? JSON.parse(controller.projectJson) : ({})
+    readonly property var project: ProjectData.of(controller.projectJson)
     readonly property var lines: project.sheet ? project.sheet.text : []
     readonly property var categories: project.element_categories || []
     readonly property var elements: project.elements || []
