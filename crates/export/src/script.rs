@@ -41,8 +41,9 @@ const TITLE_GAP_ROWS: usize = 2;
 const FOOT_PT: f64 = 72.0;
 /// A scene number stands this many columns away from the text.
 const NUMBER_GAP_COLUMNS: usize = 1;
-/// The revision mark stands this many columns right of the text, beyond a scene number.
-const REVISION_MARK_COLUMNS: usize = 6;
+/// The revision mark ends this far (10 mm) from the paper's right edge, where a printer
+/// still reaches.
+const REVISION_MARK_EDGE_PT: f64 = 10.0 * PT_PER_MM;
 /// What marks a line of a revision in the margin.
 const REVISION_MARK: &str = "*";
 
@@ -234,6 +235,22 @@ fn right_pt(columns: usize) -> f64 {
     LEFT_PT + columns as f64 * COLUMN_PT
 }
 
+/// Where a revision mark stands: right of the text, and of the scene number if the line has
+/// one. Where that would end within 10 mm of the paper's edge, it stands left of the number
+/// on the left instead, so it is printed and covers nothing.
+fn mark_x_pt(sheet: &ScriptSheet, number: Option<&String>) -> f64 {
+    let gap_pt = NUMBER_GAP_COLUMNS as f64 * COLUMN_PT;
+    let beside_pt = right_pt(sheet.columns) + gap_pt + number.map_or(0.0, |n| width_pt(n) + gap_pt);
+    let limit_pt = size_pt(sheet.paper).0 - REVISION_MARK_EDGE_PT;
+
+    match number {
+        Some(n) if beside_pt + COLUMN_PT > limit_pt => {
+            LEFT_PT - gap_pt - width_pt(n) - gap_pt - COLUMN_PT
+        }
+        _ => beside_pt,
+    }
+}
+
 fn page_texts(sheet: &ScriptSheet, page: &ScriptPage) -> Vec<Placed> {
     let mut out = Vec::new();
 
@@ -255,16 +272,16 @@ fn page_texts(sheet: &ScriptSheet, page: &ScriptPage) -> Vec<Placed> {
         let x_pt = LEFT_PT + line.col as f64 * COLUMN_PT;
         place(&mut out, line.face, x_pt, at_pt, &line.text);
 
+        let number = line
+            .scene_number
+            .as_ref()
+            .filter(|_| sheet.scene_numbers == SceneNumbers::Shown);
         if line.revised == Revised::Yes {
-            let mark_pt = right_pt(sheet.columns) + REVISION_MARK_COLUMNS as f64 * COLUMN_PT;
+            let mark_pt = mark_x_pt(sheet, number);
             place(&mut out, Face::Regular, mark_pt, at_pt, REVISION_MARK);
         }
 
-        let Some(number) = line
-            .scene_number
-            .as_ref()
-            .filter(|_| sheet.scene_numbers == SceneNumbers::Shown)
-        else {
+        let Some(number) = number else {
             continue;
         };
         let gap_pt = NUMBER_GAP_COLUMNS as f64 * COLUMN_PT;

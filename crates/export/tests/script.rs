@@ -206,3 +206,41 @@ fn a_revised_line_has_a_mark_in_the_right_margin_and_the_page_a_revision_line() 
         assert!(revision.baseline_pt < 46.0);
     }
 }
+
+/// DB-41: the mark ends 10 mm before the paper's edge (a printer does not reach it) and never
+/// lies on a scene number.
+#[test]
+fn the_revision_mark_stays_on_the_paper_and_off_the_numbers() {
+    const MM_PT: f64 = 72.0 / 25.4;
+    const CHAR_PT: f64 = 7.2;
+
+    for paper in [Paper::A4, Paper::Letter] {
+        let mut s = sheet();
+        s.paper = paper;
+        s.scene_numbers = SceneNumbers::Shown;
+        s.pages[0].lines[0].revised = Revised::Yes;
+        s.pages[0].lines[0].scene_number = Some("12A".into());
+        s.pages[0].lines[1].revised = Revised::Yes;
+        let pages = script_sheet_pages(&s);
+        let page = &pages[0];
+
+        let marks: Vec<_> = page.texts.iter().filter(|t| t.text == "*").collect();
+        assert_eq!(marks.len(), 2, "{paper:?}");
+        for mark in marks {
+            assert!(
+                mark.x_pt + CHAR_PT <= page.width_pt - 10.0 * MM_PT,
+                "{paper:?}: ends at {}",
+                mark.x_pt + CHAR_PT
+            );
+            let numbers = page
+                .texts
+                .iter()
+                .filter(|t| t.text == "12A" && t.baseline_pt == mark.baseline_pt);
+            for number in numbers {
+                let apart =
+                    mark.x_pt + CHAR_PT <= number.x_pt || mark.x_pt >= number.x_pt + 3.0 * CHAR_PT;
+                assert!(apart, "{paper:?}: mark at {} on number", mark.x_pt);
+            }
+        }
+    }
+}
