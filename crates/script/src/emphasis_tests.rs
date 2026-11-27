@@ -289,6 +289,24 @@ Anna *tritt* ein, **laut** und ***sehr laut***, _still_ [[Licht?]] und _**beides
 @mcClane\n(leise)\nIhr kommt *spät* [[Pause]].\n\n>ENDE<\n\n# Akt 1\n\n\
 Und \\*kein Stern\\* und a_b und 1 * 2, */ oder /* nicht.\n\nCUT TO:\n";
 
+/// No emphasis but the one toggled is lost or made.
+fn assert_rest_kept(source: &str, old: &[Vec<Marks>], mark: Mark, said: &str) {
+    let rest = |m: &Marks| match mark {
+        Mark::Bold => (m.italic, m.underline),
+        Mark::Italic => (m.bold, m.underline),
+        Mark::Underline => (m.bold, m.italic),
+    };
+
+    for (new, was) in marks_by_line(source).iter().zip(old) {
+        let (new, was): (Vec<_>, Vec<_>) = (
+            new.iter().map(rest).collect(),
+            was.iter().map(rest).collect(),
+        );
+
+        assert_eq!(new, was, "{said} gave {source:?}");
+    }
+}
+
 /// Each character of each line of `book` as a selection: toggling changes no text and no kind of
 /// any line, and what the writer could mark is marked.
 fn each_selection(book: &str, step: usize) {
@@ -318,19 +336,7 @@ fn each_selection(book: &str, step: usize) {
                     .collect();
                 assert_eq!(after, texts, "{said} gave {:?}", done.source);
 
-                // No emphasis but the one toggled is lost or made.
-                for (new, old) in marks_by_line(&done.source).iter().zip(&old_marks) {
-                    for (n, o) in new.iter().zip(old) {
-                        let rest = |m: &Marks| (m.bold, m.italic, m.underline);
-                        let (mut n, mut o) = (rest(n), rest(o));
-                        match mark {
-                            Mark::Bold => (n.0, o.0) = (false, false),
-                            Mark::Italic => (n.1, o.1) = (false, false),
-                            Mark::Underline => (n.2, o.2) = (false, false),
-                        }
-                        assert_eq!(n, o, "{said} gave {:?}", done.source);
-                    }
-                }
+                assert_rest_kept(&done.source, &old_marks, mark, &said);
             }
         }
     }
