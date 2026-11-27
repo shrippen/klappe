@@ -1,6 +1,7 @@
 import QtQuick
 import QtTest
 import "../../qml"
+import "ScriptStub.js" as Stub
 
 // ScreenplayView (E-09, D-15): the scene list shows the project's scenes (D-13), a click shows
 // the scene and moves the cursor to its heading when the text holds it, typing reaches the
@@ -46,6 +47,12 @@ TestCase {
                                scenes: [{ line: 2, page: 1 }, { line: 6, page: 2 }] })
         function scriptBreaksJson() { return JSON.stringify(pages) }
         function scriptOutlineJson() { return "[]" }
+        // The projection of the text: no emphasis, the shown text is the source (ScriptStub.js).
+        function scriptShownJson(source) { return Stub.shown(source) }
+        function scriptEditJson(source, change) { return Stub.edit(source, change) }
+        function scriptReplaceJson(source, line, from, endLine, to, text) {
+            return Stub.replace(source, line, from, endLine, to, text)
+        }
         function versionsJson() { return JSON.stringify({ versions: [], next: null }) }
         function revisionJson() { return "[]" }
         // A heading's line is "h", every other line "a": enough to see the kinds arrive.

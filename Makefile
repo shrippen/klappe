@@ -26,7 +26,8 @@ qml:
 
 # NF-05 timings on a large plan (50 figures, 10 cameras, 300 objects): release build, prints the
 # numbers, fails above four times the 16 ms budget (the plan JSON: four times its half); the
-# screenplay's 120 pages within 1 s (DN-02); matching a 120-page script against its previous
+# screenplay's 120 pages within 1 s (DN-02) and the window's editor of them: loaded within 300 ms,
+# a key within 16 ms (D-36); matching a 120-page script against its previous
 # state (`align_perf`) within 100 ms; a `Session::check` of the folder (large plan, with and
 # without a 150-scene screenplay) within four times 16 ms. Not in `check`: timings need a quiet machine.
 perf:
@@ -34,6 +35,7 @@ perf:
 	cargo test --release -p klappe-script --test align_perf -- --ignored --nocapture
 	cargo test --release -p klappe-app a_large_plan -- --ignored --nocapture
 	cargo test --release -p klappe-script --test perf -- --ignored --nocapture
+	cargo test --release -p klappe-app the_editor_of_120_pages -- --ignored --nocapture
 	scripts/check-qml.sh crates/app/tests/perf
 
 # Licence policy (deny.toml, E-05); `cargo install --locked cargo-deny` once.

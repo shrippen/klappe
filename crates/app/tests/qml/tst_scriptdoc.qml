@@ -2,9 +2,11 @@ import QtQuick
 import QtQuick.Controls as QQC2
 import QtTest
 import "../../qml"
+import "ScriptStub.js" as Stub
 
 // The seam of the screenplay editor (D-36): positions and text of the source, one step per
-// replacement, a load that is no typing. Today the source is what the text area holds.
+// replacement, a load that is no typing, and the way between the source and the shown text
+// when emphasis is hidden (the projection is the controller's; here a stand-in).
 TestCase {
     id: tc
     name: "ScriptDoc"
@@ -13,11 +15,32 @@ TestCase {
     when: windowShown
     visible: true
 
-    // A history that records the replacements it is given, as the native one would take them.
+    // A history that records the changes it is given, as the native one would take them.
     QtObject {
         id: history
         property var calls: []
-        function replace(from, to, text) { calls.push([from, to, text]) }
+        function record(at, removed, put) { calls.push([at, removed, put]) }
+    }
+
+    // The source with emphasis: its shown text is `Das ist fett und kursiv`.
+    readonly property string marked: "Das ist **fett** und *kursiv*"
+    readonly property var markedLine: ({
+        text: "Das ist fett und kursiv",
+        runs: [{ from: 8, to: 12, bold: true, italic: false, underline: false },
+               { from: 17, to: 23, bold: false, italic: true, underline: false }],
+        cols: [0, 1, 2, 3, 4, 5, 6, 7, 10, 11, 12, 13, 16, 17, 18, 19, 20, 22, 23, 24, 25, 26, 27, 29]
+    })
+
+    // Projects `marked` as above and everything else without emphasis.
+    QtObject {
+        id: fake
+        function scriptShownJson(source) {
+            return source === tc.marked ? JSON.stringify([tc.markedLine]) : Stub.shown(source)
+        }
+        function scriptEditJson(source, change) { return Stub.edit(source, change) }
+        function scriptReplaceJson(source, line, from, endLine, to, text) {
+            return Stub.replace(source, line, from, endLine, to, text)
+        }
     }
 
     Component {
@@ -31,12 +54,13 @@ TestCase {
 
     Component {
         id: docComponent
-        ScriptDoc {}
+        ScriptDoc { controller: fake }
     }
 
     function make(area) {
         const doc = createTemporaryObject(docComponent, tc, { area: area })
         verify(doc)
+        doc.load(area.text)
         return doc
     }
 
@@ -105,7 +129,7 @@ TestCase {
         doc.replace(5, 9, "KELLER")
 
         compare(history.calls.length, 1)
-        compare(history.calls[0], [5, 9, "KELLER"])
+        compare(history.calls[0], [5, "SAAL", "KELLER"])
     }
 
     function test_replace_without_a_history_edits_the_text() {
@@ -136,6 +160,63 @@ TestCase {
         doc.insert(0, "x")
 
         compare(changed.count, 1)
+    }
+
+    function test_typing_in_the_area_changes_the_source() {
+        const area = makeArea()
+        const doc = make(area)
+        doc.tools = history
+
+        area.insert(5, "ABC")
+
+        compare(doc.read(), "INT. ABCSAAL - TAG\nSie kommt an.\n")
+        compare(history.calls, [[5, "", "ABC"]])
+    }
+
+    function test_a_replacement_is_shown_in_the_area() {
+        const area = makeArea()
+        const doc = make(area)
+
+        doc.replace(5, 9, "KELLER")
+
+        compare(area.text, "INT. KELLER - TAG\nSie kommt an.\n")
+    }
+
+    function test_positions_run_between_the_source_and_the_shown_text() {
+        const area = createTemporaryObject(areaComponent, tc, { text: marked })
+        const doc = make(area)
+
+        compare(area.text, "Das ist fett und kursiv")
+        compare(doc.read(), marked)
+        // A position in a hidden mark is the next one that shows.
+        compare([7, 8, 9, 10, 14, 15, 16, 28].map(p => doc.toDisplay(p)).join(), "7,8,8,8,12,12,12,23")
+        compare([8, 12, 17, 23].map(p => doc.toSource(p)).join(), "10,16,22,29")
+        // The end of a selection stands behind its last character, not behind the marks.
+        compare([12, 23].map(p => doc.toSourceEnd(p)).join(), "14,28")
+
+        doc.setCursor(22)
+        compare(area.cursorPosition, 17)
+        compare(doc.cursor, 22)
+
+        doc.select(10, 14)
+        compare([area.selectionStart, area.selectionEnd].join(), "8,12")
+        compare([doc.selectionStart, doc.selectionEnd].join(), "10,14")
+    }
+
+    function test_a_copy_has_the_marks_of_its_emphasis() {
+        const area = createTemporaryObject(areaComponent, tc, { text: marked })
+        const doc = make(area)
+
+        area.select(8, 12)
+        compare(doc.selectedSource(), "**fett**")
+        area.select(17, 23)
+        compare(doc.selectedSource(), "*kursiv*")
+        area.select(0, 7)
+        compare(doc.selectedSource(), "Das ist")
+        area.select(10, 20)
+        compare(doc.selectedSource(), "tt** und *kur")
+        area.select(5, 5)
+        compare(doc.selectedSource(), "")
     }
 
     Component {

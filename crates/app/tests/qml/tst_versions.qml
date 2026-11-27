@@ -2,6 +2,7 @@ import QtQuick
 import QtTest
 import Kante
 import "../../qml"
+import "ScriptStub.js" as Stub
 
 // ScreenplayView, the locked versions (DB-40 to DB-42, DB-44): the "Fassung" menu with its
 // list, the dialog that locks, the question before a version is deleted, the marks of the
@@ -59,6 +60,12 @@ TestCase {
             return text.split("\n").map(l => l.startsWith("INT.") || l.startsWith("EXT.") ? "h" : "a").join("")
         }
         function scriptOutlineJson() { return "[]" }
+        // The projection of the text: no emphasis, the shown text is the source (ScriptStub.js).
+        function scriptShownJson(source) { return Stub.shown(source) }
+        function scriptEditJson(source, change) { return Stub.edit(source, change) }
+        function scriptReplaceJson(source, line, from, endLine, to, text) {
+            return Stub.replace(source, line, from, endLine, to, text)
+        }
         function scriptPrintJson() { return JSON.stringify({ fontPt: 12, ascentPt: 10, pages: [] }) }
         function enterStep(line, col, kind, below) { return JSON.stringify({ step: "break" }) }
         function tabStep(line, kind) { return "" }

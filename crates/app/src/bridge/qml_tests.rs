@@ -3,7 +3,8 @@
 //! it holds and `Qt.exit(1)` (after `console.error`) when it does not; `lib/Watchdog.qml`
 //! ends one that hangs.
 
-use cxx_qt_lib::{QQmlApplicationEngine, QString, QUrl};
+use cxx::UniquePtr;
+use cxx_qt_lib::{QGuiApplication, QQmlApplicationEngine, QString, QUrl};
 use std::path::{Path, PathBuf};
 
 const PNG_SIGNATURE: [u8; 8] = [0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A];
@@ -13,6 +14,12 @@ const IMAGE_PROJECT: &str = "bild-projekt";
 /// space, which the editor's text area does not give back as it got them.
 const CRLF_PROJECT: &str = "crlf-projekt";
 const CRLF_SCRIPT: &str = "INT. HALLE - TAG\r\n\r\nSie\u{a0}kommt an.\r\n";
+/// The project `script_hervor.qml` opens: a screenplay with emphasis, and lines the writer
+/// would write another way.
+const HERVOR_PROJECT: &str = "hervor-projekt";
+/// Line 2 is typed in; line 3 is not written the way the editor writes it, line 4 holds a
+/// backslash and a note, line 5 trailing blanks.
+const HERVOR_SCRIPT: &str = "Ein Anfang.\n\nDas ist **fett** und *kursiv*.\n\nNicht ***kanonisch** und *so*  \n\nEin \\*Stern\\* [[Notiz]] und _Strich_.\n";
 /// The copy of the example `place_answer.qml` opens.
 const PLACE_PROJECT: &str = "orte-projekt";
 /// The copy of the example `outside.qml` changes from two controllers.
@@ -104,6 +111,35 @@ fn write_crlf_project(base: &Path) {
     std::fs::write(dir.join("drehbuch.fountain"), CRLF_SCRIPT).unwrap();
 }
 
+/// A project with the screenplay of `HERVOR_SCRIPT`, for `script_hervor.qml`.
+fn write_hervor_project(base: &Path) {
+    let dir = base.join(HERVOR_PROJECT);
+    let session =
+        klappe_services::Session::create(&dir, "Hervor", klappe_services::Language::German);
+
+    assert!(session.is_ok());
+    std::fs::write(dir.join("drehbuch.fountain"), HERVOR_SCRIPT).unwrap();
+}
+
+/// `script_hervor.qml` typed in line 2 and saved: that line is another, every other line of the
+/// file is as it was.
+fn check_hervor_file(base: &Path) {
+    let saved =
+        std::fs::read_to_string(base.join(HERVOR_PROJECT).join("drehbuch.fountain")).unwrap();
+    let (old, new): (Vec<_>, Vec<_>) = (
+        HERVOR_SCRIPT.split('\n').collect(),
+        saved.split('\n').collect(),
+    );
+
+    assert_eq!(old.len(), new.len(), "{saved:?}");
+    for (at, (was, now)) in old.iter().zip(&new).enumerate() {
+        match at {
+            2 => assert_eq!(*now, "Das ist **fexxtt** und *kursiv*."),
+            _ => assert_eq!(was, now, "line {at}"),
+        }
+    }
+}
+
 /// What `image_pick.qml` picked lies in the copy's `bilder/`, byte for byte, both files.
 fn check_picked_images(base: &Path) {
     let testdata = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata");
@@ -169,6 +205,44 @@ fn own_temp() -> PathBuf {
     std::env::temp_dir().join(format!("klappe-qml-{}", std::process::id()))
 }
 
+/// Runs the scenario `file` to its `Qt.exit`; the exit code.
+fn run_scenario(app: &mut UniquePtr<QGuiApplication>, file: &Path) -> i32 {
+    let mut engine = QQmlApplicationEngine::new();
+    let url = QUrl::from_local_file(&QString::from(file.to_string_lossy().as_ref()));
+    if let Some(mut engine) = engine.as_mut() {
+        // Kante, as the app finds it in development (main.rs `qml_dirs`).
+        let kante = Path::new(env!("CARGO_MANIFEST_DIR")).join("qml");
+        engine
+            .as_mut()
+            .add_import_path(&QString::from(kante.to_string_lossy().as_ref()));
+
+        // A scenario that does not load would leave `exec` waiting for ever.
+        engine
+            .as_mut()
+            .on_object_creation_failed(|_, url| {
+                eprintln!("could not load {}", url.to_qstring());
+                std::process::exit(1);
+            })
+            .release();
+        engine.as_mut().load(&url);
+    }
+
+    app.as_mut().map_or(1, |a| a.exec())
+}
+
+/// The editor loads a script of 120 pages and takes a key within the budgets of D-36; run by
+/// `make perf` in a release build, where the timings mean something.
+#[test]
+#[ignore = "timing, run by `make perf` in release"]
+fn the_editor_of_120_pages_is_quick() {
+    std::env::set_var("QT_QPA_PLATFORM", "offscreen");
+    std::env::set_var("QML_XHR_ALLOW_FILE_READ", "1");
+    let mut app = crate::application::new();
+    let file = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/perf/script_editor.qml");
+
+    assert_eq!(run_scenario(&mut app, &file), 0);
+}
+
 #[test]
 fn controller_scenarios_hold() {
     std::env::set_var("QT_QPA_PLATFORM", "offscreen");
@@ -188,6 +262,7 @@ fn controller_scenarios_hold() {
     let _ = std::fs::remove_dir_all(&base);
     copy_example(&base);
     write_crlf_project(&base);
+    write_hervor_project(&base);
 
     // `main_creates.qml` makes the whole window: its recent list, previews and settings go to the
     // test folder, never to the user's.
@@ -200,28 +275,7 @@ fn controller_scenarios_hold() {
     }
 
     for file in scenarios() {
-        let mut engine = QQmlApplicationEngine::new();
-        let url = QUrl::from_local_file(&QString::from(file.to_string_lossy().as_ref()));
-        if let Some(mut engine) = engine.as_mut() {
-            // Kante, as the app finds it in development (main.rs `qml_dirs`).
-            let kante = Path::new(env!("CARGO_MANIFEST_DIR")).join("qml");
-            engine
-                .as_mut()
-                .add_import_path(&QString::from(kante.to_string_lossy().as_ref()));
-
-            // A scenario that does not load would leave `exec` waiting for ever.
-            engine
-                .as_mut()
-                .on_object_creation_failed(|_, url| {
-                    eprintln!("could not load {}", url.to_qstring());
-                    std::process::exit(1);
-                })
-                .release();
-            engine.as_mut().load(&url);
-        }
-
-        let code = app.as_mut().map_or(1, |a| a.exec());
-        if code != 0 {
+        if run_scenario(&mut app, &file) != 0 {
             failed.push(file);
         }
     }
@@ -230,6 +284,7 @@ fn controller_scenarios_hold() {
         check_list_exports(&base);
         check_picked_images(&base);
         check_place_answer(&base);
+        check_hervor_file(&base);
     }
     let _ = std::fs::remove_dir_all(&base);
     // Every scenario writes below `base`; other tests of this process (`manage.rs`) may still

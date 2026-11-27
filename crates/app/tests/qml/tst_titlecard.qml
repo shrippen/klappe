@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls as QQC2
 import QtTest
 import "../../qml"
+import "ScriptStub.js" as Stub
 
 // TitleCard (DB-06): folded by default with the title and the author; unfolded it shows the fields
 // the controller reads from the text; Apply puts only the changed part of the text in place (one
@@ -29,10 +30,16 @@ TestCase {
         id: fake
         function titleFields(text) { return JSON.stringify(tc.fields) }
         function titleText(text, json) { tc.sent = json; return tc.result !== "" ? tc.result : text }
+        function scriptShownJson(source) { return Stub.shown(source) }
     }
 
     TextEdit { id: editor; text: "Title: Heimat\nContact:\n  Eva\n  Weg 1\n\nINT. SAAL\n" }
-    ScriptDoc { id: seam; area: editor }
+    ScriptDoc {
+        id: seam
+        area: editor
+        controller: fake
+        Component.onCompleted: load(editor.text)
+    }
     TestTexts { id: de; language: "de" }
     TestTexts { id: en; language: "en" }
 

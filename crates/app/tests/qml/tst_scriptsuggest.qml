@@ -1,6 +1,7 @@
 import QtQuick
 import QtTest
 import "../../qml"
+import "ScriptStub.js" as Stub
 
 // The choices under the line being typed in the screenplay editor (DB-03, D-27): the list opens
 // under the line, Up and Down mark, Enter and Tab take one and a choice that ends the element goes
@@ -28,6 +29,12 @@ TestCase {
             return text.split("\n").map(l => l.startsWith("INT.") ? "h" : "a").join("")
         }
         function scriptOutlineJson() { return "[]" }
+        // The projection of the text: no emphasis, the shown text is the source (ScriptStub.js).
+        function scriptShownJson(source) { return Stub.shown(source) }
+        function scriptEditJson(source, change) { return Stub.edit(source, change) }
+        function scriptReplaceJson(source, line, from, endLine, to, text) {
+            return Stub.replace(source, line, from, endLine, to, text)
+        }
         function versionsJson() { return JSON.stringify({ versions: [], next: null }) }
         function revisionJson() { return "[]" }
         function scriptPrintJson() { return JSON.stringify({ fontPt: 12, ascentPt: 10, pages: [] }) }
