@@ -8,7 +8,7 @@ use klappe_services::{
 use serde_json::{json, Value};
 
 /// What the editor leaves out of its text. Step by step it hides more (`Hide`).
-const HIDE: [Hide; 1] = [Hide::Emphasis];
+const HIDE: [Hide; 2] = [Hide::Emphasis, Hide::Forcing];
 
 /// What the editor leaves out of its text in the source view: nothing.
 const HIDE_NONE: [Hide; 0] = [];
@@ -73,7 +73,9 @@ fn line_json(line: &str, shown: &ShownLine) -> Value {
 }
 
 fn cols_json(line: &str, shown: &ShownLine) -> Value {
-    if line.is_ascii() && shown.cols.iter().enumerate().all(|(i, col)| *col == i) {
+    // Identity, down to the end of the text: a hidden mark behind it (` ^`) is no identity.
+    let identity = shown.cols.iter().enumerate().all(|(i, col)| *col == i);
+    if line.is_ascii() && identity && shown.text.len() == line.len() {
         return Value::Null;
     }
 

@@ -55,12 +55,12 @@ fn a_heading_cannot_end_with_its_number() {
 
 #[test]
 fn a_heading_cannot_start_with_a_dot() {
-    // `.` alone is the forcing character: the text of the line is empty.
+    // `.` alone is the forcing character, but it shows until a character follows.
     let new = splice("INT.", 0..3, "");
 
     assert_eq!(new, ".");
     assert_eq!(shown_one(&new).kind, TextKind::Heading);
-    assert_eq!(shown_one(&new).text, "");
+    assert_eq!(shown_one(&new).text, ".");
 }
 
 #[test]

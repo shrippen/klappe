@@ -81,6 +81,13 @@ QtObject {
     /// The marks of the source view, by the name of the emphasis.
     readonly property var _fountainMarks: ({ bold: "**", italic: "*", underline: "_" })
 
+    /// What a line of the source hides at its start that is no forcing character, and the marks
+    /// of emphasis, which a copy writes by their runs.
+    readonly property var forcingOutside: /[^.!@>~]/g
+    readonly property var emphasisMarks: /[*_]/g
+    /// The hidden marks that end a line: a dual cue, a centered line.
+    readonly property var lineEnds: ["^", "<"]
+
     /// Text this long is compared in one go.
     readonly property int _chunk: 512
 
@@ -193,6 +200,13 @@ QtObject {
         return at === shown.text.length ? _lineEnd(line) : _t.src[line] + at
     }
 
+    /// Where the shown text of line `line` ends in the source: before the hidden ` ^` or `<`.
+    function textEnd(line) {
+        _tables()
+        const shown = _lines[line]
+        return shown.cols ? _t.src[line] + shown.cols[shown.text.length] : _lineEnd(line)
+    }
+
     /// Where line `line` ends in the source, before its line break.
     function _lineEnd(line) {
         return line + 1 < _lines.length ? _t.src[line + 1] - 1 : _source.length
@@ -223,8 +237,35 @@ QtObject {
         _tables()
         const start = area.selectionStart
         const end = area.selectionEnd
-        return _marksOf(_runAt(start), true) + _source.slice(toSource(start), toSourceEnd(end))
-            + _marksOf(_runAt(end - 1), false)
+        return _leadOf(start) + _marksOf(_runAt(start), true)
+            + _source.slice(toSource(start), toSourceEnd(end))
+            + _marksOf(_runAt(end - 1), false) + _endOf(end)
+    }
+
+    /// The forcing character a selection starting at shown position `pos` takes along when `pos`
+    /// is the start of its line: `@` of `@mcClane`, or a copy of the cue is an action.
+    function _leadOf(pos) {
+        const line = _lineOf(_t.disp, pos)
+        const shown = _lines[line]
+        if (pos !== _t.disp[line] || !shown.cols) {
+            return ""
+        }
+
+        return _source.slice(_t.src[line], _t.src[line] + shown.cols[0]).replace(forcingOutside, "")
+    }
+
+    /// The mark that ends the line (` ^`, `<`) a selection ending at shown position `end` takes
+    /// along when it ends with the shown text of its line.
+    function _endOf(end) {
+        const line = _lineOf(_t.disp, end - 1)
+        const shown = _lines[line]
+        if (end - _t.disp[line] !== shown.text.length || !shown.cols) {
+            return ""
+        }
+
+        const behind = _source.slice(_t.src[line] + shown.cols[shown.text.length], _lineEnd(line))
+            .replace(emphasisMarks, "")
+        return lineEnds.includes(behind.trim()) ? behind : ""
     }
 
     /// Takes the selection out of the text, as a deletion typed in the area is.

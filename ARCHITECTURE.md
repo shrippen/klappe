@@ -133,7 +133,7 @@ A change that needs more places than listed is a finding for the audit.
 
 - The window's screenplay editor (`ScreenplayView.qml`) has what the terminal editor has, but its
   undo is the editor's own text history (`scripthistory.h`), not the session's.
-- The window's screenplay editor shows the emphasis without its marks (D-36); the scene number,
-  the forcing characters, notes and the title block still show as typed. Target: they go too
-  (`Hide::Forcing`, `Number`, `Notes`, `TitlePage` in `shown.rs`), step by step in
+- The window's screenplay editor shows the emphasis and the forcing characters without their
+  marks (D-36); the scene number, notes and the title block still show as typed. Target: they go
+  too (`Hide::Number`, `Notes`, `TitlePage` in `shown.rs`), step by step in
   `bridge/drehbuch/shown.rs` `HIDE`. The switch "Fountain-Quelltext" shows the source unchanged.

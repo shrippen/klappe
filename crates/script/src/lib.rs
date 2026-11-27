@@ -190,4 +190,7 @@ mod shown_tests;
 mod change_tests;
 
 #[cfg(test)]
+mod forcing_tests;
+
+#[cfg(test)]
 mod emphasis_tests;

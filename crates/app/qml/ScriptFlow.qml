@@ -90,7 +90,9 @@ QtObject {
         const start = doc.lineStart(line)
         const text = all[line]
         const below = line + 1 < all.length ? all[line + 1] : ""
-        const step = JSON.parse(controller.enterStep(text, doc.cursor - start, shown[line] || letters.action, below))
+        // The end of the shown text is the end of the element, before a hidden ` ^` or `<`.
+        const col = doc.cursor === doc.textEnd(line) ? text.length : doc.cursor - start
+        const step = JSON.parse(controller.enterStep(text, col, shown[line] || letters.action, below))
 
         switch (step.step) {
         case "retag":

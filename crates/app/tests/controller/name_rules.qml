@@ -82,11 +82,11 @@ Item {
             }
 
             // The search finds the chosen speaker again when the cue is spelled the other way.
-            text.text = "@Straße\nHallo\n"
+            seam.load("@Straße\nHallo\n")
             search.refreshSpeakers()
             search.speakers = ["Straße", "Anna"]
             child(search, "speakerBox").currentIndex = 1
-            text.text = "@STRASSE\nHallo\n\n@Anna\nHi\n"
+            seam.load("@STRASSE\nHallo\n\n@Anna\nHi\n")
             search.refreshSpeakers()
             if (search.speaker !== "STRASSE") {
                 return root.fail("the search lost the speaker " + JSON.stringify(search.speaker))

@@ -491,3 +491,40 @@ fn the_emphasis_of_a_selection_is_what_all_of_it_has() {
     assert_eq!(at(12, 12)["bold"], true);
     assert_eq!(at(3, 3)["bold"], false);
 }
+
+/// The six forcing characters and ` ^` are not text; the columns count UTF-16 units.
+#[test]
+fn shown_lines_hide_the_forcing_characters() {
+    let source = ".INT. KÜCHE\n\n!#Ä🎬\n\n@mcClane ^\nHallo\n\n>ENDE<\n\n>ÜBER:\n\n~la la\n\n.5";
+    let lines = parsed(&shown_json(source, View::Shown));
+    let text = |n: usize| lines[n]["text"].as_str().unwrap().to_owned();
+    let cols = |n: usize| -> Vec<u64> {
+        lines[n]["cols"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|c| c.as_u64().unwrap())
+            .collect()
+    };
+
+    assert_eq!(text(0), "INT. KÜCHE");
+    assert_eq!(text(2), "#Ä🎬");
+    assert_eq!(text(4), "mcClane");
+    assert_eq!(text(7), "ENDE");
+    assert_eq!(text(9), "ÜBER:");
+    assert_eq!(text(11), "la la");
+    assert_eq!(text(13), "5");
+
+    // `!` before `#`; the emoji is two units; the text ends before ` ^` and `<`.
+    assert_eq!(cols(2), vec![1, 2, 3, 4, 5]);
+    assert_eq!(*cols(4).first().unwrap(), 1);
+    assert_eq!(*cols(4).last().unwrap(), 8);
+    assert_eq!(*cols(7).last().unwrap(), 5);
+
+    // A hidden mark behind the text of an ASCII line still has columns.
+    assert!(!lines[4]["cols"].is_null());
+
+    // The source view shows everything.
+    let lines = parsed(&shown_json(source, View::Source));
+    assert_eq!(lines[4]["text"], "@mcClane ^");
+}

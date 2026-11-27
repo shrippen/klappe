@@ -149,6 +149,14 @@ pub(crate) fn shown_line(
         return typed_line(line, kind, hidden);
     };
 
+    // A forcing character with nothing behind it would be a typed character that shows
+    // nowhere: it stays text until a character follows (`.` and `.` and `.` typed is `...`,
+    // `@` and `x` typed is the cue `x`).
+    let alone = body.chars.is_empty() && body.notes.is_empty() && split.start > 0;
+    if alone || is_forcing_alone(line) {
+        return typed_line(line, kind, hidden);
+    }
+
     ShownLine {
         kind,
         shape: Shape::Shown,
@@ -158,6 +166,16 @@ pub(crate) fn shown_line(
         number: split.number,
         notes: body.notes,
         cols: body.cols,
+    }
+}
+
+/// Whether `line` is one forcing character and nothing else.
+fn is_forcing_alone(line: &str) -> bool {
+    let mut chars = line.chars();
+
+    match (chars.next(), chars.next()) {
+        (Some(ch), None) => lead_chars().contains(&ch),
+        _ => false,
     }
 }
 
@@ -177,6 +195,17 @@ fn typed_line(line: &str, kind: TextKind, hidden: Hidden) -> ShownLine {
         notes: Vec::new(),
         cols,
     }
+}
+
+/// The characters that force an element when they open a line.
+fn lead_chars() -> [char; 5] {
+    [
+        FORCE_HEADING,
+        FORCE_ACTION,
+        FORCE_CHARACTER,
+        FORCE_TRANSITION,
+        LYRICS,
+    ]
 }
 
 /// The character that forces an element of `kind` when it opens a line, as `split_line` hides it.
