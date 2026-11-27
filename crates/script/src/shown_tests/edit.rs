@@ -4,6 +4,8 @@ use std::collections::BTreeMap;
 
 use super::*;
 
+mod limits;
+
 /// The first line of `source` after `change`, shown with `hide`.
 fn edited(source: &str, hide: &[Hide], change: &LineEdit) -> String {
     let shown = shown_lines(source, hide).remove(0);
@@ -213,12 +215,21 @@ enum Limit {
     TransitionEnd,
     /// A cue cannot end with `^`: it marks dual dialogue.
     CueEnd,
-    /// A note behind `(leise)` keeps the line from being a parenthetical.
-    NoteEndsParenthetical,
+    /// A note in front of a `#` or `=`, or around `(leise)`, keeps the line from being a
+    /// section, a synopsis or a parenthetical: the mark must open the line (and `)` end it).
+    NoteBreaksLine,
+    /// A heading cannot end with `#12#`: that is its number.
+    HeadingEndsWithNumber,
+    /// What is typed is Fountain: a typed `[[n]]` is a note, so the visible text is not the
+    /// typed string and the kind it would give alone does not hold.
+    TypedNote,
     /// A blank with a note is a note.
     BlankWithNote,
     /// Without `Hide::Forcing` the forcing character put in front shows as text.
     VisibleLead,
+    /// A backslash the change leaves alone stays (rule 1): `\[[n]]` cannot become a note
+    /// although its text, set bare, reads as one.
+    EscapedOpener,
     /// A `/*` that is text could open a boneyard; the writer protects it, the text alone reads
     /// as a boneyard.
     BoneyardText,
@@ -227,11 +238,14 @@ enum Limit {
     TouchingStars,
 }
 
-const LIMITS: [Limit; 7] = [
+const LIMITS: [Limit; 10] = [
     Limit::DotHeading,
     Limit::TransitionEnd,
     Limit::CueEnd,
-    Limit::NoteEndsParenthetical,
+    Limit::NoteBreaksLine,
+    Limit::HeadingEndsWithNumber,
+    Limit::TypedNote,
+    Limit::EscapedOpener,
     Limit::BlankWithNote,
     Limit::BoneyardText,
     Limit::TouchingStars,
@@ -255,6 +269,18 @@ fn without_lead(read: &ShownLine) -> ShownLine {
             .collect(),
         ..read.clone()
     }
+}
+
+fn is_typed_kind(kind: TextKind) -> bool {
+    matches!(
+        kind,
+        TextKind::Blank
+            | TextKind::Title
+            | TextKind::Section
+            | TextKind::Synopsis
+            | TextKind::Note
+            | TextKind::PageBreak
+    )
 }
 
 fn has_stars(marks: Marks) -> bool {
@@ -293,9 +319,16 @@ impl Case {
         let text = self.text();
         let expected = self.kind();
         let trimmed: String = text.iter().collect::<String>().trim_end().to_owned();
-        let at_end = moved(&self.shown.notes, &self.change)
+        let notes = moved(&self.shown.notes, &self.change);
+        let first = text
             .iter()
-            .any(|n| n.at >= text.len());
+            .position(|c| !c.is_whitespace())
+            .unwrap_or(text.len());
+        let note_in_front = notes.iter().any(|n| n.at <= first);
+        let note_behind = notes.iter().any(|n| n.at >= text.len());
+        let numbered = trimmed
+            .strip_suffix('#')
+            .is_some_and(|rest| rest.contains('#'));
 
         let kind_limits = [
             (
@@ -303,6 +336,7 @@ impl Case {
                 trimmed.starts_with('.'),
                 Limit::DotHeading,
             ),
+            (TextKind::Heading, numbered, Limit::HeadingEndsWithNumber),
             (
                 TextKind::Transition,
                 trimmed.ends_with('<'),
@@ -311,9 +345,11 @@ impl Case {
             (TextKind::Character, trimmed.ends_with('^'), Limit::CueEnd),
             (
                 TextKind::Parenthetical,
-                at_end,
-                Limit::NoteEndsParenthetical,
+                note_in_front || note_behind,
+                Limit::NoteBreaksLine,
             ),
+            (TextKind::Section, note_in_front, Limit::NoteBreaksLine),
+            (TextKind::Synopsis, note_in_front, Limit::NoteBreaksLine),
             (
                 TextKind::Blank,
                 !self.shown.notes.is_empty(),
@@ -321,6 +357,12 @@ impl Case {
             ),
         ];
 
+        if self.change.typed.contains("[[") {
+            return Some(Limit::TypedNote);
+        }
+        if self.line.contains('\\') && is_typed_kind(expected) {
+            return Some(Limit::EscapedOpener);
+        }
         if trimmed.contains("/*") {
             return Some(Limit::BoneyardText);
         }
@@ -350,7 +392,6 @@ impl Case {
 
     /// The kind: the old one while the visible text reads as before, else the new one.
     fn kind(&self) -> TextKind {
-        let (old, text) = (self.old(), self.text());
         let reads = |chars: &[char]| {
             read_as(
                 self.shown.kind,
@@ -359,11 +400,10 @@ impl Case {
             )
             .kind
         };
-        let removed = &self.change.removed;
-        let all_gone = removed.start == 0 && removed.end == old.len();
+        let new = reads(&self.text());
 
-        match all_gone || reads(&text) != reads(&old) {
-            true => reads(&text),
+        match new != reads(&self.old()) {
+            true => new,
             false => self.shown.kind,
         }
     }
@@ -438,62 +478,73 @@ fn judge(case: &Case, below: &[TextKind]) -> (bool, Option<Result<Limit, String>
     }
 
     let said = format!(
-        "{line:?} {:?} {:?} -> {new:?} (was {:?}, {hide:?})",
-        case.change.removed, case.change.typed, shown.kind
+        "{line:?} {:?} {:?} -> {new:?} (was {:?}, exp {:?}, read {:?} {:?} {:?}, kept {kept}, opened {opened})",
+        case.change.removed, case.change.typed, shown.kind, case.kind(), read.kind, read.shape, read.text
     );
 
     (visible_lead, Some(case.limit().ok_or(said)))
 }
 
-/// Random changes of a line, shown with `hide`: none panics, the kind follows the rules, what
+/// Seeds of the fuzz of changes, and how many changes each tries.
+const CHANGE_SEEDS: Range<u64> = 10..60;
+const CHANGES_PER_SEED: u64 = 1000;
+
+/// What a fuzz of changes found: how often each limit hit, and what fell outside every limit.
+#[derive(Default)]
+struct Found {
+    tried: usize,
+    limited: BTreeMap<Limit, usize>,
+    outside: Vec<String>,
+}
+
+/// Random changes of a line, shown with `hide`: none panics, the kind follows the rule, what
 /// the change leaves alone keeps its text, emphasis and notes, and the lines below stay what
-/// they were, except where Fountain cannot say it (`Limit`). Returns how often each limit hit.
-fn fuzz_changes(hide: &'static [Hide], seed: u64) -> BTreeMap<Limit, usize> {
-    let mut gen = Gen(seed);
-    let mut tried = 0;
-    let mut limited: BTreeMap<Limit, usize> = BTreeMap::new();
-    let mut outside = Vec::new();
+/// they were, except where Fountain cannot say it (`Limit`).
+fn fuzz_changes(hide: &'static [Hide]) -> Found {
     let below = kinds_below("", hide);
+    let mut found = Found::default();
 
-    for _ in 0..SEEDS * 4 {
-        let Some(case) = one_splice(&mut gen, hide) else {
-            continue;
-        };
-        if case.text().is_empty() {
-            continue;
-        }
+    for seed in CHANGE_SEEDS {
+        let mut gen = Gen(seed);
 
-        tried += 1;
-        let (visible_lead, miss) = judge(&case, &below);
-        if visible_lead {
-            *limited.entry(Limit::VisibleLead).or_default() += 1;
-        }
-        match miss {
-            Some(Ok(limit)) => *limited.entry(limit).or_default() += 1,
-            Some(Err(said)) => outside.push(said),
-            None => {}
+        for _ in 0..CHANGES_PER_SEED {
+            let Some(case) = one_splice(&mut gen, hide) else {
+                continue;
+            };
+            if case.text().is_empty() {
+                continue;
+            }
+
+            found.tried += 1;
+            let (visible_lead, miss) = judge(&case, &below);
+            if visible_lead {
+                *found.limited.entry(Limit::VisibleLead).or_default() += 1;
+            }
+            match miss {
+                Some(Ok(limit)) => *found.limited.entry(limit).or_default() += 1,
+                Some(Err(said)) => found.outside.push(said),
+                None => {}
+            }
         }
     }
 
-    assert!(tried > 2000, "{tried} changes");
-    assert!(
-        outside.is_empty(),
-        "{} outside: {outside:#?}",
-        outside.len()
-    );
+    assert!(found.tried > 10_000, "{} changes", found.tried);
+    println!("FOUND {hide:?} {} {:?}", found.tried, found.limited);
 
-    limited
+    found
 }
 
 #[test]
 fn fuzz_a_change_leaves_the_rest_alone() {
-    let limited = fuzz_changes(&ALL, 4);
+    let found = fuzz_changes(&ALL);
 
+    assert!(found.outside.is_empty(), "{} outside", found.outside.len());
     // Every limit is met by the fuzz, so none of the predicates is dead.
     for limit in LIMITS {
         assert!(
-            limited.contains_key(&limit),
-            "{limit:?} never met: {limited:?}"
+            found.limited.contains_key(&limit),
+            "{limit:?} never met: {:?}",
+            found.limited
         );
     }
 }
@@ -502,18 +553,100 @@ fn fuzz_a_change_leaves_the_rest_alone() {
 /// stay what they were (a `!` put in front must not hide a `/*`).
 #[test]
 fn fuzz_a_change_with_only_emphasis_hidden() {
-    let limited = fuzz_changes(&[Hide::Emphasis], 5);
+    let found = fuzz_changes(&[Hide::Emphasis]);
 
-    assert!(limited.contains_key(&Limit::VisibleLead), "{limited:?}");
+    assert!(found.outside.is_empty(), "{} outside", found.outside.len());
+    assert!(
+        found.limited.contains_key(&Limit::VisibleLead),
+        "never met: {:?}",
+        found.limited
+    );
+}
+
+// --- one rule for the kind, also when the whole text is replaced ---
+
+/// The kinds of the lines of `source`, the first of which is changed (shown with `hide`).
+fn kinds_after(source: &str, hide: &[Hide], change: &LineEdit) -> Vec<TextKind> {
+    let (line, rest) = source.split_once('\n').unwrap_or((source, ""));
+    let shown = shown_lines(source, hide).remove(0);
+    let new = edit_line(line, shown.kind, shown.shape, hide, change);
+    let text = match source.contains('\n') {
+        true => format!("{new}\n{rest}"),
+        false => new,
+    };
+
+    text_kinds(&text)
+}
+
+/// `source` has `removed` of its text replaced by `typed` with `all` and, with the forcing
+/// character a part of the text, `shown` replaced: the kinds stay `expected`.
+fn same_kinds(
+    source: &str,
+    (all, shown): (Range<usize>, Range<usize>),
+    typed: &str,
+    expected: &[TextKind],
+) {
+    for (hide, removed) in [(&ALL[..], all), (&[Hide::Emphasis][..], shown)] {
+        let got = kinds_after(source, hide, &replace_text(removed.clone(), typed));
+
+        assert_eq!(got, expected, "{source:?} {removed:?} {typed:?} {hide:?}");
+    }
 }
 
 #[test]
-fn a_forcing_character_put_in_front_shows_without_hide_forcing() {
-    let hide = [Hide::Emphasis];
-    let new = edited("*INT.* KÜCHE", &hide, &format_only(&[]));
+fn renaming_a_cue_keeps_the_cue() {
+    use TextKind::{Character, Dialogue};
 
-    assert_eq!(new, "!INT. KÜCHE");
-    assert_eq!(shown_lines(&new, &hide)[0].text, "!INT. KÜCHE");
+    same_kinds(
+        "@Anna\nHallo.",
+        (0..4, 1..5),
+        "Bert",
+        &[Character, Dialogue],
+    );
+    same_kinds(
+        "@McAvoy\nHallo.",
+        (0..7, 1..8),
+        "Anna",
+        &[Character, Dialogue],
+    );
+}
+
+#[test]
+fn renaming_a_forced_heading_keeps_the_heading() {
+    same_kinds(".Küche", (0..5, 1..6), "Hof", &[TextKind::Heading]);
+}
+
+#[test]
+fn a_typed_heading_over_the_whole_text_is_a_heading() {
+    same_kinds(
+        "*E*s ist spät.",
+        (0..12, 0..12),
+        "EXT. HOF - TAG",
+        &[TextKind::Heading],
+    );
+    same_kinds("!Hallo", (0..5, 0..6), "INT. HOF", &[TextKind::Heading]);
+}
+
+#[test]
+fn a_heading_typed_over_a_forced_action_stays_action() {
+    same_kinds(
+        "!INT. KÜCHE",
+        (0..10, 1..11),
+        "INT. HOF",
+        &[TextKind::Action],
+    );
+}
+
+#[test]
+fn a_word_typed_into_a_cue_with_empty_marks_keeps_the_cue() {
+    use TextKind::{Character, Dialogue};
+
+    same_kinds(
+        "@(V.O.)__\nHallo.",
+        (3..3, 4..4),
+        "INT.",
+        &[Character, Dialogue],
+    );
 }
 
 // --- a put-in-front `!` must not hide a boneyard ---
@@ -573,99 +706,6 @@ fn a_typed_word_in_emphasis_around_a_slash_opens_no_boneyard() {
     };
 
     scene_stays("*/<_*_.", &change);
-}
-
-// --- the limits, one by one ---
-
-#[test]
-fn a_heading_cannot_start_with_a_dot() {
-    // `.` alone is the forcing character: the text of the line is empty.
-    let new = splice("INT.", 0..3, "");
-
-    assert_eq!(new, ".");
-    assert_eq!(shown_one(&new).kind, TextKind::Heading);
-    assert_eq!(shown_one(&new).text, "");
-}
-
-#[test]
-fn a_transition_cannot_end_with_a_chevron() {
-    let new = splice(">Text", 4..4, "<");
-
-    assert_eq!(new, ">Text<");
-    assert_eq!(shown_one(&new).kind, TextKind::Centered);
-}
-
-#[test]
-fn a_cue_cannot_end_with_a_caret() {
-    let new = splice("@Anna", 4..4, "^");
-
-    assert_eq!(new, "@Anna^");
-    assert_eq!(read_as(TextKind::Character, &new, &ALL).text, "Anna");
-}
-
-#[test]
-fn a_note_behind_a_parenthetical_makes_it_speech() {
-    let source = "Hallo[[n]]";
-    let shown = read_as(TextKind::Dialogue, source, &ALL);
-    let new = edit_line(
-        source,
-        shown.kind,
-        shown.shape,
-        &ALL,
-        &replace_text(0..5, "(leise)"),
-    );
-    let read = read_as(TextKind::Dialogue, &new, &ALL);
-
-    assert_eq!(new, "(leise)[[n]]");
-    assert_eq!(
-        (read.kind, read.text.as_str()),
-        (TextKind::Dialogue, "(leise)")
-    );
-}
-
-#[test]
-fn a_blank_with_a_note_is_a_note() {
-    let new = splice("Hallo[[n]]", 0..5, " ");
-
-    assert_eq!(new, " [[n]]");
-    assert_eq!(shown_one(&new).kind, TextKind::Note);
-}
-
-#[test]
-fn a_typed_boneyard_opener_is_protected() {
-    let new = splice("a\\*", 0..1, "/");
-
-    assert_eq!(new, "/\\*");
-    assert_eq!(shown_one(&new).text, "/*");
-    assert_eq!(shown_one(&new).kind, TextKind::Action);
-}
-
-#[test]
-fn a_run_that_ends_behind_a_slash_stays_plain() {
-    let source = edited(
-        "a/",
-        &ALL,
-        &format_only(&[run(0, 2, mark(false, true, false))]),
-    );
-
-    assert_eq!(source, "a/");
-}
-
-#[test]
-fn a_run_that_would_touch_the_stars_before_it_stays_plain() {
-    let change = format_only(&[
-        run(0, 1, mark(false, true, false)),
-        run(1, 2, mark(true, true, false)),
-    ]);
-    let source = edited("ab", &ALL, &change);
-
-    assert_eq!(
-        shown_one(&source).runs,
-        [
-            run(0, 1, mark(false, true, false)),
-            run(1, 2, mark(false, false, false)),
-        ]
-    );
 }
 
 // --- what a round trip may change ---

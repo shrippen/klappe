@@ -24,9 +24,11 @@ use crate::parse::{
 };
 use crate::{text_kinds, Marks, Run, Splice, TextKind};
 
+mod lead;
 mod read;
 mod write;
 
+use lead::{behind, leads, End, Lead};
 use read::reads_right;
 use write::{write_body, Part};
 
@@ -565,7 +567,8 @@ fn read_in(line: &str, kind: TextKind, above: Above, hide: &[Hide]) -> ShownLine
 
 /// The kind the new line has to read as, and what stands above it when it is read: the old
 /// kind while the visible text reads as before (the hidden marks held it), else the kind
-/// the new text reads as, which also holds when nothing old is left.
+/// the new text reads as. One rule, also when the whole text is replaced: a cue renamed
+/// stays a cue.
 ///
 /// A line that does not read as its kind by itself is action because of the line above it
 /// (`>Text` under a line of action); it stays so.
@@ -584,70 +587,9 @@ fn target_kind(
     }
 
     let new = reads(&plan.chars);
-    // Nothing old left: the old text has nothing to say about the kind.
-    let gone = plan.kept == 0 && !before.chars.is_empty();
-    match gone || new != reads(&before.chars) {
+    match new != reads(&before.chars) {
         true => (new, Above::Blank),
         false => (kind, Above::Blank),
-    }
-}
-
-/// Whether a forcing character in front of the line was there before or is new.
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum Lead {
-    Kept,
-    Added,
-}
-
-/// Whether the mark that ends a line (` ^`, `<`) stays.
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum End {
-    Kept,
-    Dropped,
-}
-
-/// The mark that ends a line of `kind`, as the part behind the text may have it.
-fn end_mark(kind: TextKind) -> Option<char> {
-    match kind {
-        TextKind::Character => Some(DUAL_MARK),
-        TextKind::Centered => Some(CENTER_END),
-        _ => None,
-    }
-}
-
-/// What may stand in front of the text and behind it, in the order to try: as it was, without
-/// its forcing character, without the mark that ends the line, with the forcing character of
-/// the target kind.
-fn leads(target: &Target, tail: &str) -> Vec<(String, Lead, End)> {
-    let prefix = &target.old[..target.split.start];
-    let mark = prefix.trim_start();
-    let bare = &prefix[..prefix.len() - mark.len()];
-    let ends = end_mark(target.kind).is_some_and(|m| tail.trim_start().starts_with(m));
-    let mut leads = vec![(prefix.to_owned(), Lead::Kept, End::Kept)];
-
-    if !mark.is_empty() {
-        leads.push((bare.to_owned(), Lead::Kept, End::Kept));
-    }
-    if ends {
-        leads.push((bare.to_owned(), Lead::Kept, End::Dropped));
-    }
-    if let Some(force) = forcing_char(target.reads) {
-        leads.push((format!("{bare}{force}"), Lead::Added, End::Kept));
-        if ends {
-            leads.push((format!("{bare}{force}"), Lead::Added, End::Dropped));
-        }
-    }
-
-    leads
-}
-
-/// The part behind the text without the mark that ends the line: only blanks follow that mark.
-fn without_end(tail: &str, kind: TextKind) -> &str {
-    let marked = end_mark(kind).is_some_and(|m| tail.trim_start().starts_with(m));
-
-    match marked {
-        true => "",
-        false => tail,
     }
 }
 
@@ -673,13 +615,11 @@ fn written(target: &Target, plan: &Plan) -> Result<String, String> {
             continue;
         }
 
-        let tail = match end {
-            End::Kept => old_tail,
-            End::Dropped => without_end(old_tail, target.kind),
-        };
+        let tail = behind(old_tail, end, target.kind);
         // A blank typed at the end must not become the blank that leads up to a mark behind it.
-        let apart =
-            body.ends_with(char::is_whitespace) && tail.starts_with(|c: char| !c.is_whitespace());
+        let apart = end != End::Guarded
+            && body.ends_with(char::is_whitespace)
+            && tail.starts_with(|c: char| !c.is_whitespace());
         let gap = if apart { " " } else { "" };
         let line = format!("{lead}{body}{gap}{tail}");
         let read = read_in(&line, target.kind, target.above, target.hide);
@@ -712,18 +652,6 @@ fn is_typed_kind(kind: TextKind) -> bool {
             | TextKind::Note
             | TextKind::PageBreak
     )
-}
-
-/// The character that forces a line to be of `kind`, where Fountain has one.
-fn forcing_char(kind: TextKind) -> Option<char> {
-    match kind {
-        TextKind::Action => Some(FORCE_ACTION),
-        TextKind::Character => Some(FORCE_CHARACTER),
-        TextKind::Heading => Some(FORCE_HEADING),
-        TextKind::Transition => Some(FORCE_TRANSITION),
-        TextKind::Lyrics => Some(LYRICS),
-        _ => None,
-    }
 }
 
 /// The emphasis of each of `len` characters; what no run covers is plain.
