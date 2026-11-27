@@ -1,0 +1,277 @@
+//! Emphasis toggled over a selection of the source (D-36, D-37).
+
+use crate::{emphasis_at, shown_lines, toggle_mark, Hide, Mark, Spot};
+
+const SHOWN: [Hide; 1] = [Hide::Emphasis];
+const SOURCE: [Hide; 0] = [];
+
+fn spot(line: usize, col: usize) -> Spot {
+    Spot { line, col }
+}
+
+/// The source after `mark` toggled over `from` to `to`.
+fn toggled(source: &str, from: Spot, to: Spot, mark: Mark) -> String {
+    toggle_mark(source, &SHOWN, (from, to), mark).source
+}
+
+/// The same for a selection inside line 0.
+fn on_line(source: &str, from: usize, to: usize, mark: Mark) -> String {
+    toggled(source, spot(0, from), spot(0, to), mark)
+}
+
+#[test]
+fn a_plain_word_becomes_bold() {
+    assert_eq!(
+        on_line("Das ist fett.", 8, 12, Mark::Bold),
+        "Das ist **fett**."
+    );
+    assert_eq!(
+        on_line("Das ist kursiv.", 8, 14, Mark::Italic),
+        "Das ist *kursiv*."
+    );
+    assert_eq!(
+        on_line("Das ist weg.", 8, 11, Mark::Underline),
+        "Das ist _weg_."
+    );
+}
+
+#[test]
+fn a_bold_word_becomes_plain() {
+    // The selection stands in the source: inside the marks, or around them.
+    assert_eq!(
+        on_line("Das ist **fett**.", 10, 14, Mark::Bold),
+        "Das ist fett."
+    );
+    assert_eq!(
+        on_line("Das ist **fett**.", 8, 16, Mark::Bold),
+        "Das ist fett."
+    );
+}
+
+#[test]
+fn a_selection_that_is_partly_bold_becomes_all_bold() {
+    assert_eq!(
+        on_line("Das ist **fett** und viel.", 10, 20, Mark::Bold),
+        "Das ist **fett und** viel."
+    );
+}
+
+#[test]
+fn toggling_over_the_edge_of_a_run_keeps_the_other_marks() {
+    // Bold over `a *b* c`: the italic word stays italic inside.
+    assert_eq!(on_line("a *b* c", 0, 7, Mark::Bold), "**a *b* c**");
+    assert_eq!(on_line("**a *b* c**", 0, 11, Mark::Bold), "a *b* c");
+
+    // Italic over bold text that goes on behind it.
+    assert_eq!(
+        on_line("**fett und viel**", 7, 10, Mark::Italic),
+        "**fett *und* viel**"
+    );
+    assert_eq!(
+        on_line("**fett *und* viel**", 7, 12, Mark::Italic),
+        "**fett und viel**"
+    );
+}
+
+#[test]
+fn toggling_twice_gives_the_line_back() {
+    let line = "Ein **fetter** Mann, *kursiv* und weiter.";
+    let on = on_line(line, 0, 41, Mark::Underline);
+    let off = on_line(&on, 0, 42, Mark::Underline);
+
+    assert_ne!(on, line);
+    assert_eq!(off, line);
+}
+
+#[test]
+fn a_selection_over_lines_is_toggled_as_a_whole() {
+    let source = "eins\n\nzwei **drei**";
+    let all = toggled(source, spot(0, 0), spot(2, 14), Mark::Bold);
+
+    assert_eq!(all, "**eins**\n\n**zwei drei**");
+    assert_eq!(
+        toggled(&all, spot(0, 0), spot(2, 14), Mark::Bold),
+        "eins\n\nzwei drei"
+    );
+}
+
+#[test]
+fn a_selection_without_characters_changes_nothing() {
+    let source = "Das ist **fett**.\n\nZwei";
+
+    assert_eq!(on_line(source, 5, 5, Mark::Bold), source);
+    assert_eq!(
+        toggled(source, spot(1, 0), spot(1, 0), Mark::Italic),
+        source
+    );
+    assert_eq!(
+        toggled(source, spot(1, 0), spot(1, 0), Mark::Italic),
+        source
+    );
+}
+
+#[test]
+fn backslash_note_and_number_stay() {
+    let line = "Ein \\*Stern\\* [[Notiz]] und mehr.";
+    let new = on_line(line, 0, 13, Mark::Bold);
+    let shown = shown_lines(&new, &SHOWN).remove(0);
+
+    assert!(new.contains("[[Notiz]]"), "{new}");
+    assert!(new.contains("\\*Stern\\*"), "{new}");
+    assert_eq!(shown.text, shown_lines(line, &SHOWN).remove(0).text);
+    assert!(shown.runs.iter().any(|r| r.marks.bold), "{new}");
+}
+
+#[test]
+fn umlauts_and_emoji_count_in_utf16() {
+    // The emoji is two units.
+    assert_eq!(on_line("Ä🎬 ö", 1, 3, Mark::Bold), "Ä**🎬** ö");
+    assert_eq!(on_line("Ä🎬 ö", 0, 5, Mark::Italic), "*Ä🎬 ö*");
+}
+
+#[test]
+fn a_heading_is_bold_already() {
+    let source = "INT. KÜCHE - TAG\n\nEr kommt.";
+
+    assert_eq!(on_line(source, 0, 8, Mark::Bold), source);
+    let both = toggled(source, spot(0, 0), spot(2, 9), Mark::Bold);
+    assert_eq!(both, "INT. KÜCHE - TAG\n\n**Er kommt.**");
+}
+
+#[test]
+fn italic_in_a_heading_keeps_it_a_heading() {
+    let new = on_line("INT. KÜCHE - TAG", 5, 11, Mark::Italic);
+    let shown = shown_lines(&new, &SHOWN).remove(0);
+
+    assert_eq!(shown.text, "INT. KÜCHE - TAG");
+    assert_eq!(shown.kind, crate::TextKind::Heading);
+    assert!(shown.runs.iter().any(|r| r.marks.italic), "{new}");
+}
+
+#[test]
+fn lines_that_show_their_marks_are_left_alone() {
+    let source = "# Akt *1*\n= Sie kommt\n[[Notiz]]";
+
+    assert_eq!(toggled(source, spot(0, 0), spot(2, 8), Mark::Bold), source);
+}
+
+#[test]
+fn the_source_view_shows_the_marks_that_were_written() {
+    let done = toggle_mark(
+        "Das ist fett.",
+        &SOURCE,
+        (spot(0, 8), spot(0, 12)),
+        Mark::Bold,
+    );
+
+    assert_eq!(done.source, "Das ist **fett**.");
+    assert_eq!(done.shown.len(), 1);
+    assert_eq!(done.shown[0].text, "Das ist **fett**.");
+}
+
+#[test]
+fn a_selection_in_the_source_view_names_the_same_words() {
+    // The marks stand in the selection of the source view: `**fett**` is the bold word.
+    assert_eq!(
+        on_line("Das ist **fett**.", 8, 16, Mark::Bold),
+        "Das ist fett."
+    );
+    assert_eq!(
+        on_line("Das ist **fett**.", 8, 16, Mark::Italic),
+        "Das ist ***fett***."
+    );
+}
+
+#[test]
+fn the_edit_names_the_lines_to_show_again() {
+    let done = toggle_mark("a\nb\nc", &SHOWN, (spot(1, 0), spot(1, 1)), Mark::Bold);
+
+    assert_eq!((done.from, done.to), (1, 2));
+    assert_eq!(done.shown.len(), 1);
+    assert_eq!(done.source, "a\n**b**\nc");
+}
+
+#[test]
+fn the_state_is_what_the_whole_selection_has() {
+    let source = "Das ist **fett** und *kursiv*.";
+    let marks = |from, to| emphasis_at(source, spot(0, from), spot(0, to)).marks;
+
+    assert!(marks(10, 14).bold);
+    assert!(!marks(10, 14).italic);
+    assert!(!marks(8, 20).bold);
+    assert!(marks(22, 28).italic);
+    assert!(!marks(0, 3).bold);
+}
+
+#[test]
+fn the_state_at_a_cursor_is_the_character_before() {
+    let source = "Das ist **fett** und";
+    let at = |col| emphasis_at(source, spot(0, col), spot(0, col)).marks.bold;
+
+    // Behind the word, inside it, in front of it and at the start of the line.
+    assert!(at(16));
+    assert!(at(12));
+    assert!(!at(7));
+    assert!(!at(0));
+    // At the start of a bold line the character behind counts.
+    assert!(emphasis_at("**a** b", spot(0, 0), spot(0, 0)).marks.bold);
+}
+
+#[test]
+fn the_state_of_a_heading_is_bold_and_fixed() {
+    let state = emphasis_at("INT. KÜCHE - TAG\n\nText", spot(0, 2), spot(0, 6));
+
+    assert!(state.marks.bold);
+    assert!(state.heading);
+    assert!(!emphasis_at("INT. KÜCHE - TAG\n\nText", spot(0, 2), spot(2, 3)).heading);
+}
+
+const EXAMPLE: &str = include_str!("../../../testdata/beispiel.klappe/drehbuch.fountain");
+/// Every this many columns of the example's lines start or end a selection.
+const SAMPLE_STEP: usize = 13;
+const BOOK_STEP: usize = 2;
+const MARKS: [Mark; 3] = [Mark::Bold, Mark::Italic, Mark::Underline];
+
+/// A book with every sort of line and emphasis that sits close together.
+const BOOK: &str = "Title: Nachtwache\n\n.INT. KÜCHE - TAG #12A#\n\n\
+Anna *tritt* ein, **laut** und ***sehr laut***, _still_ [[Licht?]] und _**beides**_.\n\n\
+@mcClane\n(leise)\nIhr kommt *spät* [[Pause]].\n\n>ENDE<\n\n# Akt 1\n\n\
+Und \\*kein Stern\\* und a_b und 1 * 2, */ oder /* nicht.\n\nCUT TO:\n";
+
+/// Each character of each line of `book` as a selection: toggling changes no text and no kind of
+/// any line, and what the writer could mark is marked.
+fn each_selection(book: &str, step: usize) {
+    let lines: Vec<&str> = book.split('\n').collect();
+    let kinds = crate::text_kinds(book);
+    let texts: Vec<String> = shown_lines(book, &SHOWN)
+        .into_iter()
+        .map(|l| l.text)
+        .collect();
+
+    for (at, line) in lines.iter().enumerate() {
+        let len = line.encode_utf16().count();
+
+        for mark in MARKS {
+            for (from, to) in (0..=len)
+                .step_by(step)
+                .flat_map(|f| (f..=len).step_by(step).map(move |t| (f, t)))
+            {
+                let done = toggle_mark(book, &SHOWN, (spot(at, from), spot(at, to)), mark);
+                let said = format!("{mark:?} {from}..{to} of {line:?}");
+
+                assert_eq!(crate::text_kinds(&done.source), kinds, "{said}");
+                let after: Vec<String> = shown_lines(&done.source, &SHOWN)
+                    .into_iter()
+                    .map(|l| l.text)
+                    .collect();
+                assert_eq!(after, texts, "{said} gave {:?}", done.source);
+            }
+        }
+    }
+}
+
+#[test]
+fn toggling_over_any_selection_keeps_text_and_kinds() {
+    each_selection(BOOK, BOOK_STEP);
+    each_selection(EXAMPLE, SAMPLE_STEP);
+}

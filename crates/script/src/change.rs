@@ -104,28 +104,45 @@ pub fn edit_shown(source: &str, hide: &[Hide], change: &Change) -> Edited {
 /// scene). The columns are UTF-16 units of the source lines.
 pub fn replace_source(source: &str, hide: &[Hide], from: Spot, to: Spot, text: &str) -> Edited {
     let lines: Vec<&str> = source.split('\n').collect();
-    let kinds = text_kinds(source);
-    let inside = boneyard_lines(source);
     let first = from.line.min(lines.len() - 1);
     let last = to.line.clamp(first, lines.len() - 1);
-    let byte = |at: usize, col: usize| {
-        let mut units = 0;
-        lines[at]
-            .char_indices()
-            .find(|(_, ch)| {
-                units += ch.len_utf16();
-                units > col
-            })
-            .map_or(lines[at].len(), |(index, _)| index)
-    };
-    let (start, end) = (byte(first, from.col), byte(last, to.col));
+    let (start, end) = (
+        byte_at(lines[first], from.col),
+        byte_at(lines[last], to.col),
+    );
     let (start, end) = match first == last {
         true => (start, end.max(start)),
         false => (start, end),
     };
     let joined = format!("{}{}{}", &lines[first][..start], text, &lines[last][end..]);
     let new: Vec<String> = joined.split('\n').map(str::to_owned).collect();
-    let splice = splice_lines(source, first..last + 1, &new);
+
+    rewrite_lines(source, hide, (first, last), &new)
+}
+
+/// The byte of `line` where UTF-16 unit `col` stands; the end of the line past it.
+pub(crate) fn byte_at(line: &str, col: usize) -> usize {
+    let mut units = 0;
+
+    line.char_indices()
+        .find(|(_, ch)| {
+            units += ch.len_utf16();
+            units > col
+        })
+        .map_or(line.len(), |(index, _)| index)
+}
+
+/// `source` with the lines `first..=last` replaced by `new`, and the lines to show again.
+pub(crate) fn rewrite_lines(
+    source: &str,
+    hide: &[Hide],
+    (first, last): (usize, usize),
+    new: &[String],
+) -> Edited {
+    let lines: Vec<&str> = source.split('\n').collect();
+    let kinds = text_kinds(source);
+    let inside = boneyard_lines(source);
+    let splice = splice_lines(source, first..last + 1, new);
     let from_source = Source {
         lines: &lines,
         kinds: &kinds,

@@ -11,6 +11,7 @@ mod caps;
 mod change;
 mod compare;
 mod conflict;
+mod emphasis;
 mod fdx;
 mod fdx_marks;
 mod fdx_read;
@@ -39,6 +40,7 @@ pub use caps::typed_caps;
 pub use change::{edit_shown, replace_source, Change, Edited, Spot};
 pub use compare::{compare, Comparison, Edit, LineChange, SceneDiff, ScenePlace, SceneStatus};
 pub use conflict::conflict_line;
+pub use emphasis::{emphasis_at, toggle_mark, EmphasisAt, Mark};
 pub use fdx::FdxLoss;
 pub use fdx_read::read_fdx;
 pub use fdx_write::write_fdx;
@@ -186,3 +188,6 @@ mod shown_tests;
 
 #[cfg(test)]
 mod change_tests;
+
+#[cfg(test)]
+mod emphasis_tests;
