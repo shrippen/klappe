@@ -48,13 +48,22 @@ impl Mark {
         }
     }
 
-    fn set(self, marks: &mut Marks, on: bool) {
+    fn set(self, marks: &mut Marks, switch: Switch) {
+        let on = switch == Switch::On;
+
         match self {
             Mark::Bold => marks.bold = on,
             Mark::Italic => marks.italic = on,
             Mark::Underline => marks.underline = on,
         }
     }
+}
+
+/// Whether a toggle sets the emphasis or takes it away.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Switch {
+    On,
+    Off,
 }
 
 /// The shown characters `start..end` of a line that a selection takes.
@@ -196,79 +205,67 @@ pub fn toggle_mark(source: &str, hide: &[Hide], (from, to): (Spot, Spot), mark: 
             .iter()
             .all(|m| mark.of(m))
     };
-    let on = !found.iter().all(has);
-    let old: Vec<String> = lines[first..=last]
+    let switch = match found.iter().all(has) {
+        true => Switch::Off,
+        false => Switch::On,
+    };
+    let mut new: Vec<String> = lines[first..=last]
         .iter()
         .map(|l| (*l).to_owned())
         .collect();
-    let mut new = old.clone();
 
     for piece in &found {
         let mut marks = marks_of(&shown[piece.line]);
         marks[piece.start..piece.end]
             .iter_mut()
-            .for_each(|m| mark.set(m, on));
+            .for_each(|m| mark.set(m, switch));
         let edit = LineEdit {
             removed: 0..0,
             typed: String::new(),
             runs: runs(&marks),
         };
+        let line = edit_line(lines[piece.line], piece.kind, piece.shape, &READ, &edit);
 
-        new[piece.line - first] =
-            edit_line(lines[piece.line], piece.kind, piece.shape, &READ, &edit);
-    }
-
-    let same = Same::of(source, &lines, first);
-    if !same.holds(&new) {
-        // Line by line: the lines that cannot take it stay as they are.
-        for piece in &found {
-            let at = piece.line - first;
-            let mut one = old.clone();
-            one[at].clone_from(&new[at]);
-            if !same.holds(&one) {
-                new[at].clone_from(&old[at]);
-            }
+        // A line that cannot take it as asked stays as it is.
+        if holds(&lines, piece.line, &line, &marks) {
+            new[piece.line - first] = line;
         }
     }
 
     rewrite_lines(source, hide, (first, last), &new)
 }
 
-/// What a toggle leaves as it is: the text each line shows and what each line is.
-struct Same<'a> {
-    lines: &'a [&'a str],
-    first: usize,
-    kinds: Vec<TextKind>,
-    texts: Vec<String>,
-}
+/// How many lines on each side of a line the check of a change reads.
+const NEAR: usize = 3;
 
-impl<'a> Same<'a> {
-    fn of(source: &str, lines: &'a [&'a str], first: usize) -> Same<'a> {
-        Same {
-            lines,
-            first,
-            kinds: text_kinds(source),
-            texts: shown_lines(source, &READ)
-                .into_iter()
-                .map(|l| l.text)
-                .collect(),
-        }
+/// Whether line `at` of `lines` written as `line` shows what `marks` say (their emphasis, the
+/// text it had), and neither it nor the lines around it are another kind or have other
+/// emphasis. Reads only the lines around it, not the book.
+fn holds(lines: &[&str], at: usize, line: &str, marks: &[Marks]) -> bool {
+    let from = at.saturating_sub(NEAR);
+    let to = (at + NEAR + 1).min(lines.len());
+    let mut changed: Vec<&str> = lines[from..to].to_vec();
+    changed[at - from] = line;
+    let (old, new) = (lines[from..to].join("\n"), changed.join("\n"));
+    let (old_shown, new_shown) = (shown_lines(&old, &READ), shown_lines(&new, &READ));
+
+    if text_kinds(&old) != text_kinds(&new) {
+        return false;
     }
 
-    /// Whether the source with `new` in place of the lines from `first` has them still.
-    fn holds(&self, new: &[String]) -> bool {
-        let end = self.first + new.len();
-        let mut all: Vec<&str> = self.lines[..self.first].to_vec();
-        all.extend(new.iter().map(String::as_str));
-        all.extend(&self.lines[end..]);
-        let source = all.join("\n");
-        let shown = shown_lines(&source, &READ);
+    old_shown
+        .iter()
+        .zip(&new_shown)
+        .enumerate()
+        .all(|(n, (was, now))| {
+            let wanted = match n == at - from {
+                true => marks.to_vec(),
+                false => marks_of(was),
+            };
 
-        text_kinds(&source) == self.kinds
-            && shown.len() == self.texts.len()
-            && shown
-                .iter()
-                .zip(&self.texts)
-                .all(|(l, text)| l.text == *text)
-    }
+            was.text == now.text
+                && was.notes == now.notes
+                && was.number == now.number
+                && marks_of(now) == wanted
+        })
 }

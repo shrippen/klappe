@@ -1,6 +1,7 @@
 //! Emphasis toggled over a selection of the source (D-36, D-37).
 
-use crate::{emphasis_at, shown_lines, toggle_mark, Hide, Mark, Spot};
+use crate::shown::marks_of;
+use crate::{emphasis_at, shown_lines, toggle_mark, Hide, Mark, Marks, Spot};
 
 const SHOWN: [Hide; 1] = [Hide::Emphasis];
 const SOURCE: [Hide; 0] = [];
@@ -100,10 +101,6 @@ fn a_selection_without_characters_changes_nothing() {
     let source = "Das ist **fett**.\n\nZwei";
 
     assert_eq!(on_line(source, 5, 5, Mark::Bold), source);
-    assert_eq!(
-        toggled(source, spot(1, 0), spot(1, 0), Mark::Italic),
-        source
-    );
     assert_eq!(
         toggled(source, spot(1, 0), spot(1, 0), Mark::Italic),
         source
@@ -226,6 +223,60 @@ fn the_state_of_a_heading_is_bold_and_fixed() {
     assert!(!emphasis_at("INT. KÜCHE - TAG\n\nText", spot(0, 2), spot(2, 3)).heading);
 }
 
+/// The emphasis of each character of each line of `source`.
+fn marks_by_line(source: &str) -> Vec<Vec<Marks>> {
+    shown_lines(source, &SHOWN)
+        .iter()
+        .map(|l| marks_of(&l.runs, l.text.chars().count()))
+        .collect()
+}
+
+fn has(mark: Mark, marks: &Marks) -> bool {
+    match mark {
+        Mark::Bold => marks.bold,
+        Mark::Italic => marks.italic,
+        Mark::Underline => marks.underline,
+    }
+}
+
+/// After a toggle of `mark` over the whole of line 0 of `before`: the line is as it was, or it
+/// has the mark switched as asked on every character and every other emphasis as it was.
+fn assert_all_or_nothing(before: &str, mark: Mark) {
+    let after = on_line(before, 0, before.len(), mark);
+    if after == before {
+        return;
+    }
+
+    let old = marks_by_line(before);
+    let new = marks_by_line(&after);
+    let on = !old[0].iter().all(|m| has(mark, m));
+    let mut want = old[0].clone();
+    for m in &mut want {
+        match mark {
+            Mark::Bold => m.bold = on,
+            Mark::Italic => m.italic = on,
+            Mark::Underline => m.underline = on,
+        }
+    }
+
+    assert_eq!(new[0], want, "{mark:?} over {before:?} gave {after:?}");
+}
+
+#[test]
+fn bold_over_a_line_ending_in_italic_loses_nothing() {
+    assert_all_or_nothing("Sie sagt *nein*", Mark::Bold);
+}
+
+#[test]
+fn bold_over_a_short_line_ending_in_italic_loses_nothing() {
+    assert_all_or_nothing("Er *kommt*", Mark::Bold);
+}
+
+#[test]
+fn italic_over_a_line_ending_in_bold_loses_nothing() {
+    assert_all_or_nothing("Er **kommt**", Mark::Italic);
+}
+
 const EXAMPLE: &str = include_str!("../../../testdata/beispiel.klappe/drehbuch.fountain");
 /// Every this many columns of the example's lines start or end a selection.
 const SAMPLE_STEP: usize = 13;
@@ -247,6 +298,7 @@ fn each_selection(book: &str, step: usize) {
         .into_iter()
         .map(|l| l.text)
         .collect();
+    let old_marks = marks_by_line(book);
 
     for (at, line) in lines.iter().enumerate() {
         let len = line.encode_utf16().count();
@@ -265,6 +317,20 @@ fn each_selection(book: &str, step: usize) {
                     .map(|l| l.text)
                     .collect();
                 assert_eq!(after, texts, "{said} gave {:?}", done.source);
+
+                // No emphasis but the one toggled is lost or made.
+                for (new, old) in marks_by_line(&done.source).iter().zip(&old_marks) {
+                    for (n, o) in new.iter().zip(old) {
+                        let rest = |m: &Marks| (m.bold, m.italic, m.underline);
+                        let (mut n, mut o) = (rest(n), rest(o));
+                        match mark {
+                            Mark::Bold => (n.0, o.0) = (false, false),
+                            Mark::Italic => (n.1, o.1) = (false, false),
+                            Mark::Underline => (n.2, o.2) = (false, false),
+                        }
+                        assert_eq!(n, o, "{said} gave {:?}", done.source);
+                    }
+                }
             }
         }
     }
