@@ -196,6 +196,36 @@ fn bold_over_the_whole_script_of_120_pages_is_quick() {
     );
 }
 
+/// The worst book for it: every other cue is forced (`!BEN`), which bold turns into a character
+/// and its lines into dialogue, so the lines under it have to be checked again.
+#[test]
+#[ignore = "timing, run by `make perf` in release"]
+fn bold_over_forced_cues_of_120_pages_is_quick() {
+    let text = screenplay().replace("\nBEN\n", "\n!BEN\n");
+    let lines = text.split('\n').count();
+    let all = (
+        Spot { line: 0, col: 0 },
+        Spot {
+            line: lines - 1,
+            col: 0,
+        },
+    );
+    let mut slowest = Duration::ZERO;
+
+    for _ in 0..RUNS {
+        let start = Instant::now();
+        let done = toggle_mark(&text, &[Hide::Emphasis], all, Mark::Bold);
+        slowest = slowest.max(start.elapsed());
+        assert!(done.source.contains("**I know. We both do.**"));
+    }
+
+    println!("{lines} lines, forced cues, slowest of {RUNS} runs: {slowest:?} (budget {TOGGLE_BUDGET:?})");
+    assert!(
+        slowest <= TOGGLE_BUDGET,
+        "{slowest:?} is over {TOGGLE_BUDGET:?}"
+    );
+}
+
 /// Ctrl+B over one word in the middle of 120 pages.
 #[test]
 #[ignore = "timing, run by `make perf` in release"]
