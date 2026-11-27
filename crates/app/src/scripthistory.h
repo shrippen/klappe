@@ -37,6 +37,8 @@ public:
 
     // Forgets every step: the text came from outside (open, import, a restored backup).
     Q_INVOKABLE void reset();
+    // The next change is a step of its own, however soon it comes (a toggled emphasis).
+    Q_INVOKABLE void seal();
     // The source had `removed` at `at` replaced by `put`; capitals as typed join the step.
     Q_INVOKABLE void record(int at, const QString& removed, const QString& put);
     // Takes back the last step: `{ at, removed, put }`, the change to make; empty for none.

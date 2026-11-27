@@ -2,13 +2,43 @@
 //! Positions are UTF-16 units, as the text area counts them.
 
 use klappe_services::{
-    edit_shown, replace_source, shown_lines, Hide, Marks, Run, ShownChange, ShownEdit, ShownLine,
-    ShownSpot,
+    edit_shown, emphasis_at, replace_source, shown_lines, toggle_mark, Hide, Mark, Marks, Run,
+    ShownChange, ShownEdit, ShownLine, ShownSpot,
 };
 use serde_json::{json, Value};
 
 /// What the editor leaves out of its text. Step by step it hides more (`Hide`).
 const HIDE: [Hide; 1] = [Hide::Emphasis];
+
+/// What the editor leaves out of its text in the source view: nothing.
+const HIDE_NONE: [Hide; 0] = [];
+
+/// The view's name for the text as the writer reads it.
+const VIEW_SHOWN: &str = "shown";
+
+/// How the editor shows the source: as the printed screenplay, or as Fountain.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(in crate::bridge) enum View {
+    Shown,
+    Source,
+}
+
+impl View {
+    /// The view the editor names; anything but "shown" is the source.
+    pub(in crate::bridge) fn named(name: &str) -> View {
+        match name == VIEW_SHOWN {
+            true => View::Shown,
+            false => View::Source,
+        }
+    }
+
+    fn hide(self) -> &'static [Hide] {
+        match self {
+            View::Shown => &HIDE,
+            View::Source => &HIDE_NONE,
+        }
+    }
+}
 
 /// A shown line as `{ text, runs: [{ from, to, bold, italic, underline }], cols }`. `runs`
 /// are the stretches that have emphasis. `cols` has per unit of the text the unit where it
@@ -69,10 +99,10 @@ fn cols_json(line: &str, shown: &ShownLine) -> Value {
 }
 
 /// The lines of `source` as the editor shows them.
-pub(in crate::bridge) fn shown_json(source: &str) -> String {
+pub(in crate::bridge) fn shown_json(source: &str, view: View) -> String {
     let lines = source
         .split('\n')
-        .zip(shown_lines(source, &HIDE))
+        .zip(shown_lines(source, view.hide()))
         .map(|(line, shown)| line_json(line, &shown))
         .collect();
 
@@ -150,12 +180,12 @@ fn edited_json(edited: &ShownEdit) -> String {
 }
 
 /// `source` after the change, as `edited_json`. Empty for a change that cannot be read.
-pub(in crate::bridge) fn edit_json(source: &str, change: &str) -> String {
+pub(in crate::bridge) fn edit_json(source: &str, change: &str, view: View) -> String {
     let Some(change) = read_change(change) else {
         return String::new();
     };
 
-    edited_json(&edit_shown(source, &HIDE, &change))
+    edited_json(&edit_shown(source, view.hide(), &change))
 }
 
 /// `source` with the text from line `line`, column `from` to line `end`, column `to`
@@ -165,14 +195,58 @@ pub(in crate::bridge) fn replace_json(
     (line, from): (usize, usize),
     (end, to): (usize, usize),
     text: &str,
+    view: View,
 ) -> String {
     let at = |line, col| ShownSpot { line, col };
 
     edited_json(&replace_source(
         source,
-        &HIDE,
+        view.hide(),
         at(line, from),
         at(end, to),
         text,
     ))
+}
+
+fn mark_named(name: &str) -> Option<Mark> {
+    match name {
+        "bold" => Some(Mark::Bold),
+        "italic" => Some(Mark::Italic),
+        "underline" => Some(Mark::Underline),
+        _ => None,
+    }
+}
+
+/// `source` with the emphasis `mark` ("bold", "italic", "underline") toggled over the source
+/// text from `from` to `to`, as `edited_json`. Empty for an unknown mark.
+pub(in crate::bridge) fn toggle_json(
+    source: &str,
+    (from, to): ((usize, usize), (usize, usize)),
+    mark: &str,
+    view: View,
+) -> String {
+    let Some(mark) = mark_named(mark) else {
+        return String::new();
+    };
+    let at = |(line, col)| ShownSpot { line, col };
+
+    edited_json(&toggle_mark(source, view.hide(), (at(from), at(to)), mark))
+}
+
+/// The emphasis the source text from `from` to `to` has, as `{ bold, italic, underline,
+/// heading }`: what all of it has, `heading` when bold is not for the writer to set.
+pub(in crate::bridge) fn emphasis_json(
+    source: &str,
+    (from, to): ((usize, usize), (usize, usize)),
+) -> String {
+    let at = |(line, col)| ShownSpot { line, col };
+    let state = emphasis_at(source, at(from), at(to));
+
+    json!({
+        "bold": state.marks.bold,
+        "italic": state.marks.italic,
+        "underline": state.marks.underline,
+        "heading": state.heading,
+    })
+    .to_string()
 }

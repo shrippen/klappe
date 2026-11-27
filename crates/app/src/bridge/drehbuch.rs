@@ -331,17 +331,70 @@ fn report_json(report: &ImportReport) -> String {
     .to_string()
 }
 
+/// A line or column the window counts, as an index; 0 for a negative one.
+fn index(n: i32) -> usize {
+    usize::try_from(n).unwrap_or_default()
+}
+
 impl qobject::Controller {
     pub(super) fn script_kinds(&self, text: &QString) -> QString {
         q(&kinds_text(&text.to_string()))
     }
 
-    pub(super) fn script_shown_json(&self, source: &QString) -> QString {
-        q(&shown::shown_json(&source.to_string()))
+    pub(super) fn script_shown_json(&self, source: &QString, view: &QString) -> QString {
+        let view = shown::View::named(&view.to_string());
+
+        q(&shown::shown_json(&source.to_string(), view))
     }
 
-    pub(super) fn script_edit_json(&self, source: &QString, change: &QString) -> QString {
-        q(&shown::edit_json(&source.to_string(), &change.to_string()))
+    pub(super) fn script_edit_json(
+        &self,
+        source: &QString,
+        change: &QString,
+        view: &QString,
+    ) -> QString {
+        let view = shown::View::named(&view.to_string());
+
+        q(&shown::edit_json(
+            &source.to_string(),
+            &change.to_string(),
+            view,
+        ))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn script_toggle_json(
+        &self,
+        source: &QString,
+        line: i32,
+        from: i32,
+        end_line: i32,
+        to: i32,
+        mark: &QString,
+        view: &QString,
+    ) -> QString {
+        let view = shown::View::named(&view.to_string());
+
+        q(&shown::toggle_json(
+            &source.to_string(),
+            ((index(line), index(from)), (index(end_line), index(to))),
+            &mark.to_string(),
+            view,
+        ))
+    }
+
+    pub(super) fn script_emphasis_json(
+        &self,
+        source: &QString,
+        line: i32,
+        from: i32,
+        end_line: i32,
+        to: i32,
+    ) -> QString {
+        q(&shown::emphasis_json(
+            &source.to_string(),
+            ((index(line), index(from)), (index(end_line), index(to))),
+        ))
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -353,14 +406,16 @@ impl qobject::Controller {
         end_line: i32,
         to: i32,
         text: &QString,
+        view: &QString,
     ) -> QString {
-        let index = |n: i32| usize::try_from(n).unwrap_or_default();
+        let view = shown::View::named(&view.to_string());
 
         q(&shown::replace_json(
             &source.to_string(),
             (index(line), index(from)),
             (index(end_line), index(to)),
             &text.to_string(),
+            view,
         ))
     }
 

@@ -21,6 +21,8 @@ const PAGES: &[&str] = &[
     "qml/ScriptFlow.qml",
     "qml/ScriptSearch.qml",
     "qml/ScriptSuggest.qml",
+    "qml/ScriptMenu.qml",
+    "qml/ScriptViewCommands.qml",
     "qml/PrintView.qml",
     "qml/SceneList.qml",
     "qml/ScriptImport.qml",

@@ -46,6 +46,11 @@ void ScriptHistory::reset()
     Q_EMIT stepsChanged();
 }
 
+void ScriptHistory::seal()
+{
+    m_since.invalidate();
+}
+
 // Typing on at the end of the last step, or deleting on before it, without a pause and within a
 // line, is the same step.
 bool ScriptHistory::joins(const Step& step) const

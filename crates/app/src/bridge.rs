@@ -417,9 +417,11 @@ pub mod qobject {
         /// bold, italic, underline }], cols }]`, positions in UTF-16 units of the shown line.
         /// `cols` has per unit of `text` where it stands in the source line, and where the text
         /// ends; null where each unit stands at itself.
+        /// `view` is "shown" (the screenplay without the marks of emphasis) or "source" (Fountain
+        /// as it stands, nothing hidden): the one the editor shows.
         #[qinvokable]
         #[cxx_name = "scriptShownJson"]
-        fn script_shown_json(self: &Self, source: &QString) -> QString;
+        fn script_shown_json(self: &Self, source: &QString, view: &QString) -> QString;
 
         /// `source` after a change of the shown text, as `{ source, from, to, shown }`: the old
         /// lines `from..to` are now the lines `shown` (as `scriptShownJson`). `change` is `{ line,
@@ -429,7 +431,12 @@ pub mod qobject {
         /// change that cannot be read.
         #[qinvokable]
         #[cxx_name = "scriptEditJson"]
-        fn script_edit_json(self: &Self, source: &QString, change: &QString) -> QString;
+        fn script_edit_json(
+            self: &Self,
+            source: &QString,
+            change: &QString,
+            view: &QString,
+        ) -> QString;
 
         /// `source` with the text from `from` of source line `line` to `to` of line `endLine`
         /// replaced by `text`, as `scriptEditJson` answers; `text` is Fountain as it stands. The
@@ -445,6 +452,39 @@ pub mod qobject {
             end_line: i32,
             to: i32,
             text: &QString,
+            view: &QString,
+        ) -> QString;
+
+        /// `source` with the emphasis `mark` ("bold", "italic", "underline") toggled over the
+        /// source text from `from` of line `line` to `to` of line `endLine` (UTF-16 units of
+        /// the source lines), as `scriptReplaceJson` answers: off when all of it has it, else
+        /// on for all of it. Nothing changes for a selection without characters, bold on a
+        /// heading, or a line that shows its marks. Empty for an unknown mark.
+        #[qinvokable]
+        #[cxx_name = "scriptToggleJson"]
+        fn script_toggle_json(
+            self: &Self,
+            source: &QString,
+            line: i32,
+            from: i32,
+            end_line: i32,
+            to: i32,
+            mark: &QString,
+            view: &QString,
+        ) -> QString;
+
+        /// The emphasis the source text from `from` of line `line` to `to` of line `endLine`
+        /// has, `{ bold, italic, underline, heading }`: what all of it has; for `from == to`
+        /// that of the character before the cursor. `heading`: bold is the heading's own.
+        #[qinvokable]
+        #[cxx_name = "scriptEmphasisJson"]
+        fn script_emphasis_json(
+            self: &Self,
+            source: &QString,
+            line: i32,
+            from: i32,
+            end_line: i32,
+            to: i32,
         ) -> QString;
 
         /// `{ columns, looks: { <letter>: { kind, x, width, align } } }`: the kinds of
