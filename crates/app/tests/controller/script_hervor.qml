@@ -133,7 +133,7 @@ Item {
             if (doc.read() !== typedXx || !view.tools.canUndo) {
                 return root.fail("undo goes wrong: " + JSON.stringify(doc.read().slice(-20)))
             }
-            const lines = JSON.parse(ctl.scriptShownJson(doc.read())).map(l => l.text).join("\n")
+            const lines = JSON.parse(ctl.scriptShownJson(doc.read(), "shown")).map(l => l.text).join("\n")
             if (area.text !== lines) {
                 return root.fail("the display is not the projection of the source: " + JSON.stringify(area.text))
             }

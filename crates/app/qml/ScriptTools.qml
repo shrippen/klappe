@@ -31,6 +31,11 @@ Item {
         history.record(at, removed, put)
     }
 
+    /// The next change is a step of its own, however soon it comes.
+    function seal() {
+        history.seal()
+    }
+
     /// The change that takes back the last one, `{ at, removed, put }`; empty for none.
     function undo() {
         return history.undo()

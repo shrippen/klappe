@@ -139,4 +139,58 @@ TestCase {
 
         compare(entry(header, "exportMenu", "scriptPdf").text, "Screenplay as PDF …")
     }
+
+    // D-36: "Fountain-Quelltext" in the View menu and the palette, for the flowing text of the
+    // screenplay only; the editor keeps the state.
+    function test_the_view_menu_switches_to_the_source() {
+        const header = make()
+        header.module = "screenplay"
+
+        const item = entry(header, "viewMenu", "scriptSource")
+        compare(item.text, "Fountain-Quelltext")
+        verify(item.enabled)
+        verify(item.checkable)
+        verify(!item.checked)
+        pick(header, "viewMenu", "scriptSource")
+
+        compare(viewSpy.count, 1)
+        compare(viewSpy.signalArguments[0][0], "scriptSource")
+        compare(viewSpy.signalArguments[0][1], true)
+    }
+
+    function test_the_source_switch_shows_its_state() {
+        const header = make()
+        header.module = "screenplay"
+        header.showScriptSource = true
+
+        verify(entry(header, "viewMenu", "scriptSource").checked)
+    }
+
+    function test_the_source_switch_is_in_the_palette() {
+        const header = make()
+        header.module = "screenplay"
+
+        const found = header.commands.find(c => c.id === "script.source")
+        verify(found)
+        compare(found.text, "Fountain-Quelltext")
+        verify(found.enabled)
+    }
+
+    function test_the_source_switch_wants_the_flowing_text_of_the_screenplay() {
+        const header = make()
+        header.module = "stellprobe"
+        verify(!entry(header, "viewMenu", "scriptSource").enabled)
+
+        header.module = "screenplay"
+        header.scriptFlow = false
+        verify(!entry(header, "viewMenu", "scriptSource").enabled)
+        header.scriptFlow = true
+        verify(entry(header, "viewMenu", "scriptSource").enabled)
+    }
+
+    function test_the_source_switch_is_english_too() {
+        const header = createTemporaryObject(headerComponent, tc, { texts: en })
+
+        compare(entry(header, "viewMenu", "scriptSource").text, "Fountain source")
+    }
 }

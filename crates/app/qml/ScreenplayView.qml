@@ -218,6 +218,7 @@ RowLayout {
         onPendingMoved: view.restyle()
     }
     readonly property alias flow: flow
+    readonly property alias scriptMenu: scriptMenu
     readonly property alias search: search
     readonly property alias sceneList: sceneList
     onLineLooksChanged: restyle()
@@ -334,9 +335,42 @@ RowLayout {
             undoText()
         } else if (event.matches(StandardKey.Redo)) {
             redoText()
-        } else if (!clipboardKey(event)) {
+        } else if (!clipboardKey(event) && !editKey(event)) {
             event.accepted = false
         }
+    }
+
+    /// Toggles `mark` ("bold", "italic", "underline") for the selection, or for what is typed next.
+    /// An emphasis is no typing: the case of the text stays.
+    function toggleMark(mark) {
+        _replaying = true
+        doc.toggleMark(mark)
+        _replaying = false
+    }
+
+    /// Ctrl+B, Ctrl+I, Ctrl+U and the keys of the context menu; false for another key.
+    function editKey(event) {
+        const marks = [[StandardKey.Bold, "bold"], [StandardKey.Italic, "italic"],
+                       [StandardKey.Underline, "underline"]]
+        const found = marks.find(m => event.matches(m[0]))
+        if (found) {
+            toggleMark(found[1])
+            return true
+        }
+        return scriptMenu.key(event)
+    }
+
+    /// The text shows the source as Fountain, nothing hidden (D-36); not kept with the project.
+    readonly property bool sourceShown: doc.view === ScriptDoc.View.Source
+
+    /// Shows the source as Fountain (`on`) or as the printed screenplay. The cursor, the selection
+    /// and the scroll stay where they are; nothing is written.
+    function showSource(on) {
+        const flick = scroll.contentItem
+        const top = flick.contentY
+        doc.setView(on ? ScriptDoc.View.Source : ScriptDoc.View.Shown)
+        restyle()
+        flick.contentY = Math.max(0, Math.min(top, flick.contentHeight - flick.height))
     }
 
     /// Alt+Up and Alt+Down in the scene list (DB-21): the scene or section whose heading is at text
@@ -444,6 +478,12 @@ RowLayout {
             doc.redrawRuns()
             item.forget()
         }
+    }
+    ScriptMenu {
+        id: scriptMenu
+        objectName: "scriptMenu"
+        texts: view.texts
+        editor: view
     }
     // Ctrl+F anywhere in the view, not only in the text (the scene list, the switch).
     Shortcut {
@@ -648,6 +688,22 @@ RowLayout {
                     Accessible.name: view.texts.t("screenplay.editor")
                     background: null
                     Keys.onPressed: event => view.keyPressed(event)
+                    // The context menu is the editor's own (ScriptMenu); the style's would copy
+                    // and cut the text without its marks, and cannot take a step back.
+                    TapHandler {
+                        objectName: "menuTap"
+                        acceptedButtons: Qt.RightButton
+                        onTapped: eventPoint => scriptMenu.openAt(eventPoint.position)
+                    }
+                    Component.onCompleted: {
+                        for (const child of data) {
+                            const right = child.acceptedButtons !== undefined
+                                && (child.acceptedButtons & Qt.RightButton) !== 0
+                            if (right && child.objectName !== "menuTap") {
+                                child.enabled = false
+                            }
+                        }
+                    }
                     // The page breaks of the last layout (DB-30): a thin line above the first line of
                     // each page, the page number at its right end. They sit on the text and move
                     // nothing; `contentHeight` and `width` re-place them when the lines wrap anew.
