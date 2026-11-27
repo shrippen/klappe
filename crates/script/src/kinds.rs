@@ -8,6 +8,8 @@
 //!     Ihr kommt spät.   Dialogue
 //! ```
 
+use std::cell::RefCell;
+
 use crate::{parse_located, title_page_lines, Element, Located, PageKind, Slot};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -93,9 +95,25 @@ impl TextKind {
     }
 }
 
+thread_local! {
+    /// The text `text_kinds` read last, and its kinds.
+    static LAST_KINDS: RefCell<(String, Vec<TextKind>)> = const { RefCell::new((String::new(), Vec::new())) };
+}
+
 /// The kind of every line of `text` (split at `\n`).
+///
+/// The editor asks for the kinds of the same text again and again: after an edit for the new
+/// text, and before the next one for what has become the old; the last answer is kept.
 pub fn text_kinds(text: &str) -> Vec<TextKind> {
-    located_kinds(text, &parse_located(text))
+    LAST_KINDS.with(|last| {
+        let mut last = last.borrow_mut();
+        if last.0 != text || last.1.is_empty() {
+            last.1 = located_kinds(text, &parse_located(text));
+            last.0 = text.to_owned();
+        }
+
+        last.1.clone()
+    })
 }
 
 /// `text_kinds` for a text already read as `located`. The reader says which lines each
@@ -129,6 +147,18 @@ pub fn located_kinds(text: &str, located: &[Located]) -> Vec<TextKind> {
 mod tests {
     use super::*;
     use crate::Align;
+
+    /// The kept answer is for the text it was made for only.
+    #[test]
+    fn the_last_answer_is_kept_for_the_same_text_only() {
+        let heading = "INT. SAAL - TAG";
+        let action = "Anna tritt ein.";
+
+        assert_eq!(text_kinds(heading), [TextKind::Heading]);
+        assert_eq!(text_kinds(heading), [TextKind::Heading]);
+        assert_eq!(text_kinds(action), [TextKind::Action]);
+        assert_eq!(text_kinds(heading), [TextKind::Heading]);
+    }
 
     #[test]
     fn kinds_of_a_dialogue_scene() {

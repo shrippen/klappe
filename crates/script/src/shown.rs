@@ -130,7 +130,12 @@ pub fn shown_lines(source: &str, hide: &[Hide]) -> Vec<ShownLine> {
         .collect()
 }
 
-fn shown_line(line: &str, kind: TextKind, in_boneyard: bool, hide: &[Hide]) -> ShownLine {
+pub(crate) fn shown_line(
+    line: &str,
+    kind: TextKind,
+    in_boneyard: bool,
+    hide: &[Hide],
+) -> ShownLine {
     let hidden = match kind == TextKind::Title && hide.contains(&Hide::TitlePage) {
         true => Hidden::TitlePage,
         false => Hidden::No,
@@ -657,7 +662,7 @@ fn is_typed_kind(kind: TextKind) -> bool {
 }
 
 /// The emphasis of each of `len` characters; what no run covers is plain.
-fn marks_of(runs: &[Run], len: usize) -> Vec<Marks> {
+pub(crate) fn marks_of(runs: &[Run], len: usize) -> Vec<Marks> {
     let mut marks = vec![Marks::default(); len];
 
     for run in runs {

@@ -6,14 +6,16 @@ use std::fmt::Write;
 use std::time::{Duration, Instant};
 
 use klappe_script::{
-    carry, page_starts, paginate, paginate_locked, parse, parse_located, text_kinds, PageOptions,
-    PageSize, Words,
+    carry, edit_shown, page_starts, paginate, paginate_locked, parse, parse_located, shown_lines,
+    text_kinds, Change, Hide, PageOptions, PageSize, Spot, Words,
 };
 
 const PAGES: usize = 120;
 /// The target of DN-02.
 const BUDGET: Duration = Duration::from_secs(1);
 const RUNS: usize = 5;
+/// Loading the editor's text of 120 pages (D-36).
+const LOAD_BUDGET: Duration = Duration::from_millis(300);
 /// The window's editor reads the kind of every line at each keystroke (D-15): one frame.
 const KEYSTROKE_BUDGET: Duration = Duration::from_millis(16);
 
@@ -112,4 +114,52 @@ fn a_locked_script_of_120_pages_is_carried_and_paged_in_a_second() {
     println!("{pages} pages, slowest of {RUNS} runs: {slowest:?} (budget {BUDGET:?})");
     assert!(pages >= PAGES);
     assert!(slowest <= BUDGET, "{slowest:?} is over {BUDGET:?}");
+}
+
+/// D-36: the window shows a script of 120 pages without the marks of emphasis: loading
+/// projects every line once, a keystroke changes one line of it and reads the kinds.
+#[test]
+#[ignore = "timing, run by `make perf` in release"]
+fn the_shown_text_of_120_pages_loads_and_a_keystroke_is_a_frame() {
+    // Emphasis in some lines, so the projection has marks to hide.
+    let text = screenplay().replace("Nobody moves.", "Nobody **moves** *at all*.");
+    let hide = [Hide::Emphasis];
+    let mut loading = Duration::ZERO;
+    let mut lines = 0;
+
+    for _ in 0..RUNS {
+        let start = Instant::now();
+        lines = shown_lines(&text, &hide).len();
+        loading = loading.max(start.elapsed());
+    }
+    println!("{lines} lines shown, slowest of {RUNS} runs: {loading:?} (budget {LOAD_BUDGET:?})");
+    assert!(
+        loading <= LOAD_BUDGET,
+        "{loading:?} is over {LOAD_BUDGET:?}"
+    );
+
+    // One character typed in the middle of the script, into a bold word.
+    let line = text
+        .lines()
+        .position(|l| l.contains("**moves**"))
+        .unwrap_or(0);
+    let at = Spot { line, col: 12 };
+    let key = Change {
+        from: at,
+        to: at,
+        typed: "x".to_owned(),
+        runs: Vec::new(),
+    };
+    let mut slowest = Duration::ZERO;
+    for _ in 0..RUNS {
+        let start = Instant::now();
+        let edited = edit_shown(&text, &hide, &key);
+        slowest = slowest.max(start.elapsed());
+        assert_eq!(edited.shown.len(), 1);
+    }
+    println!("a keystroke, slowest of {RUNS} runs: {slowest:?} (budget {KEYSTROKE_BUDGET:?})");
+    assert!(
+        slowest <= KEYSTROKE_BUDGET,
+        "{slowest:?} is over {KEYSTROKE_BUDGET:?}"
+    );
 }

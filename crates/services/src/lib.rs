@@ -129,6 +129,12 @@ pub use klappe_script::{
     TITLE_KEYS,
 };
 
+// The screenplay as the editor shows it (D-36) and a change of it as a change of the source.
+pub use klappe_script::{
+    edit_shown, replace_source, shown_lines, Change as ShownChange, Edited as ShownEdit, Hide,
+    ShownLine, Spot as ShownSpot,
+};
+
 // The kind of each text line and the columns the page sets it in (D-15), for an editor that
 // indents the elements like the page.
 pub use klappe_script::{

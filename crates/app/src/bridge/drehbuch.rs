@@ -14,6 +14,8 @@ use klappe_services::{
     Slot, Stage, TextKind, Vocabulary, SCRIPT_ASCENT_PT, SCRIPT_FONT_PT, TEXT_COLUMNS,
 };
 use serde_json::{json, Map, Value};
+
+mod shown;
 use std::collections::HashSet;
 
 /// The letter of each line kind for `scriptKinds` and its name in `scriptLooks`.
@@ -332,6 +334,34 @@ fn report_json(report: &ImportReport) -> String {
 impl qobject::Controller {
     pub(super) fn script_kinds(&self, text: &QString) -> QString {
         q(&kinds_text(&text.to_string()))
+    }
+
+    pub(super) fn script_shown_json(&self, source: &QString) -> QString {
+        q(&shown::shown_json(&source.to_string()))
+    }
+
+    pub(super) fn script_edit_json(&self, source: &QString, change: &QString) -> QString {
+        q(&shown::edit_json(&source.to_string(), &change.to_string()))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn script_replace_json(
+        &self,
+        source: &QString,
+        line: i32,
+        from: i32,
+        end_line: i32,
+        to: i32,
+        text: &QString,
+    ) -> QString {
+        let index = |n: i32| usize::try_from(n).unwrap_or_default();
+
+        q(&shown::replace_json(
+            &source.to_string(),
+            (index(line), index(from)),
+            (index(end_line), index(to)),
+            &text.to_string(),
+        ))
     }
 
     pub(super) fn script_looks(&self) -> QString {

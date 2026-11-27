@@ -8,6 +8,7 @@ mod align;
 mod anchor;
 mod assist;
 mod caps;
+mod change;
 mod compare;
 mod conflict;
 mod fdx;
@@ -35,6 +36,7 @@ pub use assist::{
     can_suggest, heading_like, heading_place, suggest, Context, Stage, Suggestions, Vocabulary,
 };
 pub use caps::typed_caps;
+pub use change::{edit_shown, replace_source, Change, Edited, Spot};
 pub use compare::{compare, Comparison, Edit, LineChange, SceneDiff, ScenePlace, SceneStatus};
 pub use conflict::conflict_line;
 pub use fdx::FdxLoss;
@@ -181,3 +183,6 @@ mod outline_tests;
 
 #[cfg(test)]
 mod shown_tests;
+
+#[cfg(test)]
+mod change_tests;

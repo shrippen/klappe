@@ -1,3 +1,4 @@
+use super::shown::{edit_json, replace_json, shown_json};
 use super::{
     breaks_json, enter_json, kinds_text, looks_json, move_json, outline_json, print_json,
     report_json, suggest_json, tab_json, title_json, title_set, ImportReport,
@@ -357,4 +358,71 @@ fn only_sections_have_a_fold_key() {
     assert_eq!(v[1]["key"], "");
     assert_eq!(v[2]["key"], "");
     assert_eq!(v[0]["folded"], false);
+}
+
+const SHOWN_SOURCE: &str = "Ä🎬 **fett** und\nPlain\nZwei";
+
+fn parsed(text: &str) -> serde_json::Value {
+    serde_json::from_str(text).unwrap()
+}
+
+/// The text has no marks; positions and columns count UTF-16 units (the emoji is two).
+#[test]
+fn shown_lines_have_runs_and_columns() {
+    let lines = parsed(&shown_json(SHOWN_SOURCE));
+
+    assert_eq!(lines[0]["text"], "Ä🎬 fett und");
+    assert_eq!(lines[0]["runs"][0]["from"], 4);
+    assert_eq!(lines[0]["runs"][0]["to"], 8);
+    assert_eq!(lines[0]["runs"][0]["bold"], true);
+    assert_eq!(lines[0]["runs"].as_array().unwrap().len(), 1);
+
+    // Ä stands at 0, the emoji at 1 and 2, the blank at 3, `f` behind `**` at 6, the end at 16.
+    let cols: Vec<u64> = lines[0]["cols"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_u64().unwrap())
+        .collect();
+    assert_eq!(cols.len(), 13);
+    assert_eq!(&cols[..5], &[0, 1, 2, 3, 6]);
+    assert_eq!(cols[12], 16);
+
+    assert!(lines[1]["cols"].is_null());
+    assert_eq!(lines.as_array().unwrap().len(), 3);
+}
+
+#[test]
+fn an_edit_gives_the_source_and_the_lines_to_show() {
+    let change = r#"{ "line": 0, "from": 6, "to": 6, "typed": "x",
+        "runs": [{ "from": 0, "to": 1, "bold": true }] }"#;
+    let edited = parsed(&edit_json(SHOWN_SOURCE, change));
+
+    assert_eq!(edited["source"], "Ä🎬 **fextt** und\nPlain\nZwei");
+    assert_eq!(
+        (edited["from"].as_u64(), edited["to"].as_u64()),
+        (Some(0), Some(1))
+    );
+    assert_eq!(edited["shown"][0]["text"], "Ä🎬 fextt und");
+
+    // Over lines: from the end of line 0 to the start of line 2.
+    let join = r#"{ "line": 0, "from": 12, "endLine": 2, "to": 0, "typed": "" }"#;
+    let joined = parsed(&edit_json(SHOWN_SOURCE, join));
+    assert_eq!(joined["source"], "Ä🎬 **fett** undZwei");
+    assert_eq!(
+        (joined["from"].as_u64(), joined["to"].as_u64()),
+        (Some(0), Some(3))
+    );
+    assert_eq!(joined["shown"].as_array().unwrap().len(), 1);
+
+    assert_eq!(edit_json(SHOWN_SOURCE, "no json"), "");
+}
+
+#[test]
+fn a_replacement_in_the_source_gives_the_lines_to_show() {
+    // The emoji is two units: `ett` stands at the columns 7 to 10.
+    let edited = parsed(&replace_json(SHOWN_SOURCE, (0, 7), (0, 10), "ET"));
+
+    assert_eq!(edited["source"], "Ä🎬 **fET** und\nPlain\nZwei");
+    assert_eq!(edited["shown"][0]["text"], "Ä🎬 fET und");
 }
