@@ -36,6 +36,10 @@ const EXIT_USAGE: i32 = 64;
 /// Folder with Kante's QML module, for installs that keep it elsewhere.
 const QML_DIR_VAR: &str = "KLAPPE_QML_DIR";
 
+/// Qt 6.12's incremental garbage collector crashes now and then (seen in the QML tests,
+/// scripts/check-qml.sh); 0 makes each collection finish in one go.
+const GC_LIMIT_VAR: &str = "QV4_GC_TIMELIMIT";
+
 fn main() {
     let options = args::AppArgs::from_env();
     if options.help {
@@ -45,6 +49,11 @@ fn main() {
     if let Some(option) = options.unknown {
         eprint!("klappe: unknown option {option}\n\n{}", args::USAGE);
         std::process::exit(EXIT_USAGE);
+    }
+
+    // Before Qt starts, which reads it once; a value the caller set stays.
+    if std::env::var_os(GC_LIMIT_VAR).is_none() {
+        std::env::set_var(GC_LIMIT_VAR, "0");
     }
 
     let mut app = application::new();
