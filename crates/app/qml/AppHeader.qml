@@ -4,6 +4,7 @@ import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 import Kante
 import "ProjectData.js" as ProjectData
+import "KeyNames.js" as KeyNames
 
 // D-02, D-03 (planung/DESIGN.md): the window's header. The mark, where we are (project ›
 // scene › plan, the plan's name a menu), the menus, undo and redo, and the command palette.
@@ -86,8 +87,7 @@ RowLayout {
 
     // "Ctrl+Shift+Z" as the keyboard of the language names it.
     function keyName(sequence) {
-        return sequence.replace("Ctrl", texts.t("key.ctrl")).replace("Shift", texts.t("key.shift"))
-            .replace("Space", texts.t("key.space"))
+        return KeyNames.name(texts, sequence)
     }
 
     // "Undo: Move (Ctrl+Z)": the step the button takes back or does again (LH-103); the plain

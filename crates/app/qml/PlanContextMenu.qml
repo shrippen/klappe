@@ -3,6 +3,7 @@ import QtQuick.Controls as QQC2
 import QtQml
 import QtQuick.Dialogs
 import Kante
+import "KeyNames.js" as KeyNames
 
 // The context menu of the plan (LH-100): right click, the Menu key or Shift+F10 on an element
 // (it is selected first) or on empty ground. The entries are the commands the keys of
@@ -61,8 +62,7 @@ QQC2.Menu {
 
     /// "Ctrl+Shift+Z" as the keyboard of the language names it.
     function keyName(sequence) {
-        return sequence.replace("Ctrl", texts.t("key.ctrl")).replace("Shift", texts.t("key.shift"))
-            .replace("Delete", texts.t("key.delete"))
+        return KeyNames.name(texts, sequence)
     }
 
     KantePopupSkin { popup: menu }

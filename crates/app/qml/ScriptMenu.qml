@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls as QQC2
 import Kante
+import "KeyNames.js" as KeyNames
 
 // D-37, D-43: the context menu of the screenplay's text, in place of the style's own (which
 // copies and cuts the text without its marks and has no step to take back). Right click, the
@@ -74,31 +75,26 @@ QQC2.Menu {
         editor.area.forceActiveFocus()
     }
 
-    /// "Ctrl+Shift+Z" as the keyboard of the language names it.
-    function keyName(sequence) {
-        return sequence.replace("Ctrl", texts.t("key.ctrl")).replace("Shift", texts.t("key.shift"))
-    }
-
     KantePopupSkin { popup: menu }
 
     KanteMenuItem {
         objectName: "menuCut"
         text: menu.texts.t("screenplay.cut")
-        shortcutText: menu.keyName("Ctrl+X")
+        shortcutText: KeyNames.name(menu.texts, "Ctrl+X")
         enabled: menu.selected
         onTriggered: menu.cut()
     }
     KanteMenuItem {
         objectName: "menuCopy"
         text: menu.texts.t("screenplay.copy")
-        shortcutText: menu.keyName("Ctrl+C")
+        shortcutText: KeyNames.name(menu.texts, "Ctrl+C")
         enabled: menu.selected
         onTriggered: menu.editor.copySelection()
     }
     KanteMenuItem {
         objectName: "menuPaste"
         text: menu.texts.t("screenplay.paste")
-        shortcutText: menu.keyName("Ctrl+V")
+        shortcutText: KeyNames.name(menu.texts, "Ctrl+V")
         enabled: menu.editor.area.canPaste
         onTriggered: menu.editor.area.paste()
     }
@@ -108,14 +104,14 @@ QQC2.Menu {
     KanteMenuItem {
         objectName: "menuUndo"
         text: menu.texts.t("menu.undo")
-        shortcutText: menu.keyName("Ctrl+Z")
+        shortcutText: KeyNames.name(menu.texts, "Ctrl+Z")
         enabled: menu.canUndo
         onTriggered: menu.editor.undoText()
     }
     KanteMenuItem {
         objectName: "menuRedo"
         text: menu.texts.t("menu.redo")
-        shortcutText: menu.keyName("Ctrl+Shift+Z")
+        shortcutText: KeyNames.name(menu.texts, "Ctrl+Shift+Z")
         enabled: menu.canRedo
         onTriggered: menu.editor.redoText()
     }
@@ -126,7 +122,7 @@ QQC2.Menu {
     KanteMenuItem {
         objectName: "menuBold"
         text: menu.texts.t("screenplay.bold")
-        shortcutText: menu.keyName("Ctrl+B")
+        shortcutText: KeyNames.name(menu.texts, "Ctrl+B")
         checkable: true
         checked: menu.marks.bold
         // A heading is bold throughout.
@@ -139,7 +135,7 @@ QQC2.Menu {
     KanteMenuItem {
         objectName: "menuItalic"
         text: menu.texts.t("screenplay.italic")
-        shortcutText: menu.keyName("Ctrl+I")
+        shortcutText: KeyNames.name(menu.texts, "Ctrl+I")
         checkable: true
         checked: menu.marks.italic
         onTriggered: {
@@ -150,7 +146,7 @@ QQC2.Menu {
     KanteMenuItem {
         objectName: "menuUnderline"
         text: menu.texts.t("screenplay.underline")
-        shortcutText: menu.keyName("Ctrl+U")
+        shortcutText: KeyNames.name(menu.texts, "Ctrl+U")
         checkable: true
         checked: menu.marks.underline
         onTriggered: {

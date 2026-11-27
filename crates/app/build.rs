@@ -121,7 +121,7 @@ const PAGES: &[&str] = &[
 fn main() {
     CxxQtBuilder::new_qml_module(QmlModule::new("io.github.shrippen.klappe").qml_files(PAGES))
         // Plain JavaScript is no QML file of the module; it goes in as a resource beside the pages.
-        .qrc_resources(["qml/ProjectData.js"])
+        .qrc_resources(["qml/ProjectData.js", "qml/KeyNames.js"])
         .qt_module("Quick")
         .qt_module("Widgets")
         .files([
