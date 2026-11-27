@@ -190,3 +190,52 @@ fn a_replaced_range_is_source_as_it_stands() {
     let edited = replace_source("a\nb", &EMPHASIS, spot(0, 1), spot(0, 1), "\n\n");
     assert_eq!(edited.source, "a\n\n\nb");
 }
+
+/// The shown text of the first line of `source`, and its source.
+fn shown_text(source: &str, hide: &[Hide]) -> String {
+    crate::shown_lines(source, hide).swap_remove(0).text
+}
+
+#[test]
+fn a_join_keeps_the_backslashes_of_the_first_line() {
+    let join = change(spot(0, 13), spot(1, 0), "");
+    let edited = edit_shown("Ein \\*Stern\\* x\nB", &EMPHASIS, &join);
+    assert_eq!(edited.source, "Ein \\*Stern\\* xB");
+    assert_eq!(edited.shown[0].text, "Ein *Stern* xB");
+
+    let join = change(spot(0, 5), spot(1, 0), "");
+    let edited = edit_shown("a \\_b\\_\nc", &EMPHASIS, &join);
+    assert_eq!(edited.source, "a \\_b\\_c");
+
+    // A selection over the break, written over with a character.
+    let over = change(spot(0, 5), spot(1, 1), "Z");
+    let edited = edit_shown("a \\_b\\_\nc", &EMPHASIS, &over);
+    assert_eq!(edited.source, "a \\_b\\_Z");
+}
+
+#[test]
+fn a_mark_does_not_pair_over_an_escaped_one() {
+    let source = typed_by_char("Preis *5 \\* 3 Euro", "*");
+    assert_eq!(source, "Preis *5 \\* 3 Euro*");
+    assert_eq!(shown_text(&source, &EMPHASIS), "Preis 5 * 3 Euro");
+
+    let source = typed_by_char("*a \\* b", "*");
+    assert_eq!(shown_text(&source, &EMPHASIS), "a * b");
+}
+
+#[test]
+fn a_join_and_a_split_keep_the_notes() {
+    let join = change(spot(0, 10), spot(1, 0), "");
+    let edited = edit_shown("Anna [[n]] geht\nB", &ALL, &join);
+    assert_eq!(edited.source, "Anna [[n]] gehtB");
+
+    let split = change(spot(0, 4), spot(0, 4), "\n");
+    let edited = edit_shown("Anna [[n]] geht", &ALL, &split);
+    assert_eq!(
+        edited.source.matches("[[n]]").count(),
+        1,
+        "{:?}",
+        edited.source
+    );
+    assert_eq!(edited.source, "Anna\n [[n]] geht");
+}

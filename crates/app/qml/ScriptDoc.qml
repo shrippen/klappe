@@ -47,6 +47,12 @@ QtObject {
     /// `load` is running: what changes the source then is no typing.
     property bool loading: false
 
+    /// Where a change of the source comes from: typed in the area, which holds it already, or
+    /// made by a part of the editor, which the area still lacks.
+    enum Origin { Typed, Replaced }
+    /// The end of a text a comparison starts from.
+    enum Edge { Start, End }
+
     /// The source changed by typing, a replacement or an undo step (not by `load`).
     signal edited()
 
@@ -67,8 +73,6 @@ QtObject {
 
     /// Text this long is compared in one go.
     readonly property int _chunk: 512
-    /// The characters of emphasis.
-    readonly property string _marks: "*_"
 
     Component.onCompleted: area.textChanged.connect(_onArea)
 
@@ -168,7 +172,16 @@ QtObject {
         const line = _lineOf(_t.disp, pos)
         const shown = _lines[line]
         const at = Math.min(pos - _t.disp[line], shown.text.length)
-        return _t.src[line] + (shown.cols ? shown.cols[at] : at)
+        if (shown.cols) {
+            return _t.src[line] + shown.cols[at]
+        }
+        // The end of a line is behind a return that the shown text does not have (CRLF).
+        return at === shown.text.length ? _lineEnd(line) : _t.src[line] + at
+    }
+
+    /// Where line `line` ends in the source, before its line break.
+    function _lineEnd(line) {
+        return line + 1 < _lines.length ? _t.src[line + 1] - 1 : _source.length
     }
 
     /// The source position behind the character shown before `pos`: an end of a selection.
@@ -185,56 +198,48 @@ QtObject {
 
     // ---- selection ----
 
-    /// The source of the selected text, with the marks that open or close its emphasis at its
-    /// ends: a copy of `fett` in `**fett**` is `**fett**`. Empty without a selection.
+    /// The source of the selected text as closed Fountain: the marks of the emphasis the selection
+    /// starts or ends in close it, so a copy of `ett` in `**fett**` is `**ett**`, and pasting it
+    /// shows no stray mark. Empty without a selection.
     function selectedSource() {
         if (area.selectedText === "") {
             return ""
         }
 
-        const range = _selectedRange()
-        return _source.slice(range[0], range[1])
-    }
-
-    /// Takes the selection out of the source (cut).
-    function cutSelection() {
-        if (area.selectedText === "") {
-            return
-        }
-
-        const range = _selectedRange()
-        replace(range[0], range[1], "")
-    }
-
-    function _selectedRange() {
         _tables()
         const start = area.selectionStart
         const end = area.selectionEnd
-        return [
-            _withMarks(toSource(start), start, -1),
-            _withMarks(toSourceEnd(end), end, 1)
-        ]
+        return _marksOf(_runAt(start), true) + _source.slice(toSource(start), toSourceEnd(end))
+            + _marksOf(_runAt(end - 1), false)
     }
 
-    /// `pos` moved over the marks next to it when an emphasised stretch starts (`way` -1) or
-    /// ends (1) at the shown position `shownAt`.
-    function _withMarks(pos, shownAt, way) {
-        const line = _lineOf(_t.disp, shownAt)
-        const col = shownAt - _t.disp[line]
-        const edge = way < 0 ? "from" : "to"
-        if (!_lines[line].runs.some(run => run[edge] === col)) {
-            return pos
+    /// Takes the selection out of the text, as a deletion typed in the area is.
+    function cutSelection() {
+        if (area.selectedText !== "") {
+            area.remove(area.selectionStart, area.selectionEnd)
+        }
+    }
+
+    /// The emphasis the shown character at `pos` has, null for none or at the end of a line.
+    function _runAt(pos) {
+        if (pos < 0) {
+            return null
         }
 
-        const last = line + 1 < _lines.length ? _t.src[line + 1] - 1 : _source.length
-        let at = pos
-        while (way < 0 ? at > _t.src[line] : at < last) {
-            if (_marks.indexOf(_source.charAt(way < 0 ? at - 1 : at)) < 0) {
-                break
-            }
-            at += way
+        const line = _lineOf(_t.disp, pos)
+        const col = pos - _t.disp[line]
+        return _lines[line].runs.find(run => run.from <= col && col < run.to) || null
+    }
+
+    /// The marks that open (`opening`) or close the emphasis `run`.
+    function _marksOf(run, opening) {
+        if (!run) {
+            return ""
         }
-        return at
+
+        const stars = run.bold && run.italic ? "***" : run.bold ? "**" : run.italic ? "*" : ""
+        const underline = run.underline ? "_" : ""
+        return opening ? underline + stars : stars + underline
     }
 
     // ---- changes of the source ----
@@ -254,7 +259,7 @@ QtObject {
         const a = _sourceSpot(from)
         const b = _sourceSpot(to)
         const done = controller.scriptReplaceJson(_source, a.line, a.col, b.line, b.col, text)
-        _take(JSON.parse(done), false)
+        _take(JSON.parse(done), ScriptDoc.Origin.Replaced)
     }
 
     /// Takes back the last step of the history; the source position the cursor goes to, -1 for none.
@@ -287,11 +292,11 @@ QtObject {
 
         _tables()
         const old = _text
-        let start = _same(old, now, 0, false)
+        let start = _same(old, now, 0, ScriptDoc.Edge.Start)
         if (start > 0 && _isHigh(old.charCodeAt(start - 1))) {
             start--
         }
-        let end = _same(old, now, start, true)
+        let end = _same(old, now, start, ScriptDoc.Edge.End)
         if (end > 0 && _isLow(old.charCodeAt(old.length - end))) {
             end--
         }
@@ -306,7 +311,7 @@ QtObject {
         if (done === "") {
             return
         }
-        _take(JSON.parse(done), true)
+        _take(JSON.parse(done), ScriptDoc.Origin.Typed)
     }
 
     /// What `typed` has of emphasis: that of the character before it, at the start of a line of
@@ -326,8 +331,8 @@ QtObject {
     }
 
     /// Makes the answer of the controller the state: the source, the lines, the drawn emphasis,
-    /// the area and the history. `ownText` is whether the area holds the change already (typed).
-    function _take(res, ownText) {
+    /// the area and the history. `origin` says whether the area holds the change already.
+    function _take(res, origin) {
         _tables()
         const count = res.to - res.from
         const at = _t.src[res.from]
@@ -344,7 +349,7 @@ QtObject {
         if (tools && tools.setRuns) {
             tools.setRuns(res.from, count, shown.map(_flat))
         }
-        _show(shownStart, ownText ? shown.length : count, shown)
+        _show(shownStart, origin === ScriptDoc.Origin.Typed ? shown.length : count, shown)
         _rev++
         if (unchanged) {
             return
@@ -358,8 +363,8 @@ QtObject {
 
     /// The history gets what changed between `before` and `after`, which stood at `at`.
     function _record(at, before, after) {
-        const start = _same(before, after, 0, false)
-        const end = _same(before, after, start, true)
+        const start = _same(before, after, 0, ScriptDoc.Edge.Start)
+        const end = _same(before, after, start, ScriptDoc.Edge.End)
 
         tools.record(at + start, before.slice(start, before.length - end),
                      after.slice(start, after.length - end))
@@ -384,16 +389,22 @@ QtObject {
             return
         }
 
-        const head = _same(current, want, 0, false)
-        const tail = _same(current, want, head, true)
+        const head = _same(current, want, 0, ScriptDoc.Edge.Start)
+        const tail = _same(current, want, head, ScriptDoc.Edge.End)
         const from = start + head
         const to = start + current.length - tail
         const put = want.slice(head, want.length - tail)
+        // Where a position goes: one before the change stays, one behind it moves by what the
+        // change adds, one inside has no place (-1).
+        const delta = put.length - (to - from)
+        const where = pos => pos <= from ? pos : pos >= to ? pos + delta : -1
         const cursor = area.cursorPosition
-        let moved = cursor
-        if (cursor > end) {
-            moved = cursor + want.length - current.length
-        } else if (cursor >= start) {
+        const selected = area.selectionStart !== area.selectionEnd
+        const reversed = cursor === area.selectionStart
+        const first = where(area.selectionStart)
+        const last = where(area.selectionEnd)
+        let moved = where(cursor)
+        if (moved < 0) {
             moved = Math.max(start, start + want.length - (end - cursor))
         }
 
@@ -401,7 +412,12 @@ QtObject {
         area.remove(from, to)
         area.insert(from, put)
         _text = _text.slice(0, from) + put + _text.slice(to)
-        area.cursorPosition = moved
+        if (selected && first >= 0 && last >= 0) {
+            // The selection keeps its direction: the cursor is at the end it was.
+            area.select(reversed ? last : first, reversed ? first : last)
+        } else {
+            area.cursorPosition = moved
+        }
         _busy = false
     }
 
@@ -484,12 +500,12 @@ QtObject {
         return out
     }
 
-    /// How far `a` and `b` agree: from `from` on to the first difference (`atEnd` false; the
-    /// position), or from the end back to `from` (`atEnd`; the number of characters).
-    function _same(a, b, from, atEnd) {
+    /// How far `a` and `b` agree: from `from` on to the first difference (`Edge.Start`; the
+    /// position), or from the end back to `from` (`Edge.End`; the number of characters).
+    function _same(a, b, from, edge) {
         const max = Math.min(a.length, b.length) - from
         let n = 0
-        if (!atEnd) {
+        if (edge === ScriptDoc.Edge.Start) {
             while (n + _chunk <= max && a.substr(from + n, _chunk) === b.substr(from + n, _chunk)) {
                 n += _chunk
             }

@@ -14,9 +14,9 @@ use klappe_services::{
     Slot, Stage, TextKind, Vocabulary, SCRIPT_ASCENT_PT, SCRIPT_FONT_PT, TEXT_COLUMNS,
 };
 use serde_json::{json, Map, Value};
+use std::collections::HashSet;
 
 mod shown;
-use std::collections::HashSet;
 
 /// The letter of each line kind for `scriptKinds` and its name in `scriptLooks`.
 const KINDS: [(TextKind, char, &str); 14] = [

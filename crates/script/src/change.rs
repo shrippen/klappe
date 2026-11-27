@@ -12,9 +12,9 @@
 
 use std::ops::Range;
 
-use crate::inline::{runs, UNDERLINE};
-use crate::parse::{boneyard_lines, STAR};
-use crate::shown::{edit_line, marks_of, shown_line};
+use crate::inline::{runs, NOTE_BRACKET, UNDERLINE};
+use crate::parse::{boneyard_lines, ESCAPE, NOTE_CLOSE, NOTE_OPEN, STAR};
+use crate::shown::{edit_notes, marks_of, shown_line, Notes, Untouched};
 use crate::{
     shown_lines, splice_lines, text_kinds, Hide, LineEdit, Marks, Run, ShownLine, Splice, TextKind,
 };
@@ -240,42 +240,47 @@ fn write_lines(from: &Source, ends: &Ends, change: &Change) -> Vec<String> {
         false => cut,
     };
 
-    let edit_of = |removed, text: &[char], marks: &[Marks]| LineEdit {
-        removed,
-        typed: text.iter().collect(),
-        runs: runs(marks),
-    };
-    let on = |at: usize, shown: &ShownLine, edit: &LineEdit| {
-        edit_line(lines[at], kinds[at], shown.shape, hide, edit)
+    let on = |at: usize, shown: &ShownLine, edit: &LineEdit, notes: Notes| {
+        let how = (Untouched::Keep, notes);
+        edit_notes(lines[at], kinds[at], shown.shape, hide, edit, how)
     };
 
     let pieces = line_pieces(&typed);
     let one = &pieces[0];
 
     // One piece: the start of the first line, the piece and the rest of the last line make
-    // one line, which keeps the source of the last.
+    // one line. The rest keeps its source; the start is typed again, with the backslashes and
+    // notes it had.
     if pieces.len() == 1 {
-        let marks = [
-            &head_marks[..keep],
-            &typed_marks[one.clone()],
-            &tail_marks[cut..],
-        ]
-        .concat();
-        let edit = match first == last {
-            true => edit_of(keep..cut, &typed[one.clone()], &marks),
-            false => {
-                let text = [&head_text[..keep], &typed[one.clone()]].concat();
-                edit_of(0..cut, &text, &marks)
-            }
-        };
+        let piece = &typed[one.clone()];
+        if first == last {
+            let marks = [
+                &head_marks[..keep],
+                &typed_marks[one.clone()],
+                &tail_marks[cut..],
+            ]
+            .concat();
+            let edit = line_edit(keep..cut, piece, &marks);
 
-        return vec![on(last, &ends.tail, &edit)];
+            return vec![on(last, &ends.tail, &edit, Notes::All)];
+        }
+
+        let head = (&head_marks[..], lines[first]);
+        let (text, marks) = joined(&ends.head, head, keep, (piece, &typed_marks[one.clone()]));
+        let marks = [&marks[..], &tail_marks[cut..]].concat();
+
+        return vec![on(
+            last,
+            &ends.tail,
+            &line_edit(0..cut, &text, &marks),
+            Notes::From(cut),
+        )];
     }
 
     let mut out = Vec::new();
     let marks = [&head_marks[..keep], &typed_marks[one.clone()]].concat();
-    let edit = edit_of(keep..head_text.len(), &typed[one.clone()], &marks);
-    out.push(on(first, &ends.head, &edit));
+    let edit = line_edit(keep..head_text.len(), &typed[one.clone()], &marks);
+    out.push(on(first, &ends.head, &edit, Notes::Before(keep)));
 
     // Lines between are typed: Fountain as it stands.
     for piece in &pieces[1..pieces.len() - 1] {
@@ -287,10 +292,89 @@ fn write_lines(from: &Source, ends: &Ends, change: &Change) -> Vec<String> {
     out.push(on(
         last,
         &ends.tail,
-        &edit_of(0..cut, &typed[rest.clone()], &marks),
+        &line_edit(0..cut, &typed[rest.clone()], &marks),
+        Notes::From(cut),
     ));
 
     out
+}
+
+/// The edit that cuts `removed` and types `text`, the emphasis of the new line being `marks`.
+fn line_edit(removed: Range<usize>, text: &[char], marks: &[Marks]) -> LineEdit {
+    LineEdit {
+        removed,
+        typed: text.iter().collect(),
+        runs: runs(marks),
+    }
+}
+
+/// The start of the first line (to `keep`) as it is typed again, then the piece typed, then the
+/// notes the first line has from `keep` on, as the characters and their emphasis.
+fn joined(
+    head: &ShownLine,
+    (marks, source): (&[Marks], &str),
+    keep: usize,
+    (piece, piece_marks): (&[char], &[Marks]),
+) -> (Vec<char>, Vec<Marks>) {
+    let (mut text, mut out) = retyped(head, source, marks, 0..keep);
+    text.extend(piece);
+    out.extend(piece_marks);
+
+    for note in head.notes.iter().filter(|n| n.at >= keep) {
+        let note = note_chars(&note.text);
+        out.extend(vec![out.last().copied().unwrap_or_default(); note.len()]);
+        text.extend(note);
+    }
+
+    (text, out)
+}
+
+/// The characters of a note as they stand in the source.
+fn note_chars(text: &str) -> Vec<char> {
+    format!("{NOTE_OPEN}{text}{NOTE_CLOSE}").chars().collect()
+}
+
+/// Whether the character `at` of a shown line stands behind a backslash in its source line.
+fn is_escaped(line: &ShownLine, source: &str, at: usize) -> bool {
+    let col = line.cols[at];
+    let protected = matches!(
+        line.text.chars().nth(at),
+        Some(STAR | UNDERLINE | ESCAPE | NOTE_BRACKET)
+    );
+
+    protected && col > 0 && source.as_bytes()[col - 1] == b'\\'
+}
+
+/// The characters `range` of a shown line as they are typed again: a backslash before each
+/// that its source protects, and, where the notes are hidden, a note before the character it
+/// stands before. What the user did not touch keeps what made it text.
+fn retyped(
+    line: &ShownLine,
+    source: &str,
+    marks: &[Marks],
+    range: Range<usize>,
+) -> (Vec<char>, Vec<Marks>) {
+    let chars: Vec<char> = line.text.chars().collect();
+    let (mut out, mut out_marks) = (Vec::new(), Vec::new());
+
+    for at in range {
+        for note in line.notes.iter().filter(|n| n.at == at) {
+            let note = note_chars(&note.text);
+            out_marks.extend(vec![
+                out_marks.last().copied().unwrap_or_default();
+                note.len()
+            ]);
+            out.extend(note);
+        }
+        if is_escaped(line, source, at) {
+            out.push(ESCAPE);
+            out_marks.push(marks[at]);
+        }
+        out.push(chars[at]);
+        out_marks.push(marks[at]);
+    }
+
+    (out, out_marks)
 }
 
 /// The characters of `typed` each of its lines spans.
@@ -327,8 +411,7 @@ fn pair_marks(from: &Source, ends: &Ends, change: &Change) -> Option<Change> {
     let cut = change.to.col.clamp(keep, text.len());
     let marks = marks_of(&ends.head.runs, text.len());
     let typed_marks = marks_of(&change.runs, change.typed.chars().count());
-    let source = from.lines[ends.first].as_bytes();
-    let escaped = |at: usize| ends.head.cols[at] > 0 && source[ends.head.cols[at] - 1] == b'\\';
+    let escaped = |at: usize| is_escaped(&ends.head, from.lines[ends.first], at);
     let literal = text.len() - (cut - keep) + change.typed.chars().count();
 
     // The marks before the change, nearest first, each from the start of its run of marks.
@@ -346,14 +429,18 @@ fn pair_marks(from: &Source, ends: &Ends, change: &Change) -> Option<Change> {
     starts.dedup();
 
     for start in starts.into_iter().take(PAIRS_TRIED) {
+        // The notes between stay where the change moves them; the backslashes go along.
+        let mut head = ends.head.clone();
+        head.notes.clear();
+        let (again, again_marks) = retyped(&head, from.lines[ends.first], &marks, start..keep);
         let widened = Change {
             from: Spot {
                 line: ends.first,
                 col: start,
             },
             to: change.to,
-            typed: text[start..keep].iter().collect::<String>() + &change.typed,
-            runs: runs(&[&marks[start..keep], &typed_marks[..]].concat()),
+            typed: again.iter().collect::<String>() + &change.typed,
+            runs: runs(&[&again_marks[..], &typed_marks[..]].concat()),
         };
         let line = write_lines(from, ends, &widened).swap_remove(0);
         let read = shown_lines(&line, from.hide).swap_remove(0);

@@ -214,9 +214,59 @@ TestCase {
         area.select(0, 7)
         compare(doc.selectedSource(), "Das ist")
         area.select(10, 20)
-        compare(doc.selectedSource(), "tt** und *kur")
+        // A copy is closed Fountain: the marks of the emphasis at its ends close, so pasting it
+        // shows no stray mark.
+        compare(doc.selectedSource(), "**tt** und *kur*")
         area.select(5, 5)
         compare(doc.selectedSource(), "")
+    }
+
+    function test_a_change_behind_the_cursor_leaves_it() {
+        const area = makeArea()
+        const doc = make(area)
+        doc.load("Hallo Welt\nZweite")
+
+        doc.setCursor(0)
+        doc.replace(6, 10, "Erde und Mond")
+        compare(doc.cursor, 0)
+
+        doc.setCursor(2)
+        doc.replace(6, 19, "Welt")
+        compare(doc.cursor, 2)
+    }
+
+    function test_a_change_before_the_cursor_moves_it_by_the_difference() {
+        const area = makeArea()
+        const doc = make(area)
+        doc.load("Hallo Welt\nZweite")
+
+        doc.setCursor(13)
+        doc.replace(6, 10, "Erde und Mond")
+
+        compare(doc.cursor, 22)
+    }
+
+    function test_a_selection_outside_the_change_stays() {
+        const area = makeArea()
+        const doc = make(area)
+        doc.load("Hallo Welt\nZweite")
+
+        doc.select(11, 17)
+        doc.replace(6, 10, "Erde und Mond")
+
+        compare(area.selectedText, "Zweite")
+        compare([doc.selectionStart, doc.selectionEnd].join(), "20,26")
+    }
+
+    function test_the_end_of_a_crlf_line_is_behind_its_return() {
+        const area = createTemporaryObject(areaComponent, tc)
+        const doc = make(area)
+        doc.load("Sie kommt an.\r\nX")
+
+        doc.setCursor(14)
+        compare(area.cursorPosition, 13)
+        compare(doc.cursor, 14)
+        compare(doc.cursor, doc.lineStart(0) + "Sie kommt an.\r".length)
     }
 
     Component {

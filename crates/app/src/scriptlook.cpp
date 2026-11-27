@@ -100,6 +100,9 @@ void ScriptLook::setDocument(QQuickTextDocument* document)
     delete m_faces;
     m_document = document;
     if (document) {
+        // The editor has its own history of the source (ScriptHistory). The area's list would
+        // undo half a step from its context menu.
+        document->textDocument()->setUndoRedoEnabled(false);
         m_faces = new ScriptFaces(this, document->textDocument());
     }
     Q_EMIT documentChanged();

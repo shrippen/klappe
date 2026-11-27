@@ -363,6 +363,16 @@ pub(crate) enum Untouched {
     Rewrite,
 }
 
+/// Which of the notes of a line an edit keeps; a change over a line break shares them out.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Notes {
+    All,
+    /// Those that stand before the character with this index.
+    Before(usize),
+    /// Those that stand before this character or later.
+    From(usize),
+}
+
 pub(crate) fn edit(
     old: &str,
     kind: TextKind,
@@ -371,17 +381,38 @@ pub(crate) fn edit(
     change: &LineEdit,
     untouched: Untouched,
 ) -> String {
+    edit_notes(old, kind, shape, hide, change, (untouched, Notes::All))
+}
+
+/// `edit`, keeping only the notes `keep` names.
+pub(crate) fn edit_notes(
+    old: &str,
+    kind: TextKind,
+    shape: Shape,
+    hide: &[Hide],
+    change: &LineEdit,
+    (untouched, keep): (Untouched, Notes),
+) -> String {
     let split = split_line(old, kind, hide).filter(|_| shape == Shape::Shown);
     let Some(split) = split else {
         return typed_edit(old, change);
     };
 
-    let before = read_body(old, split.start..split.end, hide);
+    let mut before = read_body(old, split.start..split.end, hide);
+    let all = before.notes.len();
+    before.notes.retain(|note| match keep {
+        Notes::All => true,
+        Notes::Before(at) => note.at < at,
+        Notes::From(at) => note.at >= at,
+    });
+    let shared_out = before.notes.len() != all;
     let plan = plan(&before, change, hide.contains(&Hide::Emphasis));
 
     // The line is not touched: it stays as it is, even if it is not canonical.
-    let same =
-        plan.chars == before.chars && plan.marks == before.marks && plan.notes == before.notes;
+    let same = !shared_out
+        && plan.chars == before.chars
+        && plan.marks == before.marks
+        && plan.notes == before.notes;
     if untouched == Untouched::Keep && same {
         return old.to_owned();
     }
