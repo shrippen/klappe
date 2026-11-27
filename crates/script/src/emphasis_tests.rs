@@ -586,9 +586,9 @@ const POOL: [&str; 16] = [
 /// book keeps every kind and leaves nothing that one line alone could still take.
 #[test]
 fn books_of_mixed_blocks_toggle_exactly_and_fully() {
-    let mut state = 1;
+    let mut state: u64 = 1;
     let mut next = |below: u64| {
-        state = (state as u64).wrapping_mul(LCG_MUL).wrapping_add(LCG_ADD);
+        state = state.wrapping_mul(LCG_MUL).wrapping_add(LCG_ADD);
         ((state >> 33) % below) as usize
     };
 
