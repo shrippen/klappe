@@ -371,7 +371,9 @@ pub(crate) fn edit(
     let plan = plan(&before, change, hide.contains(&Hide::Emphasis));
 
     // The line is not touched: it stays as it is, even if it is not canonical.
-    if untouched == Untouched::Keep && plan.chars == before.chars && plan.marks == before.marks {
+    let same =
+        plan.chars == before.chars && plan.marks == before.marks && plan.notes == before.notes;
+    if untouched == Untouched::Keep && same {
         return old.to_owned();
     }
     if plan.chars.is_empty() && before.notes.is_empty() {
@@ -420,6 +422,15 @@ impl Plan {
 
         Plan {
             escaped,
+            ..self.copy()
+        }
+    }
+
+    /// The same with every character protected (a typed `_` can turn an earlier one into
+    /// emphasis).
+    fn guarded(&self) -> Plan {
+        Plan {
+            escaped: vec![true; self.chars.len()],
             ..self.copy()
         }
     }
@@ -514,11 +525,14 @@ fn rewrite(
         above,
     };
 
-    // Typed text may damage its neighbours (`*` behind italic text): then it is literal;
-    // when even that fails, nothing is emphasis and every character is protected.
+    // Typed text may damage its neighbours (`*` behind italic text): then it is literal; then
+    // every character is protected; when even that fails, nothing is emphasis.
     let mut result = written(&target, plan);
     if result.is_err() && !plan.typed.is_empty() {
         result = written(&target, &plan.literal());
+    }
+    if result.is_err() {
+        result = written(&target, &plan.guarded());
     }
     if result.is_err() {
         result = written(&target, &plan.plain());
@@ -583,22 +597,56 @@ enum Lead {
     Added,
 }
 
-/// What may stand in front of the text, in the order to try: as it was, without its forcing
-/// character, with the forcing character of the target kind.
-fn leads(target: &Target) -> Vec<(String, Lead)> {
+/// Whether the mark that ends a line (` ^`, `<`) stays.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum End {
+    Kept,
+    Dropped,
+}
+
+/// The mark that ends a line of `kind`, as the part behind the text may have it.
+fn end_mark(kind: TextKind) -> Option<char> {
+    match kind {
+        TextKind::Character => Some(DUAL_MARK),
+        TextKind::Centered => Some(CENTER_END),
+        _ => None,
+    }
+}
+
+/// What may stand in front of the text and behind it, in the order to try: as it was, without
+/// its forcing character, without the mark that ends the line, with the forcing character of
+/// the target kind.
+fn leads(target: &Target, tail: &str) -> Vec<(String, Lead, End)> {
     let prefix = &target.old[..target.split.start];
     let mark = prefix.trim_start();
     let bare = &prefix[..prefix.len() - mark.len()];
-    let mut leads = vec![(prefix.to_owned(), Lead::Kept)];
+    let ends = end_mark(target.kind).is_some_and(|m| tail.trim_start().starts_with(m));
+    let mut leads = vec![(prefix.to_owned(), Lead::Kept, End::Kept)];
 
     if !mark.is_empty() {
-        leads.push((bare.to_owned(), Lead::Kept));
+        leads.push((bare.to_owned(), Lead::Kept, End::Kept));
+    }
+    if ends {
+        leads.push((bare.to_owned(), Lead::Kept, End::Dropped));
     }
     if let Some(force) = forcing_char(target.reads) {
-        leads.push((format!("{bare}{force}"), Lead::Added));
+        leads.push((format!("{bare}{force}"), Lead::Added, End::Kept));
+        if ends {
+            leads.push((format!("{bare}{force}"), Lead::Added, End::Dropped));
+        }
     }
 
     leads
+}
+
+/// The part behind the text without the mark that ends the line: only blanks follow that mark.
+fn without_end(tail: &str, kind: TextKind) -> &str {
+    let marked = end_mark(kind).is_some_and(|m| tail.trim_start().starts_with(m));
+
+    match marked {
+        true => "",
+        false => tail,
+    }
 }
 
 /// The line for `plan` that reads as the target kind, with the text and emphasis the change
@@ -611,21 +659,27 @@ fn written(target: &Target, plan: &Plan) -> Result<String, String> {
         notes: &plan.notes,
     };
     let (body, effective) = write_body(&part);
-
-    // A blank typed at the end must not become the blank that leads up to a mark behind it.
-    let tail = &target.old[target.split.end..];
-    let apart =
-        body.ends_with(char::is_whitespace) && tail.starts_with(|c: char| !c.is_whitespace());
-    let gap = if apart { " " } else { "" };
+    let old_tail = &target.old[target.split.end..];
     let mut first = None;
 
-    for (lead, how) in leads(target) {
+    for (lead, how, end) in leads(target, old_tail) {
+        let tail = match end {
+            End::Kept => old_tail,
+            End::Dropped => without_end(old_tail, target.kind),
+        };
+        // A blank typed at the end must not become the blank that leads up to a mark behind it.
+        let apart =
+            body.ends_with(char::is_whitespace) && tail.starts_with(|c: char| !c.is_whitespace());
+        let gap = if apart { " " } else { "" };
         let line = format!("{lead}{body}{gap}{tail}");
         let read = read_in(&line, target.kind, target.above, target.hide);
-        // Without `Hide::Forcing` the character put in front is text; only the kind counts.
+        // Without `Hide::Forcing` the character put in front is text; only the kind counts. A
+        // line that shows its marks (a section) has no hidden text to compare.
         let visible = how == Lead::Added && !target.hide.contains(&Hide::Forcing);
         let right = read.kind == target.reads
-            && (visible || reads_right(&read, &part, &effective, &plan.typed));
+            && (visible
+                || is_typed_kind(read.kind)
+                || reads_right(&read, &part, &effective, &plan.typed));
         if right {
             return Ok(line);
         }
@@ -634,6 +688,19 @@ fn written(target: &Target, plan: &Plan) -> Result<String, String> {
     }
 
     Err(first.unwrap_or_default())
+}
+
+/// The kinds the editor shows with their marks.
+fn is_typed_kind(kind: TextKind) -> bool {
+    matches!(
+        kind,
+        TextKind::Blank
+            | TextKind::Title
+            | TextKind::Section
+            | TextKind::Synopsis
+            | TextKind::Note
+            | TextKind::PageBreak
+    )
 }
 
 /// Whether `read` has the text, emphasis and notes of `part` before and behind what was typed

@@ -151,6 +151,12 @@ fn round_trip(source: &str) -> usize {
         assert_eq!(after.runs, shown.runs, "{said}");
         assert_eq!(after.notes, shown.notes, "{said}");
         assert_eq!(after.number, shown.number, "{said}");
+
+        // Only emphasis and notes are written another way (marks around nothing, marks that
+        // touch, a note inside a stretch), and what comes back is canonical.
+        assert!(has_marks(lines[at]), "{said}");
+        assert!(moves_only_marks(lines[at], &again), "{said}");
+        assert_eq!(same_again(&again, after.kind, &after), again, "{said}");
     }
 
     changed
@@ -436,16 +442,14 @@ impl Gen {
 #[test]
 fn fuzz_a_line_without_change_reads_the_same() {
     let mut gen = Gen(1);
-    let (mut changed, mut lines) = (0, 0);
+    let mut changed = 0;
 
+    // `round_trip` checks that every line written differently only moved marks and notes.
     for _ in 0..SEEDS {
-        let source = gen.text();
-        lines += source.split('\n').count();
-        changed += round_trip(&source);
+        changed += round_trip(&gen.text());
     }
 
-    // Only a line with marks around nothing or marks that touch is written differently.
-    assert!(changed * 50 < lines, "{changed} of {lines} lines changed");
+    assert!(changed > 0, "no line was written differently");
 }
 
 const WORDS: [&str; 4] = ["Anna", "ÄÖÜ", "🎬", " "];
@@ -757,3 +761,5 @@ fn a_long_line_with_two_far_changes_is_quick() {
 }
 
 mod edit;
+
+use edit::{has_marks, moves_only_marks};

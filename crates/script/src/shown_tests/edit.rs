@@ -1,5 +1,7 @@
 //! One change of a line (D-36): the rules of the kind, the notes and the typed text.
 
+use std::collections::BTreeMap;
+
 use super::*;
 
 /// The first line of `source` after `change`, shown with `hide`.
@@ -120,10 +122,14 @@ fn a_typed_heading_in_a_cue_line_is_not_a_cue() {
     );
 }
 
-/// `line` as the editor reads it: a cue has a line of speech below it, the rest stands alone.
+/// `line` as the editor reads it: a cue has a line of speech below it, speech a cue above it,
+/// the rest stands alone.
 fn read_as(kind: TextKind, line: &str) -> ShownLine {
     match kind {
         TextKind::Character => shown_lines(&format!("{line}\nx"), &ALL).remove(0),
+        TextKind::Parenthetical | TextKind::Dialogue => {
+            shown_lines(&format!("ANNA\n{line}"), &ALL).remove(1)
+        }
         _ => shown_one(line),
     }
 }
@@ -131,11 +137,16 @@ fn read_as(kind: TextKind, line: &str) -> ShownLine {
 /// A shown line of its own and a random change of it, with the emphasis of the new text.
 fn one_splice(gen: &mut Gen) -> Option<Case> {
     let line = gen.line();
-    // A cue is a cue only with speech below it; any other line is read by itself.
-    let cue = read_as(TextKind::Character, &line);
-    let shown = match cue.kind == TextKind::Character {
-        true => cue,
-        false => shown_one(&line),
+    // A cue is a cue only with speech below it, speech only below a cue; any other line is
+    // read by itself.
+    let shown = match gen.next(3) {
+        0 => read_as(TextKind::Character, &line),
+        1 => read_as(TextKind::Dialogue, &line),
+        _ => shown_one(&line),
+    };
+    let shown = match shown.kind {
+        TextKind::Character | TextKind::Dialogue | TextKind::Parenthetical => shown,
+        _ => shown_one(&line),
     };
     let len = shown.text.chars().count();
     if shown.shape != Shape::Shown || len == 0 {
@@ -190,6 +201,42 @@ struct Case {
     marks: Vec<Marks>,
 }
 
+/// What Fountain cannot write: the cases where the rules ask for more than a line can say.
+/// Each has a test of its own below that pins what the writer does instead.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum Limit {
+    /// A heading cannot start with a dot: `..` is no forcing character.
+    DotHeading,
+    /// A transition cannot end with `<`: `>Text<` is centered.
+    TransitionEnd,
+    /// A cue cannot end with `^`: it marks dual dialogue.
+    CueEnd,
+    /// A note behind `(leise)` keeps the line from being a parenthetical.
+    NoteEndsParenthetical,
+    /// A blank with a note is a note.
+    BlankWithNote,
+    /// A `/*` that is text could open a boneyard; the writer protects it, the text alone reads
+    /// as a boneyard.
+    BoneyardText,
+    /// Stars after a `/` or `*`, or after the stars of another run, would join them, and stars
+    /// after a `/` open a boneyard: the run stays plain.
+    TouchingStars,
+}
+
+const LIMITS: [Limit; 7] = [
+    Limit::DotHeading,
+    Limit::TransitionEnd,
+    Limit::CueEnd,
+    Limit::NoteEndsParenthetical,
+    Limit::BlankWithNote,
+    Limit::BoneyardText,
+    Limit::TouchingStars,
+];
+
+fn has_stars(marks: Marks) -> bool {
+    (marks.bold || marks.italic) && !marks.underline
+}
+
 impl Case {
     fn old(&self) -> Vec<char> {
         self.shown.text.chars().collect()
@@ -210,6 +257,66 @@ impl Case {
             &old[removed.end..],
         ]
         .concat()
+    }
+
+    /// The limit of Fountain this case runs into, if any.
+    fn limit(&self) -> Option<Limit> {
+        let text = self.text();
+        let expected = self.kind();
+        let trimmed: String = text.iter().collect::<String>().trim_end().to_owned();
+        let at_end = moved(&self.shown.notes, &self.change)
+            .iter()
+            .any(|n| n.at >= text.len());
+
+        let kind_limits = [
+            (
+                TextKind::Heading,
+                trimmed.starts_with('.'),
+                Limit::DotHeading,
+            ),
+            (
+                TextKind::Transition,
+                trimmed.ends_with('<'),
+                Limit::TransitionEnd,
+            ),
+            (TextKind::Character, trimmed.ends_with('^'), Limit::CueEnd),
+            (
+                TextKind::Parenthetical,
+                at_end,
+                Limit::NoteEndsParenthetical,
+            ),
+            (
+                TextKind::Blank,
+                !self.shown.notes.is_empty(),
+                Limit::BlankWithNote,
+            ),
+        ];
+
+        if trimmed.contains("/*") {
+            return Some(Limit::BoneyardText);
+        }
+        if let Some((_, _, limit)) = kind_limits
+            .iter()
+            .find(|(k, met, _)| *k == expected && *met)
+        {
+            return Some(*limit);
+        }
+
+        self.touching().then_some(Limit::TouchingStars)
+    }
+
+    /// Whether a run of stars starts behind a `/`, a `*` or the stars of another run, or ends
+    /// behind a `/`: the stars would join or open a boneyard.
+    fn touching(&self) -> bool {
+        let text = self.text();
+
+        (1..=text.len()).any(|i| {
+            let before = self.marks[i - 1];
+            let now = self.marks.get(i).copied().unwrap_or_default();
+            let opens = has_stars(now) && (matches!(text[i - 1], '/' | '*') || has_stars(before));
+
+            before != now && (opens || has_stars(before) && text[i - 1] == '/')
+        })
     }
 
     /// The kind: the old one while the visible text reads as before, else the new one.
@@ -263,13 +370,13 @@ impl Case {
 }
 
 /// A random change of a line never panics, the kind follows the rules, and what it leaves
-/// alone keeps its text, emphasis and notes. A few lines cannot do both (a centered line
-/// whose text turns into action keeps its marks), so the misses are counted.
+/// alone keeps its text, emphasis and notes, except where Fountain cannot say it (`Limit`).
 #[test]
 fn fuzz_a_change_leaves_the_rest_alone() {
     let mut gen = Gen(4);
-    let (mut tried, mut kind_off, mut rest_off) = (0, 0, 0);
-    let mut first = None;
+    let mut tried = 0;
+    let mut limited: BTreeMap<Limit, usize> = BTreeMap::new();
+    let mut outside = Vec::new();
 
     for _ in 0..SEEDS * 4 {
         let Some(case) = one_splice(&mut gen) else {
@@ -283,29 +390,172 @@ fn fuzz_a_change_leaves_the_rest_alone() {
         let new = edit_line(line, shown.kind, shown.shape, &ALL, &case.change);
         let read = read_as(shown.kind, &new);
         let said = format!(
-            "{line:?} {:?} {:?} -> {new:?}",
-            case.change.removed, case.change.typed
+            "{line:?} {:?} {:?} -> {new:?} (was {:?})",
+            case.change.removed, case.change.typed, shown.kind
         );
         tried += 1;
 
-        if read.kind != case.kind() {
-            kind_off += 1;
-            first.get_or_insert(format!("kind {said}"));
-        }
         // A line that became another kind shows its marks: nothing to compare.
-        if read.shape == Shape::Shown && read.kind == shown.kind && !case.kept_by(&read) {
-            rest_off += 1;
-            first.get_or_insert(said);
+        let moved = read.shape != Shape::Shown || read.kind != shown.kind;
+        let wrong = read.kind != case.kind() || (!moved && !case.kept_by(&read));
+        if !wrong {
+            continue;
+        }
+        match case.limit() {
+            Some(limit) => *limited.entry(limit).or_default() += 1,
+            None => outside.push(said),
         }
     }
 
     assert!(tried > 2000, "{tried} changes");
     assert!(
-        kind_off * 100 < tried,
-        "{kind_off} of {tried} read as another kind: {first:?}"
+        outside.is_empty(),
+        "{} outside: {outside:#?}",
+        outside.len()
     );
-    assert!(
-        rest_off * 100 < tried,
-        "{rest_off} of {tried} changed what they leave alone: {first:?}"
+    // Every limit is met by the fuzz, so none of the predicates is dead.
+    for limit in LIMITS {
+        assert!(
+            limited.contains_key(&limit),
+            "{limit:?} never met: {limited:?}"
+        );
+    }
+}
+
+// --- the limits, one by one ---
+
+#[test]
+fn a_heading_cannot_start_with_a_dot() {
+    // `.` alone is the forcing character: the text of the line is empty.
+    let new = splice("INT.", 0..3, "");
+
+    assert_eq!(new, ".");
+    assert_eq!(shown_one(&new).kind, TextKind::Heading);
+    assert_eq!(shown_one(&new).text, "");
+}
+
+#[test]
+fn a_transition_cannot_end_with_a_chevron() {
+    let new = splice(">Text", 4..4, "<");
+
+    assert_eq!(new, ">Text<");
+    assert_eq!(shown_one(&new).kind, TextKind::Centered);
+}
+
+#[test]
+fn a_cue_cannot_end_with_a_caret() {
+    let new = splice("@Anna", 4..4, "^");
+
+    assert_eq!(new, "@Anna^");
+    assert_eq!(read_as(TextKind::Character, &new).text, "Anna");
+}
+
+#[test]
+fn a_note_behind_a_parenthetical_makes_it_speech() {
+    let source = "Hallo[[n]]";
+    let shown = read_as(TextKind::Dialogue, source);
+    let new = edit_line(
+        source,
+        shown.kind,
+        shown.shape,
+        &ALL,
+        &replace_text(0..5, "(leise)"),
     );
+    let read = read_as(TextKind::Dialogue, &new);
+
+    assert_eq!(new, "(leise)[[n]]");
+    assert_eq!(
+        (read.kind, read.text.as_str()),
+        (TextKind::Dialogue, "(leise)")
+    );
+}
+
+#[test]
+fn a_blank_with_a_note_is_a_note() {
+    let new = splice("Hallo[[n]]", 0..5, " ");
+
+    assert_eq!(new, " [[n]]");
+    assert_eq!(shown_one(&new).kind, TextKind::Note);
+}
+
+#[test]
+fn a_typed_boneyard_opener_is_protected() {
+    let new = splice("a\\*", 0..1, "/");
+
+    assert_eq!(new, "/\\*");
+    assert_eq!(shown_one(&new).text, "/*");
+    assert_eq!(shown_one(&new).kind, TextKind::Action);
+}
+
+#[test]
+fn a_run_that_ends_behind_a_slash_stays_plain() {
+    let source = edited(
+        "a/",
+        &ALL,
+        &format_only(&[run(0, 2, mark(false, true, false))]),
+    );
+
+    assert_eq!(source, "a/");
+}
+
+#[test]
+fn a_run_that_would_touch_the_stars_before_it_stays_plain() {
+    let change = format_only(&[
+        run(0, 1, mark(false, true, false)),
+        run(1, 2, mark(true, true, false)),
+    ]);
+    let source = edited("ab", &ALL, &change);
+
+    assert_eq!(
+        shown_one(&source).runs,
+        [
+            run(0, 1, mark(false, true, false)),
+            run(1, 2, mark(false, false, false)),
+        ]
+    );
+}
+
+// --- what a round trip may change ---
+
+/// Whether the line has an emphasis mark or a note: the only things a rewrite moves.
+pub(super) fn has_marks(line: &str) -> bool {
+    line.contains("[[") || unmarked(line) != line
+}
+
+/// The line without its unescaped marks of emphasis and without its notes.
+fn unmarked(line: &str) -> String {
+    let mut out = String::new();
+    let mut chars = line.chars().peekable();
+
+    while let Some(ch) = chars.next() {
+        match ch {
+            '\\' => {
+                out.push(ch);
+                out.extend(chars.next());
+            }
+            '*' | '_' => {}
+            '[' if chars.peek() == Some(&'[') => {
+                let rest: String = chars.clone().collect();
+                let Some(end) = rest.find("]]") else {
+                    out.push(ch);
+                    continue;
+                };
+                chars.nth(end + 1);
+            }
+            _ => out.push(ch),
+        }
+    }
+
+    out
+}
+
+/// Whether `again` is `line` with other marks and notes in other places, or with the forcing
+/// character that keeps its kind in front.
+pub(super) fn moves_only_marks(line: &str, again: &str) -> bool {
+    let (line, again) = (unmarked(line), unmarked(again));
+    let forced = again
+        .strip_prefix(['!', '@', '.', '~', '>'])
+        .is_some_and(|rest| rest == line);
+
+    again == line || forced
 }
