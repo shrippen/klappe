@@ -208,17 +208,38 @@ TestCase {
         const view = make()
         view.area.forceActiveFocus()
         view.area.cursorPosition = 3
-
         let opened = 0
         view.scriptMenu.aboutToShow.connect(() => opened++)
 
-        verify(view.scriptMenu.key({ key: Qt.Key_Menu, modifiers: Qt.NoModifier }))
+        keyClick(Qt.Key_Menu)
         compare(opened, 1)
         view.scriptMenu.close()
-        verify(view.scriptMenu.key({ key: Qt.Key_F10, modifiers: Qt.ShiftModifier }))
+        keyClick(Qt.Key_F10, Qt.ShiftModifier)
         compare(opened, 2)
         view.scriptMenu.close()
-        verify(!view.scriptMenu.key({ key: Qt.Key_F10, modifiers: Qt.NoModifier }))
+        keyClick(Qt.Key_F10)
+        compare(opened, 2)
+    }
+
+    // A right click puts the cursor where the pointer is, unless that is in the selection.
+    function test_a_right_click_moves_the_cursor_unless_it_is_in_the_selection() {
+        const view = make()
+        view.area.forceActiveFocus()
+        const point = at => {
+            const rect = view.area.positionToRectangle(at)
+            return Qt.point(rect.x + 1, rect.y + rect.height / 2)
+        }
+        const start = book.indexOf("Sie kommt")
+        view.area.select(start, start + 9)
+
+        view.scriptMenu.openAt(point(start + 3))
+        compare(view.area.selectedText, "Sie kommt")
+        view.scriptMenu.close()
+
+        view.scriptMenu.openAt(point(book.indexOf("Es regnet") + 3))
+        compare(view.area.selectedText, "")
+        compare(view.area.cursorPosition, book.indexOf("Es regnet") + 3)
+        view.scriptMenu.close()
     }
 
     function test_the_source_switch_shows_the_text_as_it_is() {

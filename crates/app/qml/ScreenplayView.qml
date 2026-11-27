@@ -335,7 +335,7 @@ RowLayout {
             undoText()
         } else if (event.matches(StandardKey.Redo)) {
             redoText()
-        } else if (!clipboardKey(event) && !editKey(event)) {
+        } else if (!clipboardKey(event) && !emphasisKey(event)) {
             event.accepted = false
         }
     }
@@ -348,16 +348,15 @@ RowLayout {
         _replaying = false
     }
 
-    /// Ctrl+B, Ctrl+I, Ctrl+U and the keys of the context menu; false for another key.
-    function editKey(event) {
+    /// Ctrl+B, Ctrl+I and Ctrl+U; false for another key.
+    function emphasisKey(event) {
         const marks = [[StandardKey.Bold, "bold"], [StandardKey.Italic, "italic"],
                        [StandardKey.Underline, "underline"]]
         const found = marks.find(m => event.matches(m[0]))
         if (found) {
             toggleMark(found[1])
-            return true
         }
-        return scriptMenu.key(event)
+        return found !== undefined
     }
 
     /// The text shows the source as Fountain, nothing hidden (D-36); not kept with the project.
@@ -478,6 +477,13 @@ RowLayout {
             doc.redrawRuns()
             item.forget()
         }
+    }
+    // The Menu key and Shift+F10 in the text. A shortcut takes the key before the text area's style
+    // sees it, which would open its own menu too.
+    Shortcut {
+        sequences: ["Menu", "Shift+F10"]
+        enabled: view.visible && area.activeFocus
+        onActivated: scriptMenu.openAtCursor()
     }
     ScriptMenu {
         id: scriptMenu

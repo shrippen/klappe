@@ -4,7 +4,8 @@ import Kante
 
 // D-37, D-43: the context menu of the screenplay's text, in place of the style's own (which
 // copies and cuts the text without its marks and has no step to take back). Right click, the
-// Menu key and Shift+F10 open it; the entries do what the keys of the editor do.
+// Menu key and Shift+F10 (a Shortcut of the view, which comes before the key reaches the
+// style's own handler) open it; the entries do what the keys of the editor do.
 //
 //  ┌──────────────────────────┐
 //  │ Ausschneiden      Strg+X │
@@ -50,17 +51,10 @@ QQC2.Menu {
         popup(area, point.x, point.y)
     }
 
-    /// The Menu key and Shift+F10 open the menu at the cursor; false for another key.
-    function key(event) {
-        const opens = event.key === Qt.Key_Menu && event.modifiers === Qt.NoModifier
-            || event.key === Qt.Key_F10 && event.modifiers === Qt.ShiftModifier
-        if (!opens) {
-            return false
-        }
-
+    /// The Menu key and Shift+F10: the menu opens at the cursor.
+    function openAtCursor() {
         const rect = editor.area.cursorRectangle
         popup(editor.area, rect.x, rect.y + rect.height)
-        return true
     }
 
     /// The Fountain of the selection on the clipboard, and then out of the text.
