@@ -277,6 +277,81 @@ fn kinds_after(
     (crate::text_kinds(source), crate::text_kinds(&done))
 }
 
+/// `source` with `mark` toggled over all of it.
+fn over_all(source: &str, mark: Mark) -> String {
+    let lines: Vec<&str> = source.split('\n').collect();
+    let last = lines.len() - 1;
+    let end = spot(last, lines[last].encode_utf16().count());
+
+    toggled(source, spot(0, 0), end, mark)
+}
+
+/// Whole-book toggles of `mark` leave nothing to do: no line of `source` that did not get the
+/// mark can be toggled alone, on the result, without spoiling the book.
+fn assert_maximal(source: &str, mark: Mark) {
+    let done = over_all(source, mark);
+    let lines: Vec<&str> = done.split('\n').collect();
+    let old: Vec<&str> = source.split('\n').collect();
+
+    for (at, line) in lines.iter().enumerate() {
+        let marks = &marks_by_line(&done)[at];
+        let full = !marks.is_empty() && marks.iter().all(|m| has(mark, m));
+        if *line != old[at] || full {
+            continue;
+        }
+
+        let len = line.encode_utf16().count();
+        let alone = toggled(&done, spot(at, 0), spot(at, len), mark);
+        assert_eq!(
+            alone, done,
+            "{mark:?} line {at} of {source:?} could take it"
+        );
+    }
+}
+
+const AFTER_A_CUE: &str =
+    "INT. HAUS - TAG\n\n!ANNA\nkommt herein.\nSie setzt sich.\n\nANNA\nHallo.";
+const ODD_LINES: &str = "INT. HAUS - TAG\nEin _u_ hier.\n\n  \n\nINT. KÜCHE - TAG #12A#\nANNA\nZwei.\nCUT TO:\nzu]] ok\nx_y_z";
+
+#[test]
+fn lines_under_a_cue_that_cannot_be_bold_are_bold() {
+    let done = over_all(AFTER_A_CUE, Mark::Bold);
+
+    assert!(done.contains("\n**kommt herein.**\n"), "{done:?}");
+    assert!(done.contains("\n**Sie setzt sich.**\n"), "{done:?}");
+    assert_eq!(crate::text_kinds(&done), crate::text_kinds(AFTER_A_CUE));
+}
+
+#[test]
+fn lines_under_a_cue_that_cannot_be_italic_are_italic() {
+    let done = over_all(AFTER_A_CUE, Mark::Italic);
+
+    assert!(done.contains("\n*kommt herein.*\n"), "{done:?}");
+    assert!(done.contains("\n*Sie setzt sich.*\n"), "{done:?}");
+}
+
+#[test]
+fn odd_lines_take_the_italic_they_can() {
+    let done = over_all(ODD_LINES, Mark::Italic);
+    let changed = done
+        .split('\n')
+        .zip(ODD_LINES.split('\n'))
+        .filter(|(new, old)| new != old)
+        .count();
+
+    assert!(changed >= 6, "{changed} lines changed: {done:?}");
+    assert_eq!(crate::text_kinds(&done), crate::text_kinds(ODD_LINES));
+}
+
+#[test]
+fn a_toggle_over_all_leaves_nothing_to_toggle() {
+    for book in [AFTER_A_CUE, ODD_LINES, BOOK, EXAMPLE] {
+        for mark in MARKS {
+            assert_maximal(book, mark);
+        }
+    }
+}
+
 #[test]
 fn a_boneyard_over_lines_ends_far_above_the_line() {
     let source = "/*\neins\nzwei\ndrei\n*/\n!ANNA\nText.";

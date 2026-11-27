@@ -10,11 +10,12 @@
 //! source     Das ist **fett und** *kursiv*.
 //! ```
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use crate::change::{byte_at, rewrite_lines};
 use crate::inline::runs;
-use crate::shown::marks_of as marks_by_runs;
+use crate::parse::boneyard_lines;
+use crate::shown::{marks_of as marks_by_runs, shown_line};
 use crate::{
     edit_line, shown_lines, text_kinds, Edited, Hide, LineEdit, Marks, Shape, ShownLine, Spot,
     TextKind,
@@ -96,13 +97,17 @@ fn count_before(shown: &ShownLine, at: usize) -> usize {
 
 /// The lines of the selection `from` to `to` (columns in UTF-16 units of the source lines) and
 /// what of each the selection takes; lines that show their marks or take nothing are left out.
-fn pieces(lines: &[&str], shown: &[ShownLine], (from, to): (Spot, Spot)) -> Vec<Piece> {
+fn pieces(
+    lines: &[&str],
+    show: &dyn Fn(usize) -> ShownLine,
+    (from, to): (Spot, Spot),
+) -> Vec<Piece> {
     let first = from.line.min(lines.len() - 1);
     let last = to.line.clamp(first, lines.len() - 1);
     let mut found = Vec::new();
 
     for line in first..=last {
-        let one = &shown[line];
+        let one = &show(line);
         let len = one.text.chars().count();
         let start = match line == first {
             true => first_from(one, byte_at(lines[line], from.col)),
@@ -153,7 +158,7 @@ pub fn emphasis_at(source: &str, from: Spot, to: Spot) -> EmphasisAt {
         return at_cursor(&lines, &shown, from);
     }
 
-    let found = pieces(&lines, &shown, (from, to));
+    let found = pieces(&lines, &|at| shown[at].clone(), (from, to));
     let marks: Vec<Marks> = found
         .iter()
         .flat_map(|p| marks_in(&shown[p.line])[p.start..p.end].to_vec())
@@ -196,14 +201,18 @@ fn at_cursor(lines: &[&str], shown: &[ShownLine], spot: Spot) -> EmphasisAt {
 /// the emphasis without a change of its text or of what it is.
 pub fn toggle_mark(source: &str, hide: &[Hide], (from, to): (Spot, Spot), mark: Mark) -> Edited {
     let lines: Vec<&str> = source.split('\n').collect();
-    let shown = shown_lines(source, &READ);
+    let book = Book {
+        lines: &lines,
+        kinds: text_kinds(source),
+        inside: boneyard_lines(source),
+    };
     let first = from.line.min(lines.len() - 1);
     let last = to.line.clamp(first, lines.len() - 1);
-    let mut found = pieces(&lines, &shown, (from, to));
+    let mut found = pieces(&lines, &|at| book.shown(at), (from, to));
     found.retain(|p| !(mark == Mark::Bold && p.kind == TextKind::Heading));
 
     let has = |p: &Piece| {
-        marks_of(&shown[p.line])[p.start..p.end]
+        marks_of(&book.shown(p.line))[p.start..p.end]
             .iter()
             .all(|m| mark.of(m))
     };
@@ -214,7 +223,7 @@ pub fn toggle_mark(source: &str, hide: &[Hide], (from, to): (Spot, Spot), mark: 
     let mut changes: BTreeMap<usize, Change> = BTreeMap::new();
 
     for piece in &found {
-        let mut marks = marks_of(&shown[piece.line]);
+        let mut marks = marks_of(&book.shown(piece.line));
         marks[piece.start..piece.end]
             .iter_mut()
             .for_each(|m| mark.set(m, switch));
@@ -231,11 +240,6 @@ pub fn toggle_mark(source: &str, hide: &[Hide], (from, to): (Spot, Spot), mark: 
     // The new book is read once: what a line shows, and what every line of the book is, must be
     // as before, but for the emphasis asked for. A line that spoils it goes back; so does what
     // may have caused it. Again, until nothing is spoilt (at the latest when nothing is left).
-    let book = Book {
-        lines: &lines,
-        shown: &shown,
-        kinds: text_kinds(source),
-    };
     loop {
         let bad = book.spoilt(&changes);
         if bad.is_empty() {
@@ -264,13 +268,20 @@ struct Change {
 /// The book a toggle starts from.
 struct Book<'a> {
     lines: &'a [&'a str],
-    shown: &'a [ShownLine],
     kinds: Vec<TextKind>,
+    /// Per line: a boneyard that an earlier line opened covers it.
+    inside: Vec<bool>,
 }
 
 impl Book<'_> {
+    /// Line `at` as the editor shows it.
+    fn shown(&self, at: usize) -> ShownLine {
+        shown_line(self.lines[at], self.kinds[at], self.inside[at], &READ)
+    }
+
     /// The lines of the book with `changes` made that are not what they were (another kind,
-    /// other text, notes or number) or do not show the emphasis they should.
+    /// other text, notes or number) or do not show the emphasis they should. A line that is
+    /// not changed, and has the kind and the boneyard it had, shows what it showed.
     fn spoilt(&self, changes: &BTreeMap<usize, Change>) -> Vec<usize> {
         let all: Vec<&str> = (0..self.lines.len())
             .map(|at| match changes.get(&at) {
@@ -279,44 +290,65 @@ impl Book<'_> {
             })
             .collect();
         let source = all.join("\n");
-        let (kinds, shown) = (text_kinds(&source), shown_lines(&source, &READ));
+        let (kinds, inside) = (text_kinds(&source), boneyard_lines(&source));
 
         (0..self.lines.len())
             .filter(|&at| {
-                let (was, now) = (&self.shown[at], &shown[at]);
+                let in_boneyard = inside.get(at).copied().unwrap_or(false);
+                let same = kinds[at] == self.kinds[at] && in_boneyard == self.inside[at];
+                if kinds[at] != self.kinds[at] || (same && !changes.contains_key(&at)) {
+                    return kinds[at] != self.kinds[at];
+                }
+
+                let (was, now) = (
+                    self.shown(at),
+                    shown_line(all[at], kinds[at], in_boneyard, &READ),
+                );
                 let wanted = match changes.get(&at) {
                     Some(change) => change.marks.clone(),
-                    None => marks_of(was),
+                    None => marks_of(&was),
                 };
 
-                kinds[at] != self.kinds[at]
-                    || was.text != now.text
+                was.text != now.text
                     || was.notes != now.notes
                     || was.number != now.number
-                    || marks_of(now) != wanted
+                    || marks_of(&now) != wanted
             })
             .collect()
     }
 
-    /// Takes back the changes that `bad` lines may come from: a line changed itself; for any
-    /// other the changes in its block (up to the next blank line). With none, all of them.
+    /// Takes back, in every block (up to a blank line) with a spoilt line, the first change that
+    /// may be the cause: the first changed line that is spoilt itself, else the first changed
+    /// line. What is left is read again, so a line spoilt by its neighbour comes back to stay.
+    /// When no block has a change to take back, all of them go.
     fn shed(&self, changes: &mut BTreeMap<usize, Change>, bad: &[usize]) {
-        let blank = |at: usize| self.lines[at].trim().is_empty();
-        let count = changes.len();
+        let blocks: BTreeSet<(usize, usize)> =
+            bad.iter().filter_map(|&at| self.block_of(at)).collect();
+        let mut gone = Vec::new();
 
-        for &at in bad {
-            if changes.remove(&at).is_some() {
-                continue;
-            }
-
-            let from = (0..at).rev().find(|&n| blank(n)).map_or(0, |n| n + 1);
-            let to = (at..self.lines.len())
-                .find(|&n| blank(n))
-                .unwrap_or(self.lines.len());
-            changes.retain(|line, _| !(from..to).contains(line));
+        for (from, to) in blocks {
+            let mut own = changes.range(from..to).map(|(line, _)| *line);
+            let first = own.clone().find(|line| bad.contains(line)).or(own.next());
+            gone.extend(first);
         }
-        if changes.len() == count {
+        if gone.is_empty() {
             changes.clear();
         }
+        for line in gone {
+            changes.remove(&line);
+        }
+    }
+
+    /// The lines from `from` to `to` (excluding), without a blank line, that line `at` is in
+    /// (a blank line is in the block above it); none above a blank start.
+    fn block_of(&self, at: usize) -> Option<(usize, usize)> {
+        let blank = |n: usize| self.lines[n].trim().is_empty();
+        let at = (0..=at).rev().find(|&n| !blank(n))?;
+        let from = (0..at).rev().find(|&n| blank(n)).map_or(0, |n| n + 1);
+        let to = (at..self.lines.len())
+            .find(|&n| blank(n))
+            .unwrap_or(self.lines.len());
+
+        Some((from, to))
     }
 }
