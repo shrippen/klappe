@@ -106,15 +106,15 @@ fn pieces(
     let last = to.line.clamp(first, lines.len() - 1);
     let mut found = Vec::new();
 
-    for line in first..=last {
+    for (line, text) in lines.iter().enumerate().take(last + 1).skip(first) {
         let one = &show(line);
         let len = one.text.chars().count();
         let start = match line == first {
-            true => first_from(one, byte_at(lines[line], from.col)),
+            true => first_from(one, byte_at(text, from.col)),
             false => 0,
         };
         let end = match line == last {
-            true => count_before(one, byte_at(lines[line], to.col)),
+            true => count_before(one, byte_at(text, to.col)),
             false => len,
         };
         if one.shape == Shape::Typed || start >= end {
