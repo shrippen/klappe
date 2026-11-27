@@ -3,7 +3,7 @@
 
 use crate::parse::{BONEYARD_CLOSE, BONEYARD_OPEN, ESCAPE, NOTE_CLOSE, NOTE_OPEN, STAR};
 
-const UNDERLINE: char = '_';
+pub(crate) const UNDERLINE: char = '_';
 /// Longest run of stars that means emphasis: `***bold italic***`.
 const MAX_STARS: usize = 3;
 
@@ -239,11 +239,24 @@ pub(crate) struct Seen {
     pub ch: char,
     pub at: usize,
     pub marks: Marks,
+    /// A backslash stood before it in the line: `\*` is the text `*`.
+    pub escaped: bool,
+    pub is_mark: bool,
 }
 
 /// The characters of a line as a reader sees them, like `visible_runs` but one by one. A note
 /// (and a `/*` that the parser left) stays as typed, marks and backslashes included.
 pub(crate) fn seen_chars(line: &str) -> Vec<Seen> {
+    let mut all = all_chars(line);
+    all.retain(|seen| !seen.is_mark);
+
+    all
+}
+
+/// Every character of a line with what the reader makes of it; `is_mark` tells the ones that
+/// only open or close an emphasis or protect a character (`*`, `_`, `\`), which the reader
+/// does not say.
+pub(crate) fn all_chars(line: &str) -> Vec<Seen> {
     let chars: Vec<(usize, char)> = line.char_indices().collect();
     let scan = scan(line, false);
     let plain: Vec<char> = chars.iter().map(|(_, c)| *c).collect();
@@ -252,14 +265,17 @@ pub(crate) fn seen_chars(line: &str) -> Vec<Seen> {
     chars
         .iter()
         .enumerate()
-        .filter_map(|(i, &(at, ch))| {
+        .map(|(i, &(at, ch))| {
             let marks = scan.marks[i];
             let typed = marks.note || marks.boneyard;
-            if !typed && (scan.toggles[i] || escapes[i]) {
-                return None;
-            }
 
-            Some(Seen { ch, at, marks })
+            Seen {
+                ch,
+                at,
+                marks,
+                escaped: i > 0 && escapes[i - 1],
+                is_mark: !typed && (scan.toggles[i] || escapes[i]),
+            }
         })
         .collect()
 }
@@ -284,7 +300,7 @@ fn escape_marks(chars: &[char]) -> Vec<bool> {
 }
 
 /// The character a note opens with.
-const NOTE_BRACKET: char = '[';
+pub(crate) const NOTE_BRACKET: char = '[';
 
 fn is_mark(c: char) -> bool {
     c == STAR || c == UNDERLINE
