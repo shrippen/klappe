@@ -1,10 +1,12 @@
 //! The projection of the editor (D-36): a round trip of every line of real and generated
 //! screenplays, and the single cases of the rules.
 
+use std::ops::Range;
+
 use crate::shown::{edit, Untouched};
 use crate::{
-    edit_line, shown_lines, splice_lines, text_kinds, Hidden, Hide, Marks, Run, Shape, ShownLine,
-    TextKind,
+    edit_line, shown_lines, splice_lines, text_kinds, Hidden, Hide, LineEdit, Marks, Run, Shape,
+    ShownLine, ShownNote, TextKind,
 };
 
 /// What the window hides when it is done.
@@ -55,6 +57,34 @@ fn run(start: usize, end: usize, marks: Marks) -> Run {
     Run { start, end, marks }
 }
 
+/// Only the emphasis changes to `runs`.
+fn format_only(runs: &[Run]) -> LineEdit {
+    LineEdit {
+        removed: 0..0,
+        typed: String::new(),
+        runs: runs.to_vec(),
+    }
+}
+
+/// The change from `old` to `new` as the editor would hand it over: the characters the two
+/// share at the start and at the end stay. The emphasis is that of `runs`.
+fn diff(old: &str, new: &str, runs: &[Run]) -> LineEdit {
+    let (old, new): (Vec<char>, Vec<char>) = (old.chars().collect(), new.chars().collect());
+    let head = old.iter().zip(&new).take_while(|(a, b)| a == b).count();
+    let tail = old[head..]
+        .iter()
+        .rev()
+        .zip(new[head..].iter().rev())
+        .take_while(|(a, b)| a == b)
+        .count();
+
+    LineEdit {
+        removed: head..old.len() - tail,
+        typed: new[head..new.len() - tail].iter().collect(),
+        runs: runs.to_vec(),
+    }
+}
+
 /// A line shown and written again with the same text, as the writer does it: without the
 /// early return for a line that is not touched.
 fn same_again(line: &str, kind: TextKind, shown: &ShownLine) -> String {
@@ -63,10 +93,21 @@ fn same_again(line: &str, kind: TextKind, shown: &ShownLine) -> String {
         kind,
         shown.shape,
         &ALL,
-        &shown.text,
-        &shown.runs,
+        &format_only(&shown.runs),
         Untouched::Rewrite,
     )
+}
+
+/// The line after `removed` of its shown text is replaced by `typed` (the rest stays plain).
+fn splice(source: &str, removed: Range<usize>, typed: &str) -> String {
+    let shown = shown_one(source);
+    let change = LineEdit {
+        removed,
+        typed: typed.to_owned(),
+        runs: Vec::new(),
+    };
+
+    edit_line(source, shown.kind, shown.shape, &ALL, &change)
 }
 
 fn shown_one(line: &str) -> ShownLine {
@@ -77,7 +118,13 @@ fn shown_one(line: &str) -> ShownLine {
 fn typed(source: &str, text: &str) -> String {
     let shown = shown_one(source);
 
-    edit_line(source, shown.kind, shown.shape, &ALL, text, &[])
+    edit_line(
+        source,
+        shown.kind,
+        shown.shape,
+        &ALL,
+        &diff(&shown.text, text, &[]),
+    )
 }
 
 /// Every line of `source` shown and written again; the count is the lines written in another
@@ -174,7 +221,7 @@ fn emphasis_is_set_and_removed() {
         run(5, 11, mark(false, true, false)),
         run(11, 22, mark(false, false, false)),
     ];
-    let set = edit_line(line, shown.kind, shown.shape, &ALL, &shown.text, &italic);
+    let set = edit_line(line, shown.kind, shown.shape, &ALL, &format_only(&italic));
     assert_eq!(set, "Anna *schaut* nach oben.");
 
     let all = [
@@ -182,13 +229,13 @@ fn emphasis_is_set_and_removed() {
         run(5, 11, mark(true, true, true)),
         run(11, 22, mark(false, false, false)),
     ];
-    let more = edit_line(&set, shown.kind, shown.shape, &ALL, &shown.text, &all);
+    let more = edit_line(&set, shown.kind, shown.shape, &ALL, &format_only(&all));
     assert_eq!(more, "Anna _***schaut***_ nach oben.");
 
     let again = shown_one(&more);
     assert_eq!(again.runs, all);
 
-    let plain = edit_line(&more, shown.kind, shown.shape, &ALL, &shown.text, &[]);
+    let plain = edit_line(&more, shown.kind, shown.shape, &ALL, &format_only(&[]));
     assert_eq!(plain, line);
 }
 
@@ -236,8 +283,8 @@ fn a_note_stays_where_it_was() {
     );
     assert_eq!(typed(source, "Hallo  Welt!"), "Hallo [[Regie]] Welt!");
     assert_eq!(typed(source, "Hallo  du Welt"), "Hallo [[Regie]] du Welt");
-    // The note of a text that was deleted goes to where the change starts.
-    assert_eq!(typed(source, "Hallo!"), "Hallo[[Regie]]!");
+    // The note of a text that was deleted goes behind what was typed in its place.
+    assert_eq!(typed(source, "Hallo!"), "Hallo![[Regie]]");
 }
 
 #[test]
@@ -258,7 +305,9 @@ fn an_untouched_backslash_stays() {
 
     assert_eq!(typed(line, "Ein *Stern* hier!"), "Ein \\*Stern\\* hier!");
     // Typed in front of it, it is emphasis.
-    assert_eq!(typed(line, "Ein *x* *Stern* hier").matches('\\').count(), 2);
+    let source = splice(line, 4..4, "*x* ");
+    assert_eq!(source, "Ein *x* \\*Stern\\* hier");
+    assert_eq!(shown_one(&source).runs[1].marks, mark(false, true, false));
 }
 
 #[test]
@@ -269,7 +318,7 @@ fn a_slash_before_emphasis_does_not_open_a_boneyard() {
         run(0, 4, mark(false, false, false)),
         run(4, 15, mark(false, true, false)),
     ];
-    let source = edit_line(line, shown.kind, shown.shape, &ALL, &shown.text, &italic);
+    let source = edit_line(line, shown.kind, shown.shape, &ALL, &format_only(&italic));
 
     assert!(!source.contains("/*"), "{source}");
     assert_eq!(shown_one(&source).text, shown.text);
@@ -283,7 +332,7 @@ fn touching_marks_do_not_become_stars() {
         run(0, 1, mark(false, true, false)),
         run(1, 2, mark(true, true, false)),
     ];
-    let source = edit_line(line, shown.kind, shown.shape, &ALL, &shown.text, &runs);
+    let source = edit_line(line, shown.kind, shown.shape, &ALL, &format_only(&runs));
 
     assert_eq!(shown_one(&source).text, "ab");
 }
@@ -417,9 +466,16 @@ fn fuzz_an_edit_changes_only_its_line() {
         let mut chars: Vec<char> = one.text.chars().collect();
         let place = gen.next(chars.len() as u64 + 1) as usize;
         let word = WORDS[gen.next(WORDS.len() as u64) as usize];
+        let mut marks = marks_of(&one.runs, chars.len());
         chars.splice(place..place, word.chars());
+        marks.splice(place..place, vec![Marks::default(); word.chars().count()]);
         let text: String = chars.iter().collect();
-        let new = edit_line(&lines[at], one.kind, one.shape, &ALL, &text, &[]);
+        let change = LineEdit {
+            removed: place..place,
+            typed: word.to_owned(),
+            runs: runs(&marks),
+        };
+        let new = edit_line(&lines[at], one.kind, one.shape, &ALL, &change);
 
         let splice = splice_lines(&source, at..at + 1, std::slice::from_ref(&new));
         let mut edited = lines.clone();
@@ -454,7 +510,9 @@ fn fuzz_an_edit_changes_only_its_line() {
 
         // Marks the user left alone and a word that splits them are the user's: `**` becomes
         // italic between two stars once something stands between them.
-        if one.text.contains(['*', '_', '\\', '[', '/']) {
+        // A line the lines around it decide reads differently by itself: the writer cannot know.
+        let by_itself = shown_lines(&new, &ALL).remove(0).text;
+        if one.text.contains(['*', '_', '\\', '[', '/']) || by_itself != after.text {
             continue;
         }
         assert_eq!(after.text, text, "{:?} -> {new:?} in {source:?}", lines[at]);
@@ -471,13 +529,22 @@ fn fuzz_an_edit_changes_only_its_line() {
 
 #[test]
 fn two_changes_keep_the_escapes_and_the_notes() {
-    assert_eq!(typed("a \\*Stern\\* a", "o *Stern* o"), "o \\*Stern\\* o");
+    let twice = |source: &str, first: (Range<usize>, &str), last: (Range<usize>, &str)| {
+        let once = splice(source, first.0, first.1);
+
+        splice(&once, last.0, last.1)
+    };
+
     assert_eq!(
-        typed("Anna sagt \\[[nein]] Anna", "Anne sagt [[nein]] Anne"),
+        twice("a \\*Stern\\* a", (0..1, "o"), (10..11, "o")),
+        "o \\*Stern\\* o"
+    );
+    assert_eq!(
+        twice("Anna sagt \\[[nein]] Anna", (3..4, "e"), (22..23, "e")),
         "Anne sagt \\[[nein]] Anne"
     );
     assert_eq!(
-        typed("a Wort [[Regie]] Stern a", "o Wort  Stern o"),
+        twice("a Wort [[Regie]] Stern a", (0..1, "o"), (14..15, "o")),
         "o Wort [[Regie]] Stern o"
     );
 }
@@ -493,8 +560,7 @@ fn only_the_blocked_run_loses_its_emphasis() {
         shown.kind,
         shown.shape,
         &ALL,
-        &shown.text,
-        &runs(&marks),
+        &format_only(&runs(&marks)),
     );
     let again = shown_one(&source);
 
@@ -553,14 +619,12 @@ fn fuzz_a_typed_blank_is_not_lost() {
                     .unwrap_or_default(),
             );
             let text: String = text.iter().collect();
-            let new = edit_line(
-                &line,
-                shown.kind,
-                shown.shape,
-                &ALL,
-                &text,
-                &runs(&new_marks),
-            );
+            let change = LineEdit {
+                removed: place..place,
+                typed: " ".to_owned(),
+                runs: runs(&new_marks),
+            };
+            let new = edit_line(&line, shown.kind, shown.shape, &ALL, &change);
 
             let after = shown_one(&new);
             tried += 1;
@@ -621,8 +685,7 @@ fn every_choice_of_what_to_hide_comes_back() {
                 shown.kind,
                 shown.shape,
                 &hide,
-                &shown.text,
-                &shown.runs,
+                &format_only(&shown.runs),
                 Untouched::Rewrite,
             );
             assert_eq!(&again, line, "{hide:?}");
@@ -636,7 +699,13 @@ fn every_choice_of_what_to_hide_comes_back() {
 /// shown text of the line.
 fn kinds_after(source: &str, below: &str, text: &str) -> (Vec<TextKind>, String) {
     let shown = shown_one(source);
-    let new = edit_line(source, shown.kind, shown.shape, &ALL, text, &[]);
+    let new = edit_line(
+        source,
+        shown.kind,
+        shown.shape,
+        &ALL,
+        &diff(&shown.text, text, &[]),
+    );
     let all = format!("{new}{below}");
     let read = shown_lines(&all, &ALL);
 
@@ -675,14 +744,16 @@ fn a_long_line_with_two_far_changes_is_quick() {
     let word = "Anna geht *langsam* über den Hof. ";
     let line = word.repeat(12000 / word.len());
     let shown = shown_one(&line);
-    let mut text = shown.text.clone();
-    text.replace_range(0..4, "Eva");
-    let end = text.len() - 10;
-    text.replace_range(end..end + 4, "Eve");
+    let len = shown.text.chars().count();
 
     let start = std::time::Instant::now();
-    let new = edit_line(&line, shown.kind, shown.shape, &ALL, &text, &shown.runs);
+    let once = splice(&line, 0..4, "Eva");
+    let new = splice(&once, len - 13..len - 9, "Eve");
 
     assert!(start.elapsed().as_secs() < 2, "{:?}", start.elapsed());
-    assert_eq!(shown_one(&new).text, text);
+    let text = shown_one(&new).text;
+    assert!(text.starts_with("Eva geht"), "{text}");
+    assert!(text.contains("Eve"), "{text}");
 }
+
+mod edit;

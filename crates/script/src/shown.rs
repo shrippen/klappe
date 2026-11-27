@@ -11,22 +11,22 @@
 //! ```
 //!
 //! What a line hides is read again from the old source line on every edit, so an edit hands
-//! over only the new text and its emphasis. What the user types stays Fountain: a typed
-//! `*x*` is emphasis the next time the line is shown.
+//! over only the change: what was removed, what was typed and the emphasis of the new text.
+//! What the user types stays Fountain: a typed `*x*` is emphasis the next time the line is
+//! shown.
 
 use std::ops::Range;
 
-use crate::inline::{all_chars, runs, NOTE_BRACKET, UNDERLINE};
-use crate::lcs::unpaired;
+use crate::inline::{all_chars, runs};
 use crate::parse::{
-    boneyard_lines, split_number, CENTER_END, DUAL_MARK, ESCAPE, FORCE_ACTION, FORCE_CHARACTER,
-    FORCE_HEADING, FORCE_TRANSITION, LYRICS, NOTE_CLOSE, NOTE_OPEN, NUMBER_MARK, STAR,
+    boneyard_lines, split_number, CENTER_END, DUAL_MARK, FORCE_ACTION, FORCE_CHARACTER,
+    FORCE_HEADING, FORCE_TRANSITION, LYRICS, NOTE_CLOSE, NOTE_OPEN, NUMBER_MARK,
 };
 use crate::{text_kinds, Marks, Run, Splice, TextKind};
 
-const SLASH: char = '/';
-/// Most cells of the table that pairs two texts; a longer middle pairs only the equal ends.
-const MAX_TABLE: usize = 4_000_000;
+mod write;
+
+use write::{write_body, Part};
 
 /// What the editor leaves out of the text of a line; what a line does not hide stays in the
 /// text as typed. Step by step the editor hides more.
@@ -310,31 +310,39 @@ fn take_notes(raw: &mut String, at: usize, notes: &mut Vec<ShownNote>) {
     raw.clear();
 }
 
-/// The source line for the edited text of a line that was `old`, of `kind` and `shape` when
-/// it was shown.
+/// One change of a shown line: the characters `removed` of its text are replaced by what
+/// was `typed`, and `runs` is the emphasis of the whole new text. A change of the emphasis
+/// alone removes and types nothing.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LineEdit {
+    pub removed: Range<usize>,
+    pub typed: String,
+    pub runs: Vec<Run>,
+}
+
+/// The source line for one change of a line that was `old`, of `kind` and `shape` when it
+/// was shown with `hide`.
 ///
-/// What the line hid stays, the number, the forcing character and the notes at their place
-/// (a note moves with the text typed before it); the emphasis `runs` becomes Fountain marks
-/// in the canonical order (`_` outside, then `***`, `**`, `*`). Characters the user typed
-/// stay as typed, so `*x*` becomes italic the next time. A character that stood after a
-/// backslash and was not touched keeps it. Where two marks cannot stand side by side
-/// (`**a***b***` reads as stars) or a `/` stands before one (`/*` opens a boneyard), the
-/// later run is written without emphasis. Clearing the whole text clears the line, so an
-/// emptied heading does not keep its number; to remove a line, use [`splice_lines`].
+/// - What the change does not touch stays: its backslashes (`\*`), the notes (a note stands
+///   before the character it stood before; where that is gone, behind what was typed) and
+///   the number.
+/// - Only what was typed is read as Fountain: `*x*` is italic, `INT.` a heading.
+/// - The kind follows the text: unchanged unless the visible text now reads as another kind
+///   than before (or nothing old is left). If the line would read otherwise, the forcing
+///   character is left out or the one of the kind put in front (without `Hide::Forcing` it
+///   is visible text).
+/// - The written line is read again; typed text that damages its neighbours is written
+///   literally.
 ///
-/// `hide` is the set the line was shown with. Notes stay at their characters when text is
-/// added or removed anywhere in the line, and a character that is not new keeps its backslash.
-///
-/// `text` is one line.
+/// `typed` is one line. To remove a line, use [`splice_lines`].
 pub fn edit_line(
     old: &str,
     kind: TextKind,
     shape: Shape,
     hide: &[Hide],
-    text: &str,
-    runs: &[Run],
+    change: &LineEdit,
 ) -> String {
-    edit(old, kind, shape, hide, text, runs, Untouched::Keep)
+    edit(old, kind, shape, hide, change, Untouched::Keep)
 }
 
 /// Whether an edit that changes nothing gives the line back as it is, or writes it again.
@@ -351,27 +359,22 @@ pub(crate) fn edit(
     kind: TextKind,
     shape: Shape,
     hide: &[Hide],
-    text: &str,
-    runs: &[Run],
+    change: &LineEdit,
     untouched: Untouched,
 ) -> String {
     let split = split_line(old, kind, hide).filter(|_| shape == Shape::Shown);
     let Some(split) = split else {
-        return text.to_owned();
+        return typed_edit(old, change);
     };
 
     let before = read_body(old, split.start..split.end, hide);
-    let after: Vec<char> = text.chars().collect();
-    let marks = match hide.contains(&Hide::Emphasis) {
-        true => marks_of(runs, after.len()),
-        false => vec![Marks::default(); after.len()],
-    };
+    let plan = plan(&before, change, hide.contains(&Hide::Emphasis));
 
     // The line is not touched: it stays as it is, even if it is not canonical.
-    if untouched == Untouched::Keep && after == before.chars && marks == before.marks {
+    if untouched == Untouched::Keep && plan.chars == before.chars && plan.marks == before.marks {
         return old.to_owned();
     }
-    if after.is_empty() && before.notes.is_empty() {
+    if plan.chars.is_empty() && before.notes.is_empty() {
         // Marks around nothing (`__`) and a forcing mark alone have no text to write.
         return match before.chars.is_empty() {
             true => old.to_owned(),
@@ -379,58 +382,300 @@ pub(crate) fn edit(
         };
     }
 
-    rewrite(old, &split, &before, &after, &marks, (kind, hide))
+    rewrite(old, &split, &before, &plan, (kind, hide))
 }
 
-/// The line `old` written again for the text `after` with `marks`.
+/// A line the editor shows as typed: the change applies to the line itself.
+fn typed_edit(old: &str, change: &LineEdit) -> String {
+    let chars: Vec<char> = old.chars().collect();
+    let start = change.removed.start.min(chars.len());
+    let end = change.removed.end.clamp(start, chars.len());
+    let part = |range: Range<usize>| chars[range].iter().collect::<String>();
+
+    format!(
+        "{}{}{}",
+        part(0..start),
+        change.typed,
+        part(end..chars.len())
+    )
+}
+
+/// The new shown text of a line, what each character brings along, and where the change is.
+struct Plan {
+    chars: Vec<char>,
+    marks: Vec<Marks>,
+    escaped: Vec<bool>,
+    notes: Vec<ShownNote>,
+    /// Where the typed characters stand in `chars`.
+    typed: Range<usize>,
+    /// How many characters of the old text are left.
+    kept: usize,
+}
+
+impl Plan {
+    /// The same, with what was typed protected by backslashes.
+    fn literal(&self) -> Plan {
+        let mut escaped = self.escaped.clone();
+        escaped[self.typed.clone()].fill(true);
+
+        Plan {
+            escaped,
+            ..self.copy()
+        }
+    }
+
+    /// The same without emphasis and with every character protected.
+    fn plain(&self) -> Plan {
+        Plan {
+            marks: vec![Marks::default(); self.chars.len()],
+            escaped: vec![true; self.chars.len()],
+            ..self.copy()
+        }
+    }
+
+    fn copy(&self) -> Plan {
+        Plan {
+            chars: self.chars.clone(),
+            marks: self.marks.clone(),
+            escaped: self.escaped.clone(),
+            notes: self.notes.clone(),
+            typed: self.typed.clone(),
+            kept: self.kept,
+        }
+    }
+}
+
+/// `old` with `cut` replaced by `new`.
+fn spliced<T: Clone>(old: &[T], cut: &Range<usize>, new: &[T]) -> Vec<T> {
+    [&old[..cut.start], new, &old[cut.end..]].concat()
+}
+
+/// The text after `change`, with the notes and backslashes of the old text carried along.
+fn plan(before: &Body, change: &LineEdit, emphasis_hidden: bool) -> Plan {
+    let len = before.chars.len();
+    let start = change.removed.start.min(len);
+    let cut = start..change.removed.end.clamp(start, len);
+    let typed: Vec<char> = change.typed.chars().collect();
+
+    let chars = spliced(&before.chars, &cut, &typed);
+    let marks = match emphasis_hidden {
+        true => marks_of(&change.runs, chars.len()),
+        false => vec![Marks::default(); chars.len()],
+    };
+    // A note stays before its character; where that is gone, it moves behind the typed text.
+    let notes = before
+        .notes
+        .iter()
+        .map(|note| ShownNote {
+            at: match note.at < cut.start {
+                true => note.at,
+                false => note.at.max(cut.end) - cut.len() + typed.len(),
+            },
+            text: note.text.clone(),
+        })
+        .collect();
+
+    Plan {
+        escaped: spliced(&before.escaped, &cut, &vec![false; typed.len()]),
+        typed: start..start + typed.len(),
+        kept: len - cut.len(),
+        chars,
+        marks,
+        notes,
+    }
+}
+
+/// What the line is written from.
+struct Target<'a> {
+    old: &'a str,
+    split: &'a Split,
+    kind: TextKind,
+    hide: &'a [Hide],
+    /// The kind the written line has to read as.
+    reads: TextKind,
+    above: Above,
+}
+
+/// The line `old` written again for `plan`.
 fn rewrite(
     old: &str,
     split: &Split,
     before: &Body,
-    after: &[char],
-    marks: &[Marks],
+    plan: &Plan,
     (kind, hide): (TextKind, &[Hide]),
 ) -> String {
-    let pairs = pairs(&before.chars, after);
-    let escaped: Vec<bool> = pairs
-        .iter()
-        .map(|old| old.is_some_and(|at| before.escaped[at]))
-        .collect();
-    let part = Part {
-        chars: after,
-        marks,
-        escaped: &escaped,
-        notes: &moved_notes(before, &pairs, after.len()),
+    let (reads, above) = target_kind(old, (kind, hide), before, plan);
+    let target = Target {
+        old,
+        split,
+        kind,
+        hide,
+        reads,
+        above,
     };
-    let (mut body, mut effective) = write_body(&part);
 
-    // Text that is not new reads as it is shown, whatever the marks do to each other.
-    let same_text = after == before.chars;
-    let emphasis_hidden = hide.contains(&Hide::Emphasis);
-    if same_text && emphasis_hidden && !reads_as(&body, &part, &effective, hide) {
-        effective = vec![Marks::default(); after.len()];
-        (body, _) = write_body(&Part {
-            marks: &effective,
-            escaped: &vec![true; after.len()],
-            ..part
-        });
+    // Typed text may damage its neighbours (`*` behind italic text): then it is literal;
+    // when even that fails, nothing is emphasis and every character is protected.
+    let mut result = written(&target, plan);
+    if result.is_err() && !plan.typed.is_empty() {
+        result = written(&target, &plan.literal());
+    }
+    if result.is_err() {
+        result = written(&target, &plan.plain());
     }
 
+    result.unwrap_or_else(|line| line)
+}
+
+/// What stands above a line: a blank, or text (which makes `INT. KÜCHE` action).
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Above {
+    Blank,
+    Text,
+}
+
+/// A shown text as a source line, as `kind` reads it: a cue has speech below it, speech a
+/// cue above it, anything else stands alone.
+fn read_in(line: &str, kind: TextKind, above: Above, hide: &[Hide]) -> ShownLine {
+    let (source, at) = match (kind, above) {
+        (TextKind::Character, _) => (format!("{line}\nx"), 0),
+        (TextKind::Parenthetical | TextKind::Dialogue, _) => (format!("ANNA\n{line}"), 1),
+        (TextKind::Action, Above::Text) => (format!("x\n{line}"), 1),
+        _ => (line.to_owned(), 0),
+    };
+
+    shown_lines(&source, hide).swap_remove(at)
+}
+
+/// The kind the new line has to read as, and what stands above it when it is read: the old
+/// kind while the visible text reads as before (the hidden marks held it), else the kind
+/// the new text reads as, which also holds when nothing old is left.
+///
+/// A line that does not read as its kind by itself is action because of the line above it
+/// (`>Text` under a line of action); it stays so.
+///
+/// Example: `*INT.* KÜCHE` is action; without the emphasis it stays action.
+fn target_kind(
+    old: &str,
+    (kind, hide): (TextKind, &[Hide]),
+    before: &Body,
+    plan: &Plan,
+) -> (TextKind, Above) {
+    let reads =
+        |chars: &[char]| read_in(&chars.iter().collect::<String>(), kind, Above::Blank, &[]).kind;
+    if read_in(old, kind, Above::Blank, hide).kind != kind {
+        return (kind, Above::Text);
+    }
+
+    let new = reads(&plan.chars);
+    // Nothing old left: the old text has nothing to say about the kind.
+    let gone = plan.kept == 0 && !before.chars.is_empty();
+    match gone || new != reads(&before.chars) {
+        true => (new, Above::Blank),
+        false => (kind, Above::Blank),
+    }
+}
+
+/// Whether a forcing character in front of the line was there before or is new.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Lead {
+    Kept,
+    Added,
+}
+
+/// What may stand in front of the text, in the order to try: as it was, without its forcing
+/// character, with the forcing character of the target kind.
+fn leads(target: &Target) -> Vec<(String, Lead)> {
+    let prefix = &target.old[..target.split.start];
+    let mark = prefix.trim_start();
+    let bare = &prefix[..prefix.len() - mark.len()];
+    let mut leads = vec![(prefix.to_owned(), Lead::Kept)];
+
+    if !mark.is_empty() {
+        leads.push((bare.to_owned(), Lead::Kept));
+    }
+    if let Some(force) = forcing_char(target.reads) {
+        leads.push((format!("{bare}{force}"), Lead::Added));
+    }
+
+    leads
+}
+
+/// The line for `plan` that reads as the target kind, with the text and emphasis the change
+/// left alone as written; the first line it tried if none does.
+fn written(target: &Target, plan: &Plan) -> Result<String, String> {
+    let part = Part {
+        chars: &plan.chars,
+        marks: &plan.marks,
+        escaped: &plan.escaped,
+        notes: &plan.notes,
+    };
+    let (body, effective) = write_body(&part);
+
     // A blank typed at the end must not become the blank that leads up to a mark behind it.
-    let tail = &old[split.end..];
+    let tail = &target.old[target.split.end..];
     let apart =
         body.ends_with(char::is_whitespace) && tail.starts_with(|c: char| !c.is_whitespace());
     let gap = if apart { " " } else { "" };
+    let mut first = None;
 
-    let line = format!("{}{body}{gap}{tail}", &old[..split.start]);
+    for (lead, how) in leads(target) {
+        let line = format!("{lead}{body}{gap}{tail}");
+        let read = read_in(&line, target.kind, target.above, target.hide);
+        // Without `Hide::Forcing` the character put in front is text; only the kind counts.
+        let visible = how == Lead::Added && !target.hide.contains(&Hide::Forcing);
+        let right = read.kind == target.reads
+            && (visible || reads_right(&read, &part, &effective, &plan.typed));
+        if right {
+            return Ok(line);
+        }
 
-    // Marks that went from the start of the line hid what would make it another element.
-    let start_same = after.is_empty() || pairs.first() == Some(&Some(0));
-    let marked_start = before.cols[0] > split.start;
-    match hide.contains(&Hide::Forcing) && start_same && marked_start {
-        true => keep_kind(line, split.start, (kind, after.iter().collect(), hide)),
-        false => line,
+        first.get_or_insert(line);
     }
+
+    Err(first.unwrap_or_default())
+}
+
+/// Whether `read` has the text, emphasis and notes of `part` before and behind what was typed
+/// (`effective` is the emphasis the writer managed to write).
+fn reads_right(read: &ShownLine, part: &Part, effective: &[Marks], typed: &Range<usize>) -> bool {
+    let chars: Vec<char> = read.text.chars().collect();
+    let marks = marks_of(&read.runs, chars.len());
+    let Some(back) = chars.len().checked_sub(part.chars.len() - typed.end) else {
+        return false;
+    };
+    if back < typed.start {
+        return false;
+    }
+
+    chars[..typed.start] == part.chars[..typed.start]
+        && marks[..typed.start] == effective[..typed.start]
+        && chars[back..] == part.chars[typed.end..]
+        && marks[back..] == effective[typed.end..]
+        && notes_right(&read.notes, part.notes, typed, back)
+}
+
+/// Whether the notes before the typed text are the first of `read` and the notes behind it
+/// the last, `back` being where the text behind the typed starts in the read text.
+fn notes_right(read: &[ShownNote], notes: &[ShownNote], typed: &Range<usize>, back: usize) -> bool {
+    let head: Vec<ShownNote> = notes
+        .iter()
+        .filter(|n| n.at < typed.start)
+        .cloned()
+        .collect();
+    let tail: Vec<ShownNote> = notes
+        .iter()
+        .filter(|n| n.at >= typed.end)
+        .map(|n| ShownNote {
+            at: n.at - typed.end + back,
+            text: n.text.clone(),
+        })
+        .collect();
+    if read.len() < head.len() + tail.len() {
+        return false;
+    }
+
+    read[..head.len()] == head[..] && read[read.len() - tail.len()..] == tail[..]
 }
 
 /// The character that forces a line to be of `kind`, where Fountain has one.
@@ -445,101 +690,6 @@ fn forcing_char(kind: TextKind) -> Option<char> {
     }
 }
 
-/// `line` with the forcing character of `kind` at `start` if it reads as another kind or
-/// shows another text than `text`: a cue has a line of speech below it, anything else stands
-/// alone.
-///
-/// Example: `*!* ist wichtig.` without its marks is `! ist wichtig.`, which prints without
-/// the `!`; `!! ist wichtig.` prints it.
-fn keep_kind(
-    line: String,
-    start: usize,
-    (kind, text, hide): (TextKind, String, &[Hide]),
-) -> String {
-    let context = match kind {
-        TextKind::Character => format!("{line}\nx"),
-        _ => line.clone(),
-    };
-    let read = &shown_lines(&context, hide)[0];
-    let reads_as = read.kind == kind && read.text == text;
-    let Some(force) = forcing_char(kind).filter(|_| !reads_as) else {
-        return line;
-    };
-
-    format!("{}{force}{}", &line[..start], &line[start..])
-}
-
-/// For each character of `new` the character of `old` it is, or none for a new one: the
-/// characters both texts share in a longest common subsequence, so a change in two places
-/// keeps what lies between.
-fn pairs(old: &[char], new: &[char]) -> Vec<Option<usize>> {
-    let head = old.iter().zip(new).take_while(|(a, b)| a == b).count();
-    let tail = old[head..]
-        .iter()
-        .rev()
-        .zip(new[head..].iter().rev())
-        .take_while(|(a, b)| a == b)
-        .count();
-    let mut pairs: Vec<Option<usize>> = vec![None; new.len()];
-
-    // Between equal ends a table pairs the rest; a long middle costs too much for it.
-    let middle = (old.len() - head - tail) * (new.len() - head - tail);
-    if middle > MAX_TABLE {
-        for (at, pair) in pairs.iter_mut().enumerate().take(head) {
-            *pair = Some(at);
-        }
-        for back in 1..=tail {
-            pairs[new.len() - back] = Some(old.len() - back);
-        }
-
-        return pairs;
-    }
-
-    let keys = |text: &[char]| text.iter().map(char::to_string).collect::<Vec<_>>();
-    let (removed, added) = unpaired(&keys(old), &keys(new));
-    let (mut gone, mut new_one) = (vec![false; old.len()], vec![false; new.len()]);
-    removed.iter().for_each(|&at| gone[at] = true);
-    added.iter().for_each(|&at| new_one[at] = true);
-
-    let mut kept = (0..old.len()).filter(|&at| !gone[at]);
-    for (pair, _) in pairs.iter_mut().zip(&new_one).filter(|(_, new)| !**new) {
-        *pair = kept.next();
-    }
-
-    pairs
-}
-
-/// The notes of `before` in the new text of `len` characters: a note stays before the
-/// character it stood before; where that is gone, behind the character before it; one at the
-/// end stays at the end.
-fn moved_notes(before: &Body, pairs: &[Option<usize>], len: usize) -> Vec<ShownNote> {
-    let old_len = before.chars.len();
-
-    before
-        .notes
-        .iter()
-        .map(|note| {
-            let next = pairs
-                .iter()
-                .position(|old| old.is_some_and(|at| at >= note.at));
-            let last = pairs
-                .iter()
-                .rposition(|old| old.is_some_and(|at| at < note.at));
-            let at = match (next, last) {
-                _ if note.at >= old_len => len,
-                (Some(next), _) => next,
-                (None, Some(last)) => last + 1,
-                (None, None) => 0,
-            };
-
-            ShownNote {
-                at,
-                text: note.text.clone(),
-            }
-        })
-        .collect()
-}
-
 /// The emphasis of each of `len` characters; what no run covers is plain.
 fn marks_of(runs: &[Run], len: usize) -> Vec<Marks> {
     let mut marks = vec![Marks::default(); len];
@@ -552,161 +702,6 @@ fn marks_of(runs: &[Run], len: usize) -> Vec<Marks> {
 
     marks
 }
-
-/// What a shown text is written from.
-struct Part<'a> {
-    chars: &'a [char],
-    marks: &'a [Marks],
-    escaped: &'a [bool],
-    notes: &'a [ShownNote],
-}
-
-/// Whether `body` read again gives the text and notes of `part` and `marks`, the emphasis
-/// that was written.
-fn reads_as(body: &str, part: &Part, marks: &[Marks], hide: &[Hide]) -> bool {
-    let again = read_body(body, 0..body.len(), hide);
-
-    !again.boneyard
-        && again.chars == part.chars
-        && again.marks == marks
-        && again.notes == part.notes
-}
-
-/// The emphasis that one marked stretch has, as a segment of the written text.
-#[derive(Clone, Copy, PartialEq, Eq)]
-struct Emphasis {
-    marks: Marks,
-    applied: bool,
-}
-
-const PLAIN: Marks = Marks {
-    bold: false,
-    italic: false,
-    underline: false,
-    note: false,
-    boneyard: false,
-};
-
-/// The text of `part` as Fountain, with a mark around every stretch of emphasis.
-/// The emphasis it wrote comes with it: a stretch that could not be marked is plain there.
-fn write_body(part: &Part) -> (String, Vec<Marks>) {
-    let mut out = String::new();
-    let mut written = part.marks.to_vec();
-    let mut tail = Tail::Free;
-    let mut now = Emphasis {
-        marks: PLAIN,
-        applied: false,
-    };
-
-    for i in 0..=part.chars.len() {
-        let want = part.marks.get(i).copied().unwrap_or(PLAIN);
-        let changed = want != now.marks;
-        if changed {
-            if now.applied {
-                tail = tail_after_close(now.marks);
-            }
-            close(&mut out, now);
-        }
-
-        // A note between two stretches stands outside both.
-        for note in part
-            .notes
-            .iter()
-            .filter(|n| n.at.min(part.chars.len()) == i)
-        {
-            out.push_str(&format!("{NOTE_OPEN}{}{NOTE_CLOSE}", note.text));
-            tail = Tail::Free;
-        }
-        if changed {
-            now = open(&mut out, want, tail);
-        }
-
-        let Some(&ch) = part.chars.get(i) else {
-            break;
-        };
-        if now.marks != PLAIN && !now.applied {
-            written[i] = PLAIN;
-        }
-        let protected = part.escaped[i] && is_protected(ch);
-        if protected {
-            out.push(ESCAPE);
-        }
-        out.push(ch);
-        tail = match ch {
-            STAR if !protected => Tail::Star,
-            SLASH => Tail::Slash,
-            _ => Tail::Free,
-        };
-    }
-
-    (out, written)
-}
-
-/// What the written text ends with, as far as a mark that follows cares.
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum Tail {
-    Free,
-    /// A `*` that is no escaped one: stars after it would join it.
-    Star,
-    /// A `/`: `/*` opens a boneyard.
-    Slash,
-}
-
-/// What the text ends with after the stars of a closed stretch.
-fn tail_after_close(marks: Marks) -> Tail {
-    match stars(marks).is_empty() || marks.underline {
-        true => Tail::Free,
-        false => Tail::Star,
-    }
-}
-
-/// A character a backslash can protect.
-fn is_protected(ch: char) -> bool {
-    matches!(ch, STAR | UNDERLINE | ESCAPE | NOTE_BRACKET)
-}
-
-fn stars(marks: Marks) -> &'static str {
-    match (marks.bold, marks.italic) {
-        (true, true) => "***",
-        (true, false) => "**",
-        (false, true) => "*",
-        (false, false) => "",
-    }
-}
-
-/// Opens `want`. Stars that would touch the stars before them, or follow a `/`, are left out
-/// and the stretch stays plain.
-fn open(out: &mut String, want: Marks, tail: Tail) -> Emphasis {
-    let blocked = !stars(want).is_empty() && !want.underline && tail != Tail::Free;
-    if want == PLAIN || blocked {
-        return Emphasis {
-            marks: want,
-            applied: false,
-        };
-    }
-
-    if want.underline {
-        out.push(UNDERLINE);
-    }
-    out.push_str(stars(want));
-
-    Emphasis {
-        marks: want,
-        applied: true,
-    }
-}
-
-fn close(out: &mut String, now: Emphasis) {
-    if !now.applied {
-        return;
-    }
-
-    out.push_str(stars(now.marks));
-    if now.marks.underline {
-        out.push(UNDERLINE);
-    }
-}
-
 /// `source` with the lines `lines` replaced by `new`, as the lines that change: the lines
 /// both sides share at the start and the end are left out, so a line that stays is never
 /// part of the splice. An empty range inserts, an empty `new` deletes. A range past the end
