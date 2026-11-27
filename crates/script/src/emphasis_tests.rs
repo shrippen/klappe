@@ -1,5 +1,6 @@
 //! Emphasis toggled over a selection of the source (D-36, D-37).
 
+use crate::emphasis::toggle_rounds;
 use crate::shown::marks_of;
 use crate::{emphasis_at, shown_lines, toggle_mark, Hide, Mark, Marks, Spot};
 
@@ -313,13 +314,75 @@ const AFTER_A_CUE: &str =
     "INT. HAUS - TAG\n\n!ANNA\nkommt herein.\nSie setzt sich.\n\nANNA\nHallo.";
 const ODD_LINES: &str = "INT. HAUS - TAG\nEin _u_ hier.\n\n  \n\nINT. KÜCHE - TAG #12A#\nANNA\nZwei.\nCUT TO:\nzu]] ok\nx_y_z";
 
+/// A forced cue takes bold behind its `!`, and so do the lines under it, which the bold cue
+/// turns into dialogue and which are bold as action again once the cue is as it was.
 #[test]
-fn lines_under_a_cue_that_cannot_be_bold_are_bold() {
+fn a_forced_cue_and_the_lines_under_it_take_bold() {
     let done = over_all(AFTER_A_CUE, Mark::Bold);
 
+    assert!(done.contains("\n!**ANNA**\n"), "{done:?}");
     assert!(done.contains("\n**kommt herein.**\n"), "{done:?}");
     assert!(done.contains("\n**Sie setzt sich.**\n"), "{done:?}");
     assert_eq!(crate::text_kinds(&done), crate::text_kinds(AFTER_A_CUE));
+}
+
+#[test]
+fn a_selection_from_column_0_over_lyrics_marks_every_line() {
+    let source = "INT. HAUS - TAG\n\n~eins\n~zwei";
+    let done = toggled(source, spot(2, 1), spot(3, 5), Mark::Italic);
+
+    assert_eq!(done, "INT. HAUS - TAG\n\n~*eins*\n~*zwei*");
+}
+
+#[test]
+fn centered_lines_take_underline_inside_their_marks() {
+    let source = "INT. HAUS - TAG\n\n> eins <\n> zwei <\n\nANNA\nHallo.";
+    let done = over_all(source, Mark::Underline);
+
+    assert!(
+        done.contains(">_ eins _<") && done.contains(">_ zwei _<"),
+        "{done:?}"
+    );
+    assert_eq!(crate::text_kinds(&done), crate::text_kinds(source));
+}
+
+/// A song of 100 lines and 100 parentheticals under a cue.
+fn long_blocks() -> String {
+    let song: Vec<String> = (0..100).map(|n| format!("~zeile {n}")).collect();
+    let aside: Vec<String> = (0..100).map(|n| format!("(still {n})")).collect();
+
+    format!(
+        "INT. HAUS - TAG\n\n{}\n\nANNA\n{}",
+        song.join("\n"),
+        aside.join("\n")
+    )
+}
+
+#[test]
+fn a_song_takes_its_mark_on_every_line() {
+    let source = long_blocks();
+    let done = over_all(&source, Mark::Bold);
+
+    assert!(done.contains("\n~**zeile 0**\n") && done.contains("\n~**zeile 99**\n"));
+    assert_eq!(crate::text_kinds(&done), crate::text_kinds(&source));
+}
+
+#[test]
+fn the_rounds_do_not_grow_with_the_lines_that_cannot_take_it() {
+    // Cues and parentheticals in turn: the italic cues are fine, the parentheticals are not.
+    let block: Vec<String> = (0..100)
+        .map(|n| match n % 2 {
+            0 => "ANNA".to_owned(),
+            _ => format!("(still {n})"),
+        })
+        .collect();
+    let source = format!("INT. HAUS - TAG\n\n{}\n\nEnde.", block.join("\n"));
+    let lines: Vec<&str> = source.split('\n').collect();
+    let end = spot(lines.len() - 1, 5);
+    let (done, rounds) = toggle_rounds(&source, &SHOWN, (spot(0, 0), end), Mark::Italic);
+
+    assert_ne!(done.source, source);
+    assert!(rounds <= 3, "{rounds} rounds");
 }
 
 #[test]

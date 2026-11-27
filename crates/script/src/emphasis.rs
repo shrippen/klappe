@@ -117,6 +117,9 @@ fn pieces(
             true => count_before(one, byte_at(text, to.col)),
             false => len,
         };
+        // What forces the element is no text to mark: `~eins` is marked from its `e`.
+        let (lead, trail) = forcing(one);
+        let (start, end) = (start.max(lead), end.min(len.saturating_sub(trail)));
         if one.shape == Shape::Typed || start >= end {
             continue;
         }
@@ -131,6 +134,26 @@ fn pieces(
     }
 
     found
+}
+
+/// How many characters at the start and at the end of a shown line only force its element
+/// (`!` action, `@` cue, `~` lyrics, `>` transition or centered, `.` heading, `<` closing a
+/// centered line).
+fn forcing(shown: &ShownLine) -> (usize, usize) {
+    let mark = match shown.kind {
+        TextKind::Action => '!',
+        TextKind::Character => '@',
+        TextKind::Lyrics => '~',
+        TextKind::Transition | TextKind::Centered => '>',
+        TextKind::Heading => '.',
+        _ => return (0, 0),
+    };
+    let text = &shown.text;
+    // `..INT.` is a heading with a dot of its own.
+    let lead = text.starts_with(mark) && !(mark == '.' && text.starts_with(".."));
+    let trail = shown.kind == TextKind::Centered && text.len() > 1 && text.ends_with('<');
+
+    (usize::from(lead), usize::from(trail))
 }
 
 /// The emphasis of each character of a shown line.
@@ -199,7 +222,17 @@ fn at_cursor(lines: &[&str], shown: &[ShownLine], spot: Spot) -> EmphasisAt {
 /// else on for all of it. The lines to show again are shown with `hide`. A selection without
 /// characters, and bold on headings, change nothing; neither does a line that could not take
 /// the emphasis without a change of its text or of what it is.
-pub fn toggle_mark(source: &str, hide: &[Hide], (from, to): (Spot, Spot), mark: Mark) -> Edited {
+pub fn toggle_mark(source: &str, hide: &[Hide], range: (Spot, Spot), mark: Mark) -> Edited {
+    toggle_rounds(source, hide, range, mark).0
+}
+
+/// [`toggle_mark`], and how many times the new book was read before it held.
+pub(crate) fn toggle_rounds(
+    source: &str,
+    hide: &[Hide],
+    (from, to): (Spot, Spot),
+    mark: Mark,
+) -> (Edited, usize) {
     let lines: Vec<&str> = source.split('\n').collect();
     let book = Book {
         lines: &lines,
@@ -234,13 +267,18 @@ pub fn toggle_mark(source: &str, hide: &[Hide], (from, to): (Spot, Spot), mark: 
         };
         let line = edit_line(lines[piece.line], piece.kind, piece.shape, &READ, &edit);
 
-        changes.insert(piece.line, Change { line, marks });
+        // A line that comes back as it was has nothing to take.
+        if line != lines[piece.line] {
+            changes.insert(piece.line, Change { line, marks });
+        }
     }
 
     // The new book is read once: what a line shows, and what every line of the book is, must be
     // as before, but for the emphasis asked for. A line that spoils it goes back; so does what
     // may have caused it. Again, until nothing is spoilt (at the latest when nothing is left).
+    let mut rounds = 0;
     loop {
+        rounds += 1;
         let bad = book.spoilt(&changes);
         if bad.is_empty() {
             break;
@@ -256,13 +294,20 @@ pub fn toggle_mark(source: &str, hide: &[Hide], (from, to): (Spot, Spot), mark: 
         })
         .collect();
 
-    rewrite_lines(source, hide, (first, last), &new)
+    (rewrite_lines(source, hide, (first, last), &new), rounds)
 }
 
 /// A line written again, and the emphasis it is to show.
 struct Change {
     line: String,
     marks: Vec<Marks>,
+}
+
+/// A line of the new book that is not as it should be, and whether the change of that line itself
+/// is the cause (its kind or its emphasis, read with the lines around it as they were).
+struct Spoilt {
+    at: usize,
+    own: bool,
 }
 
 /// The book a toggle starts from.
@@ -282,7 +327,7 @@ impl Book<'_> {
     /// The lines of the book with `changes` made that are not what they were (another kind,
     /// other text, notes or number) or do not show the emphasis they should. A line that is
     /// not changed, and has the kind and the boneyard it had, shows what it showed.
-    fn spoilt(&self, changes: &BTreeMap<usize, Change>) -> Vec<usize> {
+    fn spoilt(&self, changes: &BTreeMap<usize, Change>) -> Vec<Spoilt> {
         let all: Vec<&str> = (0..self.lines.len())
             .map(|at| match changes.get(&at) {
                 Some(change) => change.line.as_str(),
@@ -291,44 +336,89 @@ impl Book<'_> {
             .collect();
         let source = all.join("\n");
         let (kinds, inside) = (text_kinds(&source), boneyard_lines(&source));
+        let mut found = Vec::new();
 
-        (0..self.lines.len())
-            .filter(|&at| {
-                let in_boneyard = inside.get(at).copied().unwrap_or(false);
-                let same = kinds[at] == self.kinds[at] && in_boneyard == self.inside[at];
-                if kinds[at] != self.kinds[at] || (same && !changes.contains_key(&at)) {
-                    return kinds[at] != self.kinds[at];
+        for at in 0..self.lines.len() {
+            let in_boneyard = inside.get(at).copied().unwrap_or(false);
+            let changed = changes.get(&at);
+            let kind_moved = kinds[at] != self.kinds[at];
+            let same = !kind_moved && in_boneyard == self.inside[at];
+            if !kind_moved && same && changed.is_none() {
+                continue;
+            }
+
+            let own = match (kind_moved, changed) {
+                (true, Some(change)) => self.alone(at, &change.line),
+                (true, None) => false,
+                (false, _) => {
+                    let was = self.shown(at);
+                    let now = shown_line(all[at], kinds[at], in_boneyard, &READ);
+                    let wanted = match changed {
+                        Some(change) => change.marks.clone(),
+                        None => marks_of(&was),
+                    };
+                    let spoilt = was.text != now.text
+                        || was.notes != now.notes
+                        || was.number != now.number
+                        || marks_of(&now) != wanted;
+                    if !spoilt {
+                        continue;
+                    }
+
+                    changed.is_some() && same
                 }
+            };
+            found.push(Spoilt { at, own });
+        }
 
-                let (was, now) = (
-                    self.shown(at),
-                    shown_line(all[at], kinds[at], in_boneyard, &READ),
-                );
-                let wanted = match changes.get(&at) {
-                    Some(change) => change.marks.clone(),
-                    None => marks_of(&was),
-                };
-
-                was.text != now.text
-                    || was.notes != now.notes
-                    || was.number != now.number
-                    || marks_of(&now) != wanted
-            })
-            .collect()
+        found
     }
 
-    /// Takes back, in every block (up to a blank line) with a spoilt line, the first change that
-    /// may be the cause: the first changed line that is spoilt itself, else the first changed
-    /// line. What is left is read again, so a line spoilt by its neighbour comes back to stay.
-    /// When no block has a change to take back, all of them go.
-    fn shed(&self, changes: &mut BTreeMap<usize, Change>, bad: &[usize]) {
-        let blocks: BTreeSet<(usize, usize)> =
-            bad.iter().filter_map(|&at| self.block_of(at)).collect();
+    /// Whether `line` in place of line `at` is another kind by itself: read with two lines
+    /// either side as they were. A line that is only another kind because of a neighbour that
+    /// changed is not.
+    fn alone(&self, at: usize, line: &str) -> bool {
+        let mut from = at.saturating_sub(2);
+        while from > 0 && self.inside[from] {
+            from -= 1;
+        }
+        let to = (at + 3).min(self.lines.len());
+        let mut changed: Vec<&str> = self.lines[from..to].to_vec();
+        changed[at - from] = line;
+        let old = text_kinds(&self.lines[from..to].join("\n"));
+        let new = text_kinds(&changed.join("\n"));
+
+        old[at - from] != new[at - from]
+    }
+
+    /// Takes back changes that spoil the book. Those whose own change is the cause all go at
+    /// once. If there are none, in every block (up to a blank line) with a spoilt line the first
+    /// change that may be the cause: the first changed line that is spoilt, else the first
+    /// changed line; what is left is read again, so a line spoilt by its neighbour comes back
+    /// to stay. When no block has a change to take back, all of them go.
+    fn shed(&self, changes: &mut BTreeMap<usize, Change>, bad: &[Spoilt]) {
+        let own: Vec<usize> = bad
+            .iter()
+            .filter(|s| s.own && changes.contains_key(&s.at))
+            .map(|s| s.at)
+            .collect();
+        if !own.is_empty() {
+            own.iter().for_each(|at| drop(changes.remove(at)));
+            return;
+        }
+
+        let blocks: BTreeSet<(usize, usize)> = bad
+            .iter()
+            .filter_map(|spoilt| self.block_of(spoilt.at))
+            .collect();
         let mut gone = Vec::new();
 
         for (from, to) in blocks {
-            let mut own = changes.range(from..to).map(|(line, _)| *line);
-            let first = own.clone().find(|line| bad.contains(line)).or(own.next());
+            let mut here = changes.range(from..to).map(|(line, _)| *line);
+            let first = here
+                .clone()
+                .find(|line| bad.iter().any(|s| s.at == *line))
+                .or(here.next());
             gone.extend(first);
         }
         if gone.is_empty() {
