@@ -262,6 +262,37 @@ fn assert_all_or_nothing(before: &str, mark: Mark) {
     assert_eq!(new[0], want, "{mark:?} over {before:?} gave {after:?}");
 }
 
+/// The kinds of the lines of `source` after `mark` over line `line`, whole.
+fn kinds_after(
+    source: &str,
+    line: usize,
+    mark: Mark,
+) -> (Vec<crate::TextKind>, Vec<crate::TextKind>) {
+    let len = source
+        .split('\n')
+        .nth(line)
+        .map_or(0, |l| l.encode_utf16().count());
+    let done = toggled(source, spot(line, 0), spot(line, len), mark);
+
+    (crate::text_kinds(source), crate::text_kinds(&done))
+}
+
+#[test]
+fn a_boneyard_over_lines_ends_far_above_the_line() {
+    let source = "/*\neins\nzwei\ndrei\n*/\n!ANNA\nText.";
+    let (old, new) = kinds_after(source, 5, Mark::Italic);
+
+    assert_eq!(old, new);
+}
+
+#[test]
+fn a_heading_above_a_cue_behind_a_boneyard_keeps_the_kinds() {
+    let source = "/*\neins\nzwei\ndrei\n*/\nINT. HAUS - TAG\n!ANNA\nText.";
+    let (old, new) = kinds_after(source, 6, Mark::Bold);
+
+    assert_eq!(old, new);
+}
+
 #[test]
 fn bold_over_a_line_ending_in_italic_loses_nothing() {
     assert_all_or_nothing("Sie sagt *nein*", Mark::Bold);
@@ -284,7 +315,7 @@ const BOOK_STEP: usize = 2;
 const MARKS: [Mark; 3] = [Mark::Bold, Mark::Italic, Mark::Underline];
 
 /// A book with every sort of line and emphasis that sits close together.
-const BOOK: &str = "Title: Nachtwache\n\n.INT. KÜCHE - TAG #12A#\n\n\
+const BOOK: &str = "/*\neins\nzwei\ndrei\n*/\n!ANNA\nText.\n\n/*\na\nb\nc\n*/\nINT. HAUS - TAG\n!ANNA\nText.\n\nTitle: Nachtwache\n\n.INT. KÜCHE - TAG #12A#\n\n\
 Anna *tritt* ein, **laut** und ***sehr laut***, _still_ [[Licht?]] und _**beides**_.\n\n\
 @mcClane\n(leise)\nIhr kommt *spät* [[Pause]].\n\n>ENDE<\n\n# Akt 1\n\n\
 Und \\*kein Stern\\* und a_b und 1 * 2, */ oder /* nicht.\n\nCUT TO:\n";

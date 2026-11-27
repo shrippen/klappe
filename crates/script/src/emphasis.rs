@@ -12,6 +12,7 @@
 
 use crate::change::{byte_at, rewrite_lines};
 use crate::inline::runs;
+use crate::parse::boneyard_lines;
 use crate::shown::marks_of as marks_by_runs;
 use crate::{
     edit_line, shown_lines, text_kinds, Edited, Hide, LineEdit, Marks, Shape, ShownLine, Spot,
@@ -205,6 +206,7 @@ pub fn toggle_mark(source: &str, hide: &[Hide], (from, to): (Spot, Spot), mark: 
             .iter()
             .all(|m| mark.of(m))
     };
+    let inside = boneyard_lines(source);
     let switch = match found.iter().all(has) {
         true => Switch::Off,
         false => Switch::On,
@@ -227,7 +229,7 @@ pub fn toggle_mark(source: &str, hide: &[Hide], (from, to): (Spot, Spot), mark: 
         let line = edit_line(lines[piece.line], piece.kind, piece.shape, &READ, &edit);
 
         // A line that cannot take it as asked stays as it is.
-        if holds(&lines, piece.line, &line, &marks) {
+        if holds(&lines, &inside, piece.line, &line, &marks) {
             new[piece.line - first] = line;
         }
     }
@@ -240,9 +242,14 @@ const NEAR: usize = 3;
 
 /// Whether line `at` of `lines` written as `line` shows what `marks` say (their emphasis, the
 /// text it had), and neither it nor the lines around it are another kind or have other
-/// emphasis. Reads only the lines around it, not the book.
-fn holds(lines: &[&str], at: usize, line: &str, marks: &[Marks]) -> bool {
-    let from = at.saturating_sub(NEAR);
+/// emphasis. Reads only the lines around it (and back to where a boneyard over them starts),
+/// not the book; `inside` says which lines a boneyard covers.
+fn holds(lines: &[&str], inside: &[bool], at: usize, line: &str, marks: &[Marks]) -> bool {
+    // The window starts outside a boneyard, so that it reads the lines as the book does.
+    let mut from = at.saturating_sub(NEAR);
+    while from > 0 && inside.get(from).copied().unwrap_or(false) {
+        from -= 1;
+    }
     let to = (at + NEAR + 1).min(lines.len());
     let mut changed: Vec<&str> = lines[from..to].to_vec();
     changed[at - from] = line;
