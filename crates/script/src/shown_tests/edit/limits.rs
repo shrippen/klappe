@@ -1,4 +1,5 @@
-//! The limits of Fountain the fuzz of changes names, one test each.
+//! The limits of Fountain the fuzz of changes names, one test each. A typed note and a typed `^`
+//! at the end of a cue are limits too, but the fuzz does not read back what is typed.
 
 use super::*;
 
@@ -19,6 +20,20 @@ fn a_typed_note_is_a_note() {
     assert_eq!(new, "Hallo[[b]] [[a]]");
     assert_eq!(shown.text, "Hallo ");
     assert_eq!(shown.notes.len(), 2);
+}
+
+#[test]
+fn a_note_line_is_one_note() {
+    let source = "[[n]]^";
+    let new = splice(source, 0..1, "[[n]]");
+    let shown = shown_one(&new);
+
+    assert_eq!(new, "\\[\\[n]][[n]]");
+    assert_eq!(
+        (shown.kind, shown.text.as_str()),
+        (TextKind::Action, "[[n]]")
+    );
+    assert_eq!(shown.notes.len(), 1);
 }
 
 #[test]

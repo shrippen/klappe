@@ -4,6 +4,7 @@ use std::collections::BTreeMap;
 
 use super::*;
 
+mod found;
 mod limits;
 
 /// The first line of `source` after `change`, shown with `hide`.
@@ -213,22 +214,20 @@ enum Limit {
     DotHeading,
     /// A transition cannot end with `<`: `>Text<` is centered.
     TransitionEnd,
-    /// A cue cannot end with `^`: it marks dual dialogue.
-    CueEnd,
     /// A note in front of a `#` or `=`, or around `(leise)`, keeps the line from being a
     /// section, a synopsis or a parenthetical: the mark must open the line (and `)` end it).
     NoteBreaksLine,
     /// A heading cannot end with `#12#`: that is its number.
     HeadingEndsWithNumber,
-    /// What is typed is Fountain: a typed `[[n]]` is a note, so the visible text is not the
-    /// typed string and the kind it would give alone does not hold.
-    TypedNote,
     /// A blank with a note is a note.
     BlankWithNote,
+    /// A note line is one note and nothing else: with emphasis or another note in the text
+    /// it is no note line, although the text alone reads as one.
+    NoteAlone,
     /// Without `Hide::Forcing` the forcing character put in front shows as text.
     VisibleLead,
     /// A backslash the change leaves alone stays (rule 1): `\[[n]]` cannot become a note
-    /// although its text, set bare, reads as one.
+    /// although its text, set bare, reads as one. Rare: the fuzz meets it at seed 200 only.
     EscapedOpener,
     /// A `/*` that is text could open a boneyard; the writer protects it, the text alone reads
     /// as a boneyard.
@@ -238,15 +237,13 @@ enum Limit {
     TouchingStars,
 }
 
-const LIMITS: [Limit; 10] = [
+const LIMITS: [Limit; 8] = [
     Limit::DotHeading,
     Limit::TransitionEnd,
-    Limit::CueEnd,
     Limit::NoteBreaksLine,
     Limit::HeadingEndsWithNumber,
-    Limit::TypedNote,
-    Limit::EscapedOpener,
     Limit::BlankWithNote,
+    Limit::NoteAlone,
     Limit::BoneyardText,
     Limit::TouchingStars,
 ];
@@ -269,18 +266,6 @@ fn without_lead(read: &ShownLine) -> ShownLine {
             .collect(),
         ..read.clone()
     }
-}
-
-fn is_typed_kind(kind: TextKind) -> bool {
-    matches!(
-        kind,
-        TextKind::Blank
-            | TextKind::Title
-            | TextKind::Section
-            | TextKind::Synopsis
-            | TextKind::Note
-            | TextKind::PageBreak
-    )
 }
 
 fn has_stars(marks: Marks) -> bool {
@@ -325,7 +310,8 @@ impl Case {
             .position(|c| !c.is_whitespace())
             .unwrap_or(text.len());
         let note_in_front = notes.iter().any(|n| n.at <= first);
-        let note_behind = notes.iter().any(|n| n.at >= text.len());
+        let kept_len = trimmed.chars().count();
+        let note_behind = notes.iter().any(|n| n.at >= kept_len);
         let numbered = trimmed
             .strip_suffix('#')
             .is_some_and(|rest| rest.contains('#'));
@@ -342,7 +328,6 @@ impl Case {
                 trimmed.ends_with('<'),
                 Limit::TransitionEnd,
             ),
-            (TextKind::Character, trimmed.ends_with('^'), Limit::CueEnd),
             (
                 TextKind::Parenthetical,
                 note_in_front || note_behind,
@@ -355,12 +340,20 @@ impl Case {
                 !self.shown.notes.is_empty(),
                 Limit::BlankWithNote,
             ),
+            (
+                TextKind::Note,
+                !self.shown.notes.is_empty()
+                    || self.marks.iter().any(|m| has_stars(*m) || m.underline),
+                Limit::NoteAlone,
+            ),
         ];
 
-        if self.change.typed.contains("[[") {
-            return Some(Limit::TypedNote);
-        }
-        if self.line.contains('\\') && is_typed_kind(expected) {
+        if self.escaped_opener_kept()
+            && matches!(
+                expected,
+                TextKind::Note | TextKind::Section | TextKind::Synopsis
+            )
+        {
             return Some(Limit::EscapedOpener);
         }
         if trimmed.contains("/*") {
@@ -374,6 +367,16 @@ impl Case {
         }
 
         self.touching().then_some(Limit::TouchingStars)
+    }
+
+    /// Whether the line has a backslash before a `[[`, `#` or `=` that the change leaves alone.
+    fn escaped_opener_kept(&self) -> bool {
+        let old = self.old();
+        let removed = &self.change.removed;
+        let mut kept = old[..removed.start].iter().chain(&old[removed.end..]);
+
+        ["\\[[", "\\#", "\\="].iter().any(|e| self.line.contains(e))
+            && kept.any(|c| matches!(c, '[' | '#' | '='))
     }
 
     /// Whether a run of stars starts behind a `/`, a `*` or the stars of another run, or ends
@@ -530,6 +533,9 @@ fn fuzz_changes(hide: &'static [Hide]) -> Found {
 
     assert!(found.tried > 10_000, "{} changes", found.tried);
     println!("FOUND {hide:?} {} {:?}", found.tried, found.limited);
+    for o in &found.outside {
+        println!("OUT {o}");
+    }
 
     found
 }

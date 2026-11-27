@@ -72,6 +72,10 @@ pub(super) fn leads(target: &Target, tail: &str) -> Vec<(String, Lead, End)> {
     if matches!(target.reads, TextKind::Character | TextKind::Dialogue) {
         leads.push((prefix.to_owned(), Lead::Kept, End::Guarded));
     }
+    // A name that is no cue by itself (`(Anna.)`) needs both.
+    if let (TextKind::Character, Some(force)) = (target.reads, forcing_char(target.reads)) {
+        leads.push((format!("{bare}{force}"), Lead::Added, End::Guarded));
+    }
 
     leads
 }
@@ -83,7 +87,7 @@ pub(super) fn behind(tail: &str, end: End, kind: TextKind) -> String {
         End::Dropped if ends_with_mark(kind, tail) => String::new(),
         End::Dropped => tail.to_owned(),
         End::Closed => CENTER_END.to_string(),
-        End::Guarded => format!("{tail}{UNDERLINE}{UNDERLINE}"),
+        End::Guarded => format!("{UNDERLINE}{UNDERLINE}{tail}"),
     }
 }
 

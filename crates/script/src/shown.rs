@@ -587,7 +587,9 @@ fn target_kind(
     }
 
     let new = reads(&plan.chars);
-    match new != reads(&before.chars) {
+    // A note line shows its marks: with emphasis in the text it cannot be one.
+    let emphasized = plan.marks.iter().any(|m| m.bold || m.italic || m.underline);
+    match new != reads(&before.chars) && !(new == TextKind::Note && emphasized) {
         true => (new, Above::Blank),
         false => (kind, Above::Blank),
     }
