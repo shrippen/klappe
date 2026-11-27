@@ -761,5 +761,6 @@ fn a_long_line_with_two_far_changes_is_quick() {
 }
 
 mod edit;
+mod source;
 
 use edit::{has_marks, moves_only_marks};

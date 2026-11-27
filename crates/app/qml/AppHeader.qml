@@ -4,6 +4,7 @@ import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 import Kante
 import "ProjectData.js" as ProjectData
+import "KeyNames.js" as KeyNames
 
 // D-02, D-03 (planung/DESIGN.md): the window's header. The mark, where we are (project ›
 // scene › plan, the plan's name a menu), the menus, undo and redo, and the command palette.
@@ -32,6 +33,9 @@ RowLayout {
     /// Camera pictures in the plan (LH-113), long shot description in the table (LH-112).
     property bool showCameraViews: true
     property bool showShotDescription: false
+    /// The screenplay's text shows the Fountain source (D-36), and its flowing text, not the pages.
+    property bool showScriptSource: false
+    property bool scriptFlow: true
     /// The order of the exported shot list: "cut" or "shooting" (LH-72).
     property string shotOrder: "cut"
 
@@ -79,12 +83,11 @@ RowLayout {
                                     actUndo, actRedo].concat(moduleCommands.actions, exportCommands.actions, shotViews.actions, zoom.actions,
                                     pageExports.actions, reportCommands.actions, viewCommands.actions, objectCommands.actions,
                                     playCommands.actions, navCommands.actions, armCommands.actions, jumpCommands.actions,
-                                    versionCommands.actions)
+                                    versionCommands.actions, scriptView.actions)
 
     // "Ctrl+Shift+Z" as the keyboard of the language names it.
     function keyName(sequence) {
-        return sequence.replace("Ctrl", texts.t("key.ctrl")).replace("Shift", texts.t("key.shift"))
-            .replace("Space", texts.t("key.space"))
+        return KeyNames.name(texts, sequence)
     }
 
     // "Undo: Move (Ctrl+Z)": the step the button takes back or does again (LH-103); the plain
@@ -246,6 +249,8 @@ RowLayout {
         KanteMenuItem { objectName: "timeline"; action: actTimeline }
         KanteMenuItem { objectName: "scriptShow"; action: jumpCommands.scriptAction }
         KanteMenuItem { objectName: "planShow"; action: jumpCommands.planAction }
+        KanteMenuSection { text: header.texts.t("script.title") }
+        KanteMenuItem { objectName: "scriptSource"; action: scriptView.sourceAction }
         KanteMenuSection { text: header.texts.t("menu.viewZoom") }
         KanteMenuItem { objectName: "zoomIn"; action: zoom.inAction }
         KanteMenuItem { objectName: "zoomOut"; action: zoom.outAction }
@@ -603,6 +608,17 @@ RowLayout {
         locked: header.locked
         module: header.module
         onRequested: what => header.versionRequested(what)
+    }
+
+    ScriptViewCommands {
+        id: scriptView
+        texts: header.texts
+        controller: header.controller
+        locked: header.locked
+        module: header.module
+        flow: header.scriptFlow
+        source: header.showScriptSource
+        onToggled: (area, shown) => header.viewToggled(area, shown)
     }
 
     JumpCommands {

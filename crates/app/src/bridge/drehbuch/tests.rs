@@ -1,4 +1,4 @@
-use super::shown::{edit_json, replace_json, shown_json};
+use super::shown::{edit_json, emphasis_json, replace_json, shown_json, toggle_json, View};
 use super::{
     breaks_json, enter_json, kinds_text, looks_json, move_json, outline_json, print_json,
     report_json, suggest_json, tab_json, title_json, title_set, ImportReport,
@@ -369,7 +369,7 @@ fn parsed(text: &str) -> serde_json::Value {
 /// The text has no marks; positions and columns count UTF-16 units (the emoji is two).
 #[test]
 fn shown_lines_have_runs_and_columns() {
-    let lines = parsed(&shown_json(SHOWN_SOURCE));
+    let lines = parsed(&shown_json(SHOWN_SOURCE, View::Shown));
 
     assert_eq!(lines[0]["text"], "Ä🎬 fett und");
     assert_eq!(lines[0]["runs"][0]["from"], 4);
@@ -396,7 +396,7 @@ fn shown_lines_have_runs_and_columns() {
 fn an_edit_gives_the_source_and_the_lines_to_show() {
     let change = r#"{ "line": 0, "from": 6, "to": 6, "typed": "x",
         "runs": [{ "from": 0, "to": 1, "bold": true }] }"#;
-    let edited = parsed(&edit_json(SHOWN_SOURCE, change));
+    let edited = parsed(&edit_json(SHOWN_SOURCE, change, View::Shown));
 
     assert_eq!(edited["source"], "Ä🎬 **fextt** und\nPlain\nZwei");
     assert_eq!(
@@ -407,7 +407,7 @@ fn an_edit_gives_the_source_and_the_lines_to_show() {
 
     // Over lines: from the end of line 0 to the start of line 2.
     let join = r#"{ "line": 0, "from": 12, "endLine": 2, "to": 0, "typed": "" }"#;
-    let joined = parsed(&edit_json(SHOWN_SOURCE, join));
+    let joined = parsed(&edit_json(SHOWN_SOURCE, join, View::Shown));
     assert_eq!(joined["source"], "Ä🎬 **fett** undZwei");
     assert_eq!(
         (joined["from"].as_u64(), joined["to"].as_u64()),
@@ -415,14 +415,79 @@ fn an_edit_gives_the_source_and_the_lines_to_show() {
     );
     assert_eq!(joined["shown"].as_array().unwrap().len(), 1);
 
-    assert_eq!(edit_json(SHOWN_SOURCE, "no json"), "");
+    assert_eq!(edit_json(SHOWN_SOURCE, "no json", View::Shown), "");
 }
 
 #[test]
 fn a_replacement_in_the_source_gives_the_lines_to_show() {
     // The emoji is two units: `ett` stands at the columns 7 to 10.
-    let edited = parsed(&replace_json(SHOWN_SOURCE, (0, 7), (0, 10), "ET"));
+    let edited = parsed(&replace_json(
+        SHOWN_SOURCE,
+        (0, 7),
+        (0, 10),
+        "ET",
+        View::Shown,
+    ));
 
     assert_eq!(edited["source"], "Ä🎬 **fET** und\nPlain\nZwei");
     assert_eq!(edited["shown"][0]["text"], "Ä🎬 fET und");
+}
+
+/// The columns of a toggle are UTF-16 units of the source line: the emoji is two.
+#[test]
+fn a_toggle_counts_in_utf16_units() {
+    // `Ä🎬 ` is four units; `fett` stands at 6 to 10, behind its `**`.
+    let range = ((0, 6), (0, 10));
+    let off = parsed(&toggle_json(SHOWN_SOURCE, range, "bold", View::Shown));
+    assert_eq!(off["source"], "Ä🎬 fett und\nPlain\nZwei");
+    assert_eq!(off["shown"][0]["runs"].as_array().unwrap().len(), 0);
+
+    // The emoji alone, two units.
+    let emoji = parsed(&toggle_json(
+        SHOWN_SOURCE,
+        ((0, 1), (0, 3)),
+        "italic",
+        View::Shown,
+    ));
+    assert_eq!(emoji["source"], "Ä*🎬* **fett** und\nPlain\nZwei");
+    assert_eq!(emoji["shown"][0]["runs"][0]["from"], 1);
+    assert_eq!(emoji["shown"][0]["runs"][0]["to"], 3);
+
+    assert_eq!(toggle_json(SHOWN_SOURCE, range, "wavy", View::Shown), "");
+}
+
+/// In the source view the marks show as written, and an edit writes what was typed.
+#[test]
+fn the_source_view_shows_the_marks_and_writes_what_is_typed() {
+    let lines = parsed(&shown_json(SHOWN_SOURCE, View::Source));
+    assert_eq!(lines[0]["text"], "Ä🎬 **fett** und");
+    assert_eq!(lines[0]["runs"].as_array().unwrap().len(), 0);
+    assert!(lines[0]["cols"].is_null() || lines[0]["cols"].as_array().unwrap().len() == 17);
+
+    let change = r#"{ "line": 0, "from": 7, "to": 7, "typed": "x" }"#;
+    let edited = parsed(&edit_json(SHOWN_SOURCE, change, View::Source));
+    assert_eq!(edited["source"], "Ä🎬 **fxett** und\nPlain\nZwei");
+    assert_eq!(edited["shown"][0]["text"], "Ä🎬 **fxett** und");
+
+    // A toggle in the source view writes the marks and shows them.
+    let bold = parsed(&toggle_json(
+        SHOWN_SOURCE,
+        ((1, 0), (1, 5)),
+        "bold",
+        View::Source,
+    ));
+    assert_eq!(bold["source"], "Ä🎬 **fett** und\n**Plain**\nZwei");
+    assert_eq!(bold["shown"][0]["text"], "**Plain**");
+}
+
+#[test]
+fn the_emphasis_of_a_selection_is_what_all_of_it_has() {
+    let at = |from, to| parsed(&emphasis_json(SHOWN_SOURCE, ((0, from), (0, to))));
+
+    assert_eq!(at(6, 10)["bold"], true);
+    assert_eq!(at(6, 10)["italic"], false);
+    assert_eq!(at(0, 10)["bold"], false);
+    // At a cursor behind the word.
+    assert_eq!(at(12, 12)["bold"], true);
+    assert_eq!(at(3, 3)["bold"], false);
 }

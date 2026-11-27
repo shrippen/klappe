@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 
 use klappe_script::{
     carry, edit_shown, page_starts, paginate, paginate_locked, parse, parse_located, shown_lines,
-    text_kinds, Change, Hide, PageOptions, PageSize, Spot, Words,
+    text_kinds, toggle_mark, Change, Hide, Mark, PageOptions, PageSize, Spot, Words,
 };
 
 const PAGES: usize = 120;
@@ -18,6 +18,10 @@ const RUNS: usize = 5;
 const LOAD_BUDGET: Duration = Duration::from_millis(300);
 /// The window's editor reads the kind of every line at each keystroke (D-15): one frame.
 const KEYSTROKE_BUDGET: Duration = Duration::from_millis(16);
+/// Ctrl+A, Ctrl+B runs in the window's thread: it must not feel like a hang.
+const TOGGLE_BUDGET: Duration = Duration::from_millis(300);
+/// Ctrl+B over one word of the same script.
+const WORD_BUDGET: Duration = Duration::from_millis(30);
 
 /// Scenes of action and dialogue, until the layout reaches `PAGES` pages.
 fn screenplay() -> String {
@@ -161,5 +165,126 @@ fn the_shown_text_of_120_pages_loads_and_a_keystroke_is_a_frame() {
     assert!(
         slowest <= KEYSTROKE_BUDGET,
         "{slowest:?} is over {KEYSTROKE_BUDGET:?}"
+    );
+}
+
+/// Ctrl+A, Ctrl+B over 120 pages. Lines that cannot take bold (a parenthetical, `CUT TO:`, a cue
+/// with an extension) stay as they are; finding that out must not read the book once per line.
+#[test]
+#[ignore = "timing, run by `make perf` in release"]
+fn bold_over_the_whole_script_of_120_pages_is_quick() {
+    let text = screenplay().replace("Nobody moves.", "Nobody *moves*.");
+    let lines = text.split('\n').count();
+    let last = Spot {
+        line: lines - 1,
+        col: 0,
+    };
+    let all = (Spot { line: 0, col: 0 }, last);
+    let mut slowest = Duration::ZERO;
+
+    for _ in 0..RUNS {
+        let start = Instant::now();
+        let done = toggle_mark(&text, &[Hide::Emphasis], all, Mark::Bold);
+        slowest = slowest.max(start.elapsed());
+        assert!(done.source.contains("**Rain taps"));
+    }
+
+    println!("{lines} lines, bold over all, slowest of {RUNS} runs: {slowest:?} (budget {TOGGLE_BUDGET:?})");
+    assert!(
+        slowest <= TOGGLE_BUDGET,
+        "{slowest:?} is over {TOGGLE_BUDGET:?}"
+    );
+}
+
+/// The worst book for it: every other cue is forced (`!BEN`), which bold turns into a character
+/// and its lines into dialogue, so the lines under it have to be checked again.
+#[test]
+#[ignore = "timing, run by `make perf` in release"]
+fn bold_over_forced_cues_of_120_pages_is_quick() {
+    let text = screenplay().replace("\nBEN\n", "\n!BEN\n");
+    let lines = text.split('\n').count();
+    let all = (
+        Spot { line: 0, col: 0 },
+        Spot {
+            line: lines - 1,
+            col: 0,
+        },
+    );
+    let mut slowest = Duration::ZERO;
+
+    for _ in 0..RUNS {
+        let start = Instant::now();
+        let done = toggle_mark(&text, &[Hide::Emphasis], all, Mark::Bold);
+        slowest = slowest.max(start.elapsed());
+        assert!(done.source.contains("**I know. We both do.**"));
+    }
+
+    println!("{lines} lines, forced cues, slowest of {RUNS} runs: {slowest:?} (budget {TOGGLE_BUDGET:?})");
+    assert!(
+        slowest <= TOGGLE_BUDGET,
+        "{slowest:?} is over {TOGGLE_BUDGET:?}"
+    );
+}
+
+/// A song of 100 lines and 100 parentheticals under a cue in front of the 120 pages: blocks that
+/// are long must not make the check read the book once per line.
+#[test]
+#[ignore = "timing, run by `make perf` in release"]
+fn bold_over_long_blocks_before_120_pages_is_quick() {
+    let song: Vec<String> = (0..100).map(|n| format!("~line {n}")).collect();
+    let aside: Vec<String> = (0..100).map(|n| format!("(quiet {n})")).collect();
+    let text = format!(
+        "INT. ROOM 0 - DAY\n\n{}\n\nANNA\n{}\n\n{}",
+        song.join("\n"),
+        aside.join("\n"),
+        screenplay()
+    );
+    let lines = text.split('\n').count();
+    let all = (
+        Spot { line: 0, col: 0 },
+        Spot {
+            line: lines - 1,
+            col: 0,
+        },
+    );
+    let mut slowest = Duration::ZERO;
+
+    for _ in 0..RUNS {
+        let start = Instant::now();
+        let done = toggle_mark(&text, &[Hide::Emphasis], all, Mark::Bold);
+        slowest = slowest.max(start.elapsed());
+        assert!(done.source.contains("~**line 99**"));
+    }
+
+    println!("{lines} lines, long blocks, slowest of {RUNS} runs: {slowest:?} (budget {TOGGLE_BUDGET:?})");
+    assert!(
+        slowest <= TOGGLE_BUDGET,
+        "{slowest:?} is over {TOGGLE_BUDGET:?}"
+    );
+}
+
+/// Ctrl+B over one word in the middle of 120 pages.
+#[test]
+#[ignore = "timing, run by `make perf` in release"]
+fn bold_over_one_word_of_120_pages_is_quick() {
+    let text = screenplay();
+    let line = text
+        .split('\n')
+        .position(|l| l.starts_with("Rain taps"))
+        .unwrap_or(0);
+    let word = (Spot { line, col: 5 }, Spot { line, col: 9 });
+    let mut slowest = Duration::ZERO;
+
+    for _ in 0..RUNS {
+        let start = Instant::now();
+        let done = toggle_mark(&text, &[Hide::Emphasis], word, Mark::Bold);
+        slowest = slowest.max(start.elapsed());
+        assert!(done.source.contains("Rain **taps**"));
+    }
+
+    println!("one word, slowest of {RUNS} runs: {slowest:?} (budget {WORD_BUDGET:?})");
+    assert!(
+        slowest <= WORD_BUDGET,
+        "{slowest:?} is over {WORD_BUDGET:?}"
     );
 }

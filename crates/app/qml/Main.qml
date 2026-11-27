@@ -99,6 +99,8 @@ Kirigami.ApplicationWindow {
                 module: root.module
                 showCameraViews: root.showCameraViews
                 showShotDescription: root.showShotDescription
+                showScriptSource: screenplay.sourceShown
+                scriptFlow: screenplay.layout === "flow"
                 shotOrder: root.shotOrder
                 onNewRequested: root.switchProject(() => newFolderDialog.open())
                 onOpenRequested: root.switchProject(() => openFolderDialog.open())
@@ -122,6 +124,7 @@ Kirigami.ApplicationWindow {
                     case "timeline": root.showTimeline = shown; break
                     case "cameraViews": root.showCameraViews = shown; break
                     case "shotDescription": root.showShotDescription = shown; break
+                    case "scriptSource": screenplay.showSource(shown); break
                     }
                 }
                 onShotOrderPicked: order => root.shotOrder = order

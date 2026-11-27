@@ -24,6 +24,9 @@ Item {
         forgets += 1
     }
 
+    function seal() {
+    }
+
     function undo() {
         undos += 1
         return -1

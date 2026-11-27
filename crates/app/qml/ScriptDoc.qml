@@ -47,6 +47,11 @@ QtObject {
     /// `load` is running: what changes the source then is no typing.
     property bool loading: false
 
+    /// How the area shows the source: as the printed screenplay, or as Fountain as it stands.
+    enum View { Shown, Source }
+    property int view: ScriptDoc.View.Shown
+    readonly property string _view: view === ScriptDoc.View.Source ? "source" : "shown"
+
     /// Where a change of the source comes from: typed in the area, which holds it already, or
     /// made by a part of the editor, which the area still lacks.
     enum Origin { Typed, Replaced }
@@ -70,11 +75,19 @@ QtObject {
     property bool _busy: false
     /// Whether a change of the source is a step of the history (not an undo or redo).
     property bool _recording: true
+    /// The emphasis for what is typed next, `{ at, bold, italic, underline }`, set at the cursor
+    /// (`at`, a position of the area) by a key without a selection; null for none.
+    property var _pending: null
+    /// The marks of the source view, by the name of the emphasis.
+    readonly property var _fountainMarks: ({ bold: "**", italic: "*", underline: "_" })
 
     /// Text this long is compared in one go.
     readonly property int _chunk: 512
 
-    Component.onCompleted: area.textChanged.connect(_onArea)
+    Component.onCompleted: {
+        area.textChanged.connect(_onArea)
+        area.cursorPositionChanged.connect(_cursorMoved)
+    }
 
     /// The source as it stands, also inside the handlers of an edit, where `source` may lag.
     function read() {
@@ -84,8 +97,9 @@ QtObject {
     /// Takes `text` from outside (an import, another project): no typing.
     function load(text) {
         loading = true
+        _pending = null
         _source = text
-        _lines = JSON.parse(controller.scriptShownJson(text)).map(_clean)
+        _lines = JSON.parse(controller.scriptShownJson(text, _view)).map(_clean)
         // The emphasis first: the text is drawn with it when it is set, once.
         drawRuns()
         area.text = _lines.map(l => l.text).join("\n")
@@ -242,6 +256,116 @@ QtObject {
         return opening ? underline + stars : stars + underline
     }
 
+    // ---- emphasis ----
+
+    /// Shows the source in `view` (`ScriptDoc.View`): nothing is written, the cursor and the
+    /// selection stay where they are in the source.
+    function setView(next) {
+        if (next === view) {
+            return
+        }
+
+        const reversed = area.cursorPosition === area.selectionStart
+        const from = selectionStart
+        const to = selectionEnd
+        const selected = area.selectedText !== ""
+        const at = cursor
+
+        view = next
+        load(_source)
+        if (!selected) {
+            setCursor(at)
+        } else if (reversed) {
+            area.select(toDisplay(to), toDisplay(from))
+        } else {
+            area.select(toDisplay(from), toDisplay(to))
+        }
+    }
+
+    /// The emphasis of the selection (all of it has it), or at the cursor that of what is typed
+    /// next, `{ bold, italic, underline, heading }`; `heading`: bold is not for the writer to set.
+    function markState() {
+        _tables()
+        const selected = area.selectedText !== ""
+        const a = _sourceSpot(selected ? selectionStart : cursor)
+        const b = selected ? _sourceSpot(selectionEnd) : a
+        const state = JSON.parse(controller.scriptEmphasisJson(_source, a.line, a.col, b.line, b.col))
+        if (selected || !_pending || _pending.at !== area.cursorPosition) {
+            return state
+        }
+
+        state.bold = _pending.bold
+        state.italic = _pending.italic
+        state.underline = _pending.underline
+        return state
+    }
+
+    /// Toggles `mark` ("bold", "italic", "underline"): for the selection, as one step of the
+    /// history; at the cursor for what is typed next (the source view: the marks, in pairs).
+    function toggleMark(mark) {
+        if (area.selectedText !== "") {
+            _toggleSelected(mark)
+        } else if (view === ScriptDoc.View.Source) {
+            _insertMarks(mark)
+        } else {
+            _toggleNext(mark)
+        }
+    }
+
+    function _toggleSelected(mark) {
+        _tables()
+        const a = _sourceSpot(selectionStart)
+        const b = _sourceSpot(selectionEnd)
+        const done = controller.scriptToggleJson(_source, a.line, a.col, b.line, b.col, mark, _view)
+        if (done === "") {
+            return
+        }
+
+        // A step of its own: what was typed before and after is none of it.
+        _seal()
+        _take(JSON.parse(done), ScriptDoc.Origin.Replaced)
+        _seal()
+    }
+
+    function _seal() {
+        if (tools && tools.seal) {
+            tools.seal()
+        }
+    }
+
+    function _toggleNext(mark) {
+        const state = markState()
+        if (mark === "bold" && state.heading) {
+            return
+        }
+
+        _pending = { at: area.cursorPosition, bold: state.bold, italic: state.italic,
+                     underline: state.underline }
+        _pending[mark] = !_pending[mark]
+    }
+
+    /// The marks of `mark` in pairs at the cursor, which stands between them.
+    function _insertMarks(mark) {
+        const at = cursor
+        const marks = _fountainMarks[mark]
+
+        replace(at, at, marks + marks)
+        setCursor(at + marks.length)
+    }
+
+    /// The cursor moved: an emphasis chosen for the next typing is gone if it left its place.
+    function _cursorMoved() {
+        if (_pending) {
+            Qt.callLater(_dropPending)
+        }
+    }
+
+    function _dropPending() {
+        if (_pending && _pending.at !== area.cursorPosition) {
+            _pending = null
+        }
+    }
+
     // ---- changes of the source ----
 
     /// Typed-like insertion of `text` at `pos`.
@@ -258,7 +382,7 @@ QtObject {
         _tables()
         const a = _sourceSpot(from)
         const b = _sourceSpot(to)
-        const done = controller.scriptReplaceJson(_source, a.line, a.col, b.line, b.col, text)
+        const done = controller.scriptReplaceJson(_source, a.line, a.col, b.line, b.col, text, _view)
         _take(JSON.parse(done), ScriptDoc.Origin.Replaced)
     }
 
@@ -305,25 +429,29 @@ QtObject {
         const to = _shownSpot(old.length - end)
         _text = now
 
+        // A key before the typing set its emphasis, for this place only.
+        const chosen = _pending && _pending.at === start && old.length - end === start ? _pending : null
+        _pending = null
         const change = { line: from.line, from: from.col, endLine: to.line, to: to.col,
-                         typed: typed, runs: _inherit(from, typed) }
-        const done = controller.scriptEditJson(_source, JSON.stringify(change))
+                         typed: typed, runs: _inherit(from, typed, chosen) }
+        const done = controller.scriptEditJson(_source, JSON.stringify(change), _view)
         if (done === "") {
             return
         }
         _take(JSON.parse(done), ScriptDoc.Origin.Typed)
     }
 
-    /// What `typed` has of emphasis: that of the character before it, at the start of a line of
-    /// the one behind. Several lines (a paste) bring none.
-    function _inherit(from, typed) {
+    /// What `typed` has of emphasis: what a key chose for it (`chosen`), else that of the
+    /// character before it, at the start of a line of the one behind. Several lines (a paste)
+    /// bring none.
+    function _inherit(from, typed, chosen) {
         if (typed === "" || typed.indexOf("\n") >= 0) {
             return []
         }
 
         const at = Math.max(from.col - 1, 0)
-        const run = _lines[from.line].runs.find(r => r.from <= at && at < r.to)
-        if (!run) {
+        const run = chosen || _lines[from.line].runs.find(r => r.from <= at && at < r.to)
+        if (!run || !(run.bold || run.italic || run.underline)) {
             return []
         }
         return [{ from: 0, to: typed.length, bold: run.bold, italic: run.italic,
@@ -333,6 +461,7 @@ QtObject {
     /// Makes the answer of the controller the state: the source, the lines, the drawn emphasis,
     /// the area and the history. `origin` says whether the area holds the change already.
     function _take(res, origin) {
+        _pending = null
         _tables()
         const count = res.to - res.from
         const at = _t.src[res.from]
