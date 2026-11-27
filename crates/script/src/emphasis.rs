@@ -15,7 +15,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use crate::change::{byte_at, rewrite_lines};
 use crate::inline::runs;
 use crate::parse::boneyard_lines;
-use crate::shown::{marks_of as marks_by_runs, shown_line};
+use crate::parse::{CENTER_END, FORCE_HEADING};
+use crate::shown::{lead_mark, marks_of as marks_by_runs, shown_line};
 use crate::{
     edit_line, shown_lines, text_kinds, Edited, Hide, LineEdit, Marks, Shape, ShownLine, Spot,
     TextKind,
@@ -136,24 +137,27 @@ fn pieces(
     found
 }
 
-/// How many characters at the start and at the end of a shown line only force its element
-/// (`!` action, `@` cue, `~` lyrics, `>` transition or centered, `.` heading, `<` closing a
-/// centered line).
+/// How many characters at the start and at the end of a shown line only force its element: the
+/// blanks around the mark and the mark itself (`!`, `@`, `~`, `>`, `.`, as `split_line` hides
+/// them; a centered line also its closing `<`). `..INT.` is a heading with a dot of its own.
 fn forcing(shown: &ShownLine) -> (usize, usize) {
-    let mark = match shown.kind {
-        TextKind::Action => '!',
-        TextKind::Character => '@',
-        TextKind::Lyrics => '~',
-        TextKind::Transition | TextKind::Centered => '>',
-        TextKind::Heading => '.',
-        _ => return (0, 0),
-    };
     let text = &shown.text;
-    // `..INT.` is a heading with a dot of its own.
-    let lead = text.starts_with(mark) && !(mark == '.' && text.starts_with(".."));
-    let trail = shown.kind == TextKind::Centered && text.len() > 1 && text.ends_with('<');
+    let trimmed = text.trim();
+    let blanks = |part: &str| part.chars().count();
+    let before = blanks(&text[..text.len() - text.trim_start().len()]);
+    let after = blanks(&text[text.trim_end().len()..]);
 
-    (usize::from(lead), usize::from(trail))
+    let lead = lead_mark(shown.kind).is_some_and(|mark| {
+        trimmed.starts_with(mark) && !(mark == FORCE_HEADING && trimmed.starts_with(".."))
+    });
+    let trail = shown.kind == TextKind::Centered
+        && trimmed.chars().count() > 1
+        && trimmed.ends_with(CENTER_END);
+
+    (
+        if lead { before + 1 } else { 0 },
+        if trail { after + 1 } else { 0 },
+    )
 }
 
 /// The emphasis of each character of a shown line.
@@ -374,21 +378,22 @@ impl Book<'_> {
         found
     }
 
-    /// Whether `line` in place of line `at` is another kind by itself: read with two lines
-    /// either side as they were. A line that is only another kind because of a neighbour that
-    /// changed is not.
+    /// Whether `line` in place of line `at` is another kind by itself: read with the lines of its
+    /// block (up to blank lines, and out of a boneyard) as they were. A line that is only another
+    /// kind because of a neighbour that changed is not.
     fn alone(&self, at: usize, line: &str) -> bool {
-        let mut from = at.saturating_sub(2);
+        let blank = |n: usize| self.lines[n].trim().is_empty();
+        let mut from = (0..at).rev().find(|&n| blank(n)).map_or(0, |n| n + 1);
         while from > 0 && self.inside[from] {
             from -= 1;
         }
-        let to = (at + 3).min(self.lines.len());
+        let to = (at..self.lines.len())
+            .find(|&n| blank(n))
+            .map_or(self.lines.len(), |n| n + 1);
         let mut changed: Vec<&str> = self.lines[from..to].to_vec();
         changed[at - from] = line;
-        let old = text_kinds(&self.lines[from..to].join("\n"));
-        let new = text_kinds(&changed.join("\n"));
 
-        old[at - from] != new[at - from]
+        text_kinds(&changed.join("\n"))[at - from] != self.kinds[at]
     }
 
     /// Takes back changes that spoil the book. Those whose own change is the cause all go at

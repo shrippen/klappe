@@ -179,6 +179,18 @@ fn typed_line(line: &str, kind: TextKind, hidden: Hidden) -> ShownLine {
     }
 }
 
+/// The character that forces an element of `kind` when it opens a line, as `split_line` hides it.
+pub(crate) fn lead_mark(kind: TextKind) -> Option<char> {
+    match kind {
+        TextKind::Heading => Some(FORCE_HEADING),
+        TextKind::Action => Some(FORCE_ACTION),
+        TextKind::Character => Some(FORCE_CHARACTER),
+        TextKind::Transition | TextKind::Centered => Some(FORCE_TRANSITION),
+        TextKind::Lyrics => Some(LYRICS),
+        _ => None,
+    }
+}
+
 /// Where the shown part of `line` lies; `None` for a kind the editor shows as typed.
 ///
 /// A forcing character and a mark at the end with the one blank before it are hidden; every

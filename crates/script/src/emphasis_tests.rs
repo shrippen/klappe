@@ -415,6 +415,40 @@ fn a_toggle_over_all_leaves_nothing_to_toggle() {
     }
 }
 
+/// Lines that keep their kind in the book are marked, whatever a window around them would say.
+const IN_A_BLOCK: &str = "INT. HAUS - TAG\n\nEXT. GARTEN - NACHT\nANNA (V.O.)\nIch bin weg.\n(lacht)\nWirklich.\n\nEnde.";
+const A_SONG: &str = "INT. HAUS - TAG\n\nINT. HAUS - TAG\n~eins\n~zwei\n~drei\n\nEnde.";
+
+#[test]
+fn a_parenthetical_in_a_block_without_blank_lines_is_judged_in_its_block() {
+    for mark in MARKS {
+        assert_maximal(IN_A_BLOCK, mark);
+    }
+    let done = over_all(IN_A_BLOCK, Mark::Bold);
+
+    assert_eq!(crate::text_kinds(&done), crate::text_kinds(IN_A_BLOCK));
+    assert!(done.contains("**Wirklich.**"), "{done:?}");
+}
+
+#[test]
+fn the_third_line_of_a_song_behind_a_heading_is_marked() {
+    for mark in MARKS {
+        assert_maximal(A_SONG, mark);
+    }
+    let done = over_all(A_SONG, Mark::Bold);
+
+    assert!(done.contains("**~drei**"), "{done:?}");
+}
+
+#[test]
+fn an_indented_lyric_and_a_padded_centered_line_are_marked_inside_their_marks() {
+    let source = "INT. HAUS - TAG\n\n> eins < \n\n  ~eins";
+    let marks = marks_by_line(&over_all(source, Mark::Bold));
+
+    assert!(!marks[2][0].bold && marks[2][2].bold, "{:?}", marks[2]);
+    assert!(!marks[4][2].bold && marks[4][3].bold, "{:?}", marks[4]);
+}
+
 #[test]
 fn a_boneyard_over_lines_ends_far_above_the_line() {
     let source = "/*\neins\nzwei\ndrei\n*/\n!ANNA\nText.";
@@ -523,4 +557,55 @@ fn each_selection(book: &str, step: usize) {
 fn toggling_over_any_selection_keeps_text_and_kinds() {
     each_selection(BOOK, BOOK_STEP);
     each_selection(EXAMPLE, SAMPLE_STEP);
+}
+
+const LCG_MUL: u64 = 6_364_136_223_846_793_005;
+const LCG_ADD: u64 = 1_442_695_040_888_963_407;
+const BOOKS: u64 = 400;
+const BOOK_LINES: u64 = 12;
+const POOL: [&str; 16] = [
+    "",
+    "",
+    "INT. HAUS - TAG",
+    "ANNA",
+    "ANNA (V.O.)",
+    "(lacht)",
+    "Ich bin weg.",
+    "~eins",
+    "!LAUT",
+    "> eins <",
+    "CUT TO:",
+    "Sie *sagt* nein.",
+    "@anna",
+    "  ~zwei",
+    "/* x */",
+    "Text.",
+];
+
+/// Books of lines in blocks with and without blank lines between them: a toggle over all of a
+/// book keeps every kind and leaves nothing that one line alone could still take.
+#[test]
+fn books_of_mixed_blocks_toggle_exactly_and_fully() {
+    let mut state = 1;
+    let mut next = |below: u64| {
+        state = (state as u64).wrapping_mul(LCG_MUL).wrapping_add(LCG_ADD);
+        ((state >> 33) % below) as usize
+    };
+
+    for _ in 0..BOOKS {
+        let count = 2 + next(BOOK_LINES - 1);
+        let lines: Vec<&str> = (0..count).map(|_| POOL[next(POOL.len() as u64)]).collect();
+        let book = lines.join("\n");
+
+        for mark in MARKS {
+            let done = over_all(&book, mark);
+
+            assert_eq!(
+                crate::text_kinds(&done),
+                crate::text_kinds(&book),
+                "{mark:?} {book:?}"
+            );
+            assert_maximal(&book, mark);
+        }
+    }
 }
