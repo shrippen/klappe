@@ -24,8 +24,10 @@ use crate::parse::{
 };
 use crate::{text_kinds, Marks, Run, Splice, TextKind};
 
+mod read;
 mod write;
 
+use read::reads_right;
 use write::{write_body, Part};
 
 /// What the editor leaves out of the text of a line; what a line does not hide stays in the
@@ -661,8 +663,16 @@ fn written(target: &Target, plan: &Plan) -> Result<String, String> {
     let (body, effective) = write_body(&part);
     let old_tail = &target.old[target.split.end..];
     let mut first = None;
+    let mut kind_held = false;
+    let forcing_hidden = target.hide.contains(&Hide::Forcing);
 
     for (lead, how, end) in leads(target, old_tail) {
+        // A character put in front is only for a kind that was read wrong, or, when it hides,
+        // for text that it would show.
+        if how == Lead::Added && kind_held && !forcing_hidden {
+            continue;
+        }
+
         let tail = match end {
             End::Kept => old_tail,
             End::Dropped => without_end(old_tail, target.kind),
@@ -673,13 +683,14 @@ fn written(target: &Target, plan: &Plan) -> Result<String, String> {
         let gap = if apart { " " } else { "" };
         let line = format!("{lead}{body}{gap}{tail}");
         let read = read_in(&line, target.kind, target.above, target.hide);
-        // Without `Hide::Forcing` the character put in front is text; only the kind counts. A
-        // line that shows its marks (a section) has no hidden text to compare.
-        let visible = how == Lead::Added && !target.hide.contains(&Hide::Forcing);
+        kind_held |= read.kind == target.reads;
+
+        // A forcing character that shows is not part of the text. A line that shows its marks
+        // (a section) has no hidden text to compare.
+        let skip = usize::from(how == Lead::Added && !forcing_hidden);
         let right = read.kind == target.reads
-            && (visible
-                || is_typed_kind(read.kind)
-                || reads_right(&read, &part, &effective, &plan.typed));
+            && (is_typed_kind(read.kind)
+                || reads_right(&read, skip, &part, (&effective, &plan.typed)));
         if right {
             return Ok(line);
         }
@@ -701,48 +712,6 @@ fn is_typed_kind(kind: TextKind) -> bool {
             | TextKind::Note
             | TextKind::PageBreak
     )
-}
-
-/// Whether `read` has the text, emphasis and notes of `part` before and behind what was typed
-/// (`effective` is the emphasis the writer managed to write).
-fn reads_right(read: &ShownLine, part: &Part, effective: &[Marks], typed: &Range<usize>) -> bool {
-    let chars: Vec<char> = read.text.chars().collect();
-    let marks = marks_of(&read.runs, chars.len());
-    let Some(back) = chars.len().checked_sub(part.chars.len() - typed.end) else {
-        return false;
-    };
-    if back < typed.start {
-        return false;
-    }
-
-    chars[..typed.start] == part.chars[..typed.start]
-        && marks[..typed.start] == effective[..typed.start]
-        && chars[back..] == part.chars[typed.end..]
-        && marks[back..] == effective[typed.end..]
-        && notes_right(&read.notes, part.notes, typed, back)
-}
-
-/// Whether the notes before the typed text are the first of `read` and the notes behind it
-/// the last, `back` being where the text behind the typed starts in the read text.
-fn notes_right(read: &[ShownNote], notes: &[ShownNote], typed: &Range<usize>, back: usize) -> bool {
-    let head: Vec<ShownNote> = notes
-        .iter()
-        .filter(|n| n.at < typed.start)
-        .cloned()
-        .collect();
-    let tail: Vec<ShownNote> = notes
-        .iter()
-        .filter(|n| n.at >= typed.end)
-        .map(|n| ShownNote {
-            at: n.at - typed.end + back,
-            text: n.text.clone(),
-        })
-        .collect();
-    if read.len() < head.len() + tail.len() {
-        return false;
-    }
-
-    read[..head.len()] == head[..] && read[read.len() - tail.len()..] == tail[..]
 }
 
 /// The character that forces a line to be of `kind`, where Fountain has one.
