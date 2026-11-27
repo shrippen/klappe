@@ -226,6 +226,43 @@ fn bold_over_forced_cues_of_120_pages_is_quick() {
     );
 }
 
+/// A song of 100 lines and 100 parentheticals under a cue in front of the 120 pages: blocks that
+/// are long must not make the check read the book once per line.
+#[test]
+#[ignore = "timing, run by `make perf` in release"]
+fn bold_over_long_blocks_before_120_pages_is_quick() {
+    let song: Vec<String> = (0..100).map(|n| format!("~line {n}")).collect();
+    let aside: Vec<String> = (0..100).map(|n| format!("(quiet {n})")).collect();
+    let text = format!(
+        "INT. ROOM 0 - DAY\n\n{}\n\nANNA\n{}\n\n{}",
+        song.join("\n"),
+        aside.join("\n"),
+        screenplay()
+    );
+    let lines = text.split('\n').count();
+    let all = (
+        Spot { line: 0, col: 0 },
+        Spot {
+            line: lines - 1,
+            col: 0,
+        },
+    );
+    let mut slowest = Duration::ZERO;
+
+    for _ in 0..RUNS {
+        let start = Instant::now();
+        let done = toggle_mark(&text, &[Hide::Emphasis], all, Mark::Bold);
+        slowest = slowest.max(start.elapsed());
+        assert!(done.source.contains("~**line 99**"));
+    }
+
+    println!("{lines} lines, long blocks, slowest of {RUNS} runs: {slowest:?} (budget {TOGGLE_BUDGET:?})");
+    assert!(
+        slowest <= TOGGLE_BUDGET,
+        "{slowest:?} is over {TOGGLE_BUDGET:?}"
+    );
+}
+
 /// Ctrl+B over one word in the middle of 120 pages.
 #[test]
 #[ignore = "timing, run by `make perf` in release"]
