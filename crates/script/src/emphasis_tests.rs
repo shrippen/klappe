@@ -286,6 +286,14 @@ fn a_boneyard_over_lines_ends_far_above_the_line() {
 }
 
 #[test]
+fn a_boneyard_under_the_line_that_ends_in_text_keeps_the_kinds() {
+    let source = "!ANNA\n/*\na\nb\nc\nd\n*/Text.";
+    let (old, new) = kinds_after(source, 0, Mark::Italic);
+
+    assert_eq!(old, new);
+}
+
+#[test]
 fn a_heading_above_a_cue_behind_a_boneyard_keeps_the_kinds() {
     let source = "/*\neins\nzwei\ndrei\n*/\nINT. HAUS - TAG\n!ANNA\nText.";
     let (old, new) = kinds_after(source, 6, Mark::Bold);
@@ -315,7 +323,7 @@ const BOOK_STEP: usize = 2;
 const MARKS: [Mark; 3] = [Mark::Bold, Mark::Italic, Mark::Underline];
 
 /// A book with every sort of line and emphasis that sits close together.
-const BOOK: &str = "/*\neins\nzwei\ndrei\n*/\n!ANNA\nText.\n\n/*\na\nb\nc\n*/\nINT. HAUS - TAG\n!ANNA\nText.\n\nTitle: Nachtwache\n\n.INT. KÜCHE - TAG #12A#\n\n\
+const BOOK: &str = "!ANNA\n/*\na\nb\nc\nd\n*/Text.\n\n/*\neins\nzwei\ndrei\n*/\n!ANNA\nText.\n\n/*\na\nb\nc\n*/\nINT. HAUS - TAG\n!ANNA\nText.\n\nTitle: Nachtwache\n\n.INT. KÜCHE - TAG #12A#\n\n\
 Anna *tritt* ein, **laut** und ***sehr laut***, _still_ [[Licht?]] und _**beides**_.\n\n\
 @mcClane\n(leise)\nIhr kommt *spät* [[Pause]].\n\n>ENDE<\n\n# Akt 1\n\n\
 Und \\*kein Stern\\* und a_b und 1 * 2, */ oder /* nicht.\n\nCUT TO:\n";

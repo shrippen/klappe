@@ -20,6 +20,8 @@ const LOAD_BUDGET: Duration = Duration::from_millis(300);
 const KEYSTROKE_BUDGET: Duration = Duration::from_millis(16);
 /// Ctrl+A, Ctrl+B runs in the window's thread: it must not feel like a hang.
 const TOGGLE_BUDGET: Duration = Duration::from_millis(300);
+/// Ctrl+B over one word of the same script.
+const WORD_BUDGET: Duration = Duration::from_millis(30);
 
 /// Scenes of action and dialogue, until the layout reaches `PAGES` pages.
 fn screenplay() -> String {
@@ -191,5 +193,31 @@ fn bold_over_the_whole_script_of_120_pages_is_quick() {
     assert!(
         slowest <= TOGGLE_BUDGET,
         "{slowest:?} is over {TOGGLE_BUDGET:?}"
+    );
+}
+
+/// Ctrl+B over one word in the middle of 120 pages.
+#[test]
+#[ignore = "timing, run by `make perf` in release"]
+fn bold_over_one_word_of_120_pages_is_quick() {
+    let text = screenplay();
+    let line = text
+        .split('\n')
+        .position(|l| l.starts_with("Rain taps"))
+        .unwrap_or(0);
+    let word = (Spot { line, col: 5 }, Spot { line, col: 9 });
+    let mut slowest = Duration::ZERO;
+
+    for _ in 0..RUNS {
+        let start = Instant::now();
+        let done = toggle_mark(&text, &[Hide::Emphasis], word, Mark::Bold);
+        slowest = slowest.max(start.elapsed());
+        assert!(done.source.contains("Rain **taps**"));
+    }
+
+    println!("one word, slowest of {RUNS} runs: {slowest:?} (budget {WORD_BUDGET:?})");
+    assert!(
+        slowest <= WORD_BUDGET,
+        "{slowest:?} is over {WORD_BUDGET:?}"
     );
 }

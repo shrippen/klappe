@@ -10,9 +10,10 @@
 //! source     Das ist **fett und** *kursiv*.
 //! ```
 
+use std::collections::BTreeMap;
+
 use crate::change::{byte_at, rewrite_lines};
 use crate::inline::runs;
-use crate::parse::boneyard_lines;
 use crate::shown::marks_of as marks_by_runs;
 use crate::{
     edit_line, shown_lines, text_kinds, Edited, Hide, LineEdit, Marks, Shape, ShownLine, Spot,
@@ -206,15 +207,11 @@ pub fn toggle_mark(source: &str, hide: &[Hide], (from, to): (Spot, Spot), mark: 
             .iter()
             .all(|m| mark.of(m))
     };
-    let inside = boneyard_lines(source);
     let switch = match found.iter().all(has) {
         true => Switch::Off,
         false => Switch::On,
     };
-    let mut new: Vec<String> = lines[first..=last]
-        .iter()
-        .map(|l| (*l).to_owned())
-        .collect();
+    let mut changes: BTreeMap<usize, Change> = BTreeMap::new();
 
     for piece in &found {
         let mut marks = marks_of(&shown[piece.line]);
@@ -228,51 +225,98 @@ pub fn toggle_mark(source: &str, hide: &[Hide], (from, to): (Spot, Spot), mark: 
         };
         let line = edit_line(lines[piece.line], piece.kind, piece.shape, &READ, &edit);
 
-        // A line that cannot take it as asked stays as it is.
-        if holds(&lines, &inside, piece.line, &line, &marks) {
-            new[piece.line - first] = line;
-        }
+        changes.insert(piece.line, Change { line, marks });
     }
+
+    // The new book is read once: what a line shows, and what every line of the book is, must be
+    // as before, but for the emphasis asked for. A line that spoils it goes back; so does what
+    // may have caused it. Again, until nothing is spoilt (at the latest when nothing is left).
+    let book = Book {
+        lines: &lines,
+        shown: &shown,
+        kinds: text_kinds(source),
+    };
+    loop {
+        let bad = book.spoilt(&changes);
+        if bad.is_empty() {
+            break;
+        }
+
+        book.shed(&mut changes, &bad);
+    }
+
+    let new: Vec<String> = (first..=last)
+        .map(|at| match changes.get(&at) {
+            Some(change) => change.line.clone(),
+            None => lines[at].to_owned(),
+        })
+        .collect();
 
     rewrite_lines(source, hide, (first, last), &new)
 }
 
-/// How many lines on each side of a line the check of a change reads.
-const NEAR: usize = 3;
+/// A line written again, and the emphasis it is to show.
+struct Change {
+    line: String,
+    marks: Vec<Marks>,
+}
 
-/// Whether line `at` of `lines` written as `line` shows what `marks` say (their emphasis, the
-/// text it had), and neither it nor the lines around it are another kind or have other
-/// emphasis. Reads only the lines around it (and back to where a boneyard over them starts),
-/// not the book; `inside` says which lines a boneyard covers.
-fn holds(lines: &[&str], inside: &[bool], at: usize, line: &str, marks: &[Marks]) -> bool {
-    // The window starts outside a boneyard, so that it reads the lines as the book does.
-    let mut from = at.saturating_sub(NEAR);
-    while from > 0 && inside.get(from).copied().unwrap_or(false) {
-        from -= 1;
+/// The book a toggle starts from.
+struct Book<'a> {
+    lines: &'a [&'a str],
+    shown: &'a [ShownLine],
+    kinds: Vec<TextKind>,
+}
+
+impl Book<'_> {
+    /// The lines of the book with `changes` made that are not what they were (another kind,
+    /// other text, notes or number) or do not show the emphasis they should.
+    fn spoilt(&self, changes: &BTreeMap<usize, Change>) -> Vec<usize> {
+        let all: Vec<&str> = (0..self.lines.len())
+            .map(|at| match changes.get(&at) {
+                Some(change) => change.line.as_str(),
+                None => self.lines[at],
+            })
+            .collect();
+        let source = all.join("\n");
+        let (kinds, shown) = (text_kinds(&source), shown_lines(&source, &READ));
+
+        (0..self.lines.len())
+            .filter(|&at| {
+                let (was, now) = (&self.shown[at], &shown[at]);
+                let wanted = match changes.get(&at) {
+                    Some(change) => change.marks.clone(),
+                    None => marks_of(was),
+                };
+
+                kinds[at] != self.kinds[at]
+                    || was.text != now.text
+                    || was.notes != now.notes
+                    || was.number != now.number
+                    || marks_of(now) != wanted
+            })
+            .collect()
     }
-    let to = (at + NEAR + 1).min(lines.len());
-    let mut changed: Vec<&str> = lines[from..to].to_vec();
-    changed[at - from] = line;
-    let (old, new) = (lines[from..to].join("\n"), changed.join("\n"));
-    let (old_shown, new_shown) = (shown_lines(&old, &READ), shown_lines(&new, &READ));
 
-    if text_kinds(&old) != text_kinds(&new) {
-        return false;
+    /// Takes back the changes that `bad` lines may come from: a line changed itself; for any
+    /// other the changes in its block (up to the next blank line). With none, all of them.
+    fn shed(&self, changes: &mut BTreeMap<usize, Change>, bad: &[usize]) {
+        let blank = |at: usize| self.lines[at].trim().is_empty();
+        let count = changes.len();
+
+        for &at in bad {
+            if changes.remove(&at).is_some() {
+                continue;
+            }
+
+            let from = (0..at).rev().find(|&n| blank(n)).map_or(0, |n| n + 1);
+            let to = (at..self.lines.len())
+                .find(|&n| blank(n))
+                .unwrap_or(self.lines.len());
+            changes.retain(|line, _| !(from..to).contains(line));
+        }
+        if changes.len() == count {
+            changes.clear();
+        }
     }
-
-    old_shown
-        .iter()
-        .zip(&new_shown)
-        .enumerate()
-        .all(|(n, (was, now))| {
-            let wanted = match n == at - from {
-                true => marks.to_vec(),
-                false => marks_of(was),
-            };
-
-            was.text == now.text
-                && was.notes == now.notes
-                && was.number == now.number
-                && marks_of(now) == wanted
-        })
 }
