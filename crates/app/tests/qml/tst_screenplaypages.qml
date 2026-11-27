@@ -1,6 +1,7 @@
 import QtQuick
 import QtTest
 import "../../qml"
+import "ScriptStub.js" as Stub
 
 // ScreenplayView, the pages (DB-30, DN-02): the lines at the page breaks of the last layout, the
 // stale state until the next layout, the jump to a scene's page in the print view.
@@ -38,6 +39,12 @@ TestCase {
         function paginateScript() { layouts += 1 }
         function scriptBreaksJson() { return JSON.stringify(pages) }
         function scriptOutlineJson() { return "[]" }
+        // The projection of the text: no emphasis, the shown text is the source (ScriptStub.js).
+        function scriptShownJson(source) { return Stub.shown(source) }
+        function scriptEditJson(source, change) { return Stub.edit(source, change) }
+        function scriptReplaceJson(source, line, from, endLine, to, text) {
+            return Stub.replace(source, line, from, endLine, to, text)
+        }
         function versionsJson() { return JSON.stringify({ versions: [], next: null }) }
         function revisionJson() { return "[]" }
         function scriptKinds(text) {

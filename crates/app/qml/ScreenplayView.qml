@@ -193,21 +193,21 @@ RowLayout {
         return out
     }
 
-    /// Sets each line as its kind; `_styled` is the text it was done for.
-    property string _styled: ""
+    /// Sets each line as its kind.
     function restyle() {
         if (!tools.item) {
             return
         }
-        _styled = doc.read()
-        flow.shown = flow.withPending(controller.scriptKinds(_styled))
+        flow.shown = flow.withPending(controller.scriptKinds(doc.read()))
         tools.item.setLooks(flow.shown, lineLooks)
     }
 
     ScriptDoc {
         id: doc
         area: area
+        controller: view.controller
         tools: view.tools
+        onEdited: view.sourceEdited()
     }
     readonly property alias doc: doc
 
@@ -222,18 +222,31 @@ RowLayout {
     readonly property alias sceneList: sceneList
     onLineLooksChanged: restyle()
 
-    /// Ctrl+Z and Ctrl+Shift+Z in the text: the editor's own history, not the project's. A step
-    /// back is no typing: its text keeps the case it had.
+    /// The source changed (typed, replaced, a step back): it goes to the session after the pause,
+    /// the lines are set as their kinds. The element flow may turn what was typed to capitals.
+    function sourceEdited() {
+        push.restart()
+        relayout.restart()
+        Qt.callLater(flow.updateSuggest)
+        stale = true
+        if (!_replaying && flow.capitalize()) {
+            return
+        }
+        restyle()
+    }
+
+    /// Ctrl+Z and Ctrl+Shift+Z in the text: the editor's own history of the source, not the
+    /// project's. A step back is no typing: its text keeps the case it had.
     property bool _replaying: false
     function undoText() {
         _replaying = true
-        moveCursor(tools.item ? tools.item.undo() : -1)
+        moveCursor(doc.undo())
         _replaying = false
     }
 
     function redoText() {
         _replaying = true
-        moveCursor(tools.item ? tools.item.redo() : -1)
+        moveCursor(doc.redo())
         _replaying = false
     }
 
@@ -321,7 +334,7 @@ RowLayout {
             undoText()
         } else if (event.matches(StandardKey.Redo)) {
             redoText()
-        } else {
+        } else if (!clipboardKey(event)) {
             event.accepted = false
         }
     }
@@ -343,6 +356,28 @@ RowLayout {
         putText(from, end < 0 ? text.length : end, m.lines.join("\n") + (end < 0 ? "" : "\n"))
         flush()
         sceneList.focusAt(m.line)
+    }
+
+    /// Ctrl+C and Ctrl+X: the Fountain of the selection goes on the clipboard, as the text area
+    /// would copy what it shows; false for another key, or without a selection.
+    function clipboardKey(event) {
+        const cut = event.matches(StandardKey.Cut)
+        if ((!cut && !event.matches(StandardKey.Copy)) || !copySelection()) {
+            return false
+        }
+        if (cut) {
+            doc.cutSelection()
+        }
+        return true
+    }
+
+    /// Puts the source of the selection on the clipboard; false without a selection or tools.
+    function copySelection() {
+        if (!tools.item || !tools.item.copy || doc.selectedText === "") {
+            return false
+        }
+        tools.item.copy(doc.selectedSource())
+        return true
     }
 
     function moveCursor(at) {
@@ -406,6 +441,7 @@ RowLayout {
             item.document = doc.document
             item.mutedColor = Qt.binding(() => KanteStyle.mutedTextColor)
             view.restyle()
+            doc.redrawRuns()
             item.forget()
         }
     }
@@ -612,20 +648,6 @@ RowLayout {
                     Accessible.name: view.texts.t("screenplay.editor")
                     background: null
                     Keys.onPressed: event => view.keyPressed(event)
-                    onTextChanged: {
-                        // A new look changes no text: nothing to send or set again.
-                        if (doc.loading || text === view._styled) {
-                            return
-                        }
-                        push.restart()
-                        relayout.restart()
-                        Qt.callLater(flow.updateSuggest)
-                        view.stale = true
-                        if (!view._replaying && flow.capitalize()) {
-                            return
-                        }
-                        view.restyle()
-                    }
                     // The page breaks of the last layout (DB-30): a thin line above the first line of
                     // each page, the page number at its right end. They sit on the text and move
                     // nothing; `contentHeight` and `width` re-place them when the lines wrap anew.

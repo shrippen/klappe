@@ -413,6 +413,40 @@ pub mod qobject {
         #[cxx_name = "scriptKinds"]
         fn script_kinds(self: &Self, text: &QString) -> QString;
 
+        /// The lines of `source` as the editor shows them (D-36): `[{ text, runs: [{ from, to,
+        /// bold, italic, underline }], cols }]`, positions in UTF-16 units of the shown line.
+        /// `cols` has per unit of `text` where it stands in the source line, and where the text
+        /// ends; null where each unit stands at itself.
+        #[qinvokable]
+        #[cxx_name = "scriptShownJson"]
+        fn script_shown_json(self: &Self, source: &QString) -> QString;
+
+        /// `source` after a change of the shown text, as `{ source, from, to, shown }`: the old
+        /// lines `from..to` are now the lines `shown` (as `scriptShownJson`). `change` is `{ line,
+        /// from, to, typed, runs }`, the characters `from..to` of shown line `line` replaced by
+        /// `typed`; `endLine` when `to` is in a later line; `runs` the emphasis of `typed`. Only
+        /// what is typed is Fountain; the lines before and behind keep their source. Empty for a
+        /// change that cannot be read.
+        #[qinvokable]
+        #[cxx_name = "scriptEditJson"]
+        fn script_edit_json(self: &Self, source: &QString, change: &QString) -> QString;
+
+        /// `source` with the text from `from` of source line `line` to `to` of line `endLine`
+        /// replaced by `text`, as `scriptEditJson` answers; `text` is Fountain as it stands. The
+        /// columns are UTF-16 units of the source lines. For what works on the source: search
+        /// and replace, the suggestions, a moved scene, the undo history.
+        #[qinvokable]
+        #[cxx_name = "scriptReplaceJson"]
+        fn script_replace_json(
+            self: &Self,
+            source: &QString,
+            line: i32,
+            from: i32,
+            end_line: i32,
+            to: i32,
+            text: &QString,
+        ) -> QString;
+
         /// `{ columns, looks: { <letter>: { kind, x, width, align } } }`: the kinds of
         /// `scriptKinds`, with the columns of the page (`x` from the left edge of `columns`);
         /// `x` and `width` are missing for what the page does not print.

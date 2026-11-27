@@ -1,6 +1,8 @@
 #include "scriptlook.h"
 
+#include <QtCore/QStringList>
 #include <QtGui/QTextBlock>
+#include <QtGui/QTextLayout>
 #include <QtGui/QTextCursor>
 #include <QtGui/QTextDocument>
 
@@ -19,8 +21,10 @@ public:
 protected:
     void highlightBlock(const QString& text) override
     {
-        const ScriptLook::Look look = m_owner->lookOf(currentBlock().blockNumber());
-        if (!look.bold && !look.muted) {
+        const int block = currentBlock().blockNumber();
+        const ScriptLook::Look look = m_owner->lookOf(block);
+        const QList<ScriptLook::Run> runs = m_owner->runsOf(block);
+        if (!look.bold && !look.muted && runs.isEmpty()) {
             return;
         }
 
@@ -31,7 +35,23 @@ protected:
         if (look.muted) {
             face.setForeground(m_owner->mutedColor());
         }
-        setFormat(0, text.length(), face);
+        if (look.bold || look.muted) {
+            setFormat(0, text.length(), face);
+        }
+
+        for (const ScriptLook::Run& run : runs) {
+            QTextCharFormat format = face;
+            if (run.flags & ScriptLook::BOLD) {
+                format.setFontWeight(QFont::Bold);
+            }
+            if (run.flags & ScriptLook::ITALIC) {
+                format.setFontItalic(true);
+            }
+            if (run.flags & ScriptLook::UNDERLINE) {
+                format.setFontUnderline(true);
+            }
+            setFormat(run.from, run.to - run.from, format);
+        }
     }
 
 private:
@@ -80,6 +100,9 @@ void ScriptLook::setDocument(QQuickTextDocument* document)
     delete m_faces;
     m_document = document;
     if (document) {
+        // The editor has its own history of the source (ScriptHistory). The area's list would
+        // undo half a step from its context menu.
+        document->textDocument()->setUndoRedoEnabled(false);
         m_faces = new ScriptFaces(this, document->textDocument());
     }
     Q_EMIT documentChanged();
@@ -92,6 +115,93 @@ ScriptLook::Look ScriptLook::lookOf(int block) const
     }
 
     return m_looks.value(m_kinds.at(block));
+}
+
+QList<ScriptLook::Run> ScriptLook::runsOf(int block) const
+{
+    return block >= 0 && block < m_runs.size() ? m_runs.at(block) : QList<Run>();
+}
+
+void ScriptLook::setRuns(int from, int removed, const QVariantList& lines)
+{
+    if (!m_document) {
+        return;
+    }
+
+    QList<QList<Run>> runs;
+    for (const QVariant& line : lines) {
+        const QVariantList numbers = line.toList();
+        QList<Run> stretches;
+        for (int i = 0; i + 2 < numbers.size(); i += 3) {
+            stretches.append({ numbers.at(i).toInt(), numbers.at(i + 1).toInt(), numbers.at(i + 2).toInt() });
+        }
+        runs.append(stretches);
+    }
+
+    while (m_runs.size() < from) {
+        m_runs.append(QList<Run>());
+    }
+    const int count = removed < 0 ? m_runs.size() - from : qMin(removed, m_runs.size() - from);
+    m_runs.erase(m_runs.begin() + from, m_runs.begin() + from + count);
+    for (int i = 0; i < runs.size(); ++i) {
+        m_runs.insert(from + i, runs.at(i));
+    }
+
+    // All lines: the text is set next and drawn with them; only the call that follows a text
+    // already set draws it again (`redraw`).
+    if (removed < 0) {
+        return;
+    }
+
+    // The lines the text area drew while their runs were not known yet are drawn again.
+    QTextDocument* doc = m_document->textDocument();
+    for (int i = 0; i < runs.size() && m_faces; ++i) {
+        const QTextBlock block = doc->findBlockByNumber(from + i);
+        if (block.isValid()) {
+            m_faces->rehighlightBlock(block);
+        }
+    }
+}
+
+void ScriptLook::redraw()
+{
+    if (m_faces) {
+        m_faces->rehighlight();
+    }
+}
+
+QString ScriptLook::drawnRuns(int block) const
+{
+    if (!m_document) {
+        return {};
+    }
+
+    const QTextBlock found = m_document->textDocument()->findBlockByNumber(block);
+    if (!found.isValid()) {
+        return {};
+    }
+
+    QStringList drawn;
+    for (const QTextLayout::FormatRange& range : found.layout()->formats()) {
+        QString letters;
+        if (range.format.fontWeight() == QFont::Bold) {
+            letters += QLatin1Char('b');
+        }
+        if (range.format.fontItalic()) {
+            letters += QLatin1Char('i');
+        }
+        if (range.format.fontUnderline()) {
+            letters += QLatin1Char('u');
+        }
+        // The look of the line itself is no emphasis.
+        const Look look = lookOf(block);
+        if ((look.bold || look.muted) && range.start == 0 && range.length == found.length() - 1) {
+            continue;
+        }
+        drawn.append(QStringLiteral("%1-%2%3").arg(range.start).arg(range.start + range.length).arg(letters));
+    }
+
+    return drawn.join(QLatin1Char(' '));
 }
 
 QString ScriptLook::drawnFace(int block) const

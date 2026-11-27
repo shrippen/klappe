@@ -132,5 +132,6 @@ fn main() {
         .cpp_file("src/scriptlook.cpp")
         .cpp_file("src/scripthistory.h")
         .cpp_file("src/scripthistory.cpp")
+        .cpp_file("src/scriptclipboard.h")
         .build();
 }

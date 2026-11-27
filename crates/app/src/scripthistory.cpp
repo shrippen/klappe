@@ -1,8 +1,5 @@
 #include "scripthistory.h"
 
-#include <QtGui/QTextCursor>
-#include <QtGui/QTextDocument>
-
 namespace klappe {
 
 namespace {
@@ -13,28 +10,6 @@ constexpr qint64 PAUSE_MS = 1000;
 constexpr int STEPS_MAX = 1000;
 
 constexpr QChar LINE_BREAK = u'\n';
-
-// What changed from `before` to `after`: the text between their common start and end.
-ScriptHistory::Step difference(const QString& before, const QString& after)
-{
-    const int shorter = qMin(before.size(), after.size());
-    int start = 0;
-    while (start < shorter && before.at(start) == after.at(start)) {
-        ++start;
-    }
-
-    int end = 0;
-    while (end < shorter - start
-           && before.at(before.size() - 1 - end) == after.at(after.size() - 1 - end)) {
-        ++end;
-    }
-
-    return {
-        start,
-        before.mid(start, before.size() - start - end),
-        after.mid(start, after.size() - start - end),
-    };
-}
 
 // A change of as many characters inside what the last step put: capitals as the writer
 // types, part of the same step.
@@ -53,30 +28,6 @@ ScriptHistory::ScriptHistory(QObject* parent)
 {
 }
 
-QQuickTextDocument* ScriptHistory::document() const
-{
-    return m_document;
-}
-
-void ScriptHistory::setDocument(QQuickTextDocument* document)
-{
-    if (document == m_document) {
-        return;
-    }
-    if (m_document) {
-        disconnect(m_document->textDocument(), nullptr, this, nullptr);
-    }
-
-    m_document = document;
-    if (document) {
-        QTextDocument* doc = document->textDocument();
-        doc->setUndoRedoEnabled(false);
-        connect(doc, &QTextDocument::contentsChanged, this, &ScriptHistory::changed);
-    }
-    reset();
-    Q_EMIT documentChanged();
-}
-
 bool ScriptHistory::canUndo() const
 {
     return !m_undo.isEmpty();
@@ -89,7 +40,6 @@ bool ScriptHistory::canRedo() const
 
 void ScriptHistory::reset()
 {
-    m_text = m_document ? m_document->textDocument()->toPlainText() : QString();
     m_undo.clear();
     m_redo.clear();
     m_since.invalidate();
@@ -115,16 +65,9 @@ bool ScriptHistory::joins(const Step& step) const
     return typing || deleting || within(step, last);
 }
 
-void ScriptHistory::changed()
+void ScriptHistory::record(int at, const QString& removed, const QString& put)
 {
-    const QString now = m_document->textDocument()->toPlainText();
-    if (m_replaying || now == m_text) {
-        m_text = now;
-        return;
-    }
-
-    const Step step = difference(m_text, now);
-    m_text = now;
+    const Step step { at, removed, put };
 
     if (joins(step)) {
         Step& last = m_undo.last();
@@ -147,60 +90,45 @@ void ScriptHistory::changed()
     Q_EMIT stepsChanged();
 }
 
-// Puts `step.put` in place of `step.removed`; returns the position after it.
-int ScriptHistory::replay(const Step& step)
+namespace {
+
+QVariantMap asMap(const ScriptHistory::Step& step)
 {
-    QTextCursor cursor(m_document->textDocument());
-    cursor.setPosition(step.at);
-    cursor.setPosition(step.at + step.removed.size(), QTextCursor::KeepAnchor);
-
-    m_replaying = true;
-    cursor.insertText(step.put);
-    m_replaying = false;
-    m_text = m_document->textDocument()->toPlainText();
-    m_since.invalidate();
-
-    return step.at + step.put.size();
+    return {
+        { QStringLiteral("at"), step.at },
+        { QStringLiteral("removed"), step.removed },
+        { QStringLiteral("put"), step.put },
+    };
 }
 
-void ScriptHistory::replace(int from, int to, const QString& text)
-{
-    if (!m_document) {
-        return;
-    }
-
-    QTextCursor cursor(m_document->textDocument());
-    cursor.setPosition(from);
-    cursor.setPosition(to, QTextCursor::KeepAnchor);
-    cursor.insertText(text);
 }
 
-int ScriptHistory::undo()
+QVariantMap ScriptHistory::undo()
 {
-    if (!m_document || m_undo.isEmpty()) {
-        return -1;
+    if (m_undo.isEmpty()) {
+        return {};
     }
 
     const Step step = m_undo.takeLast();
     m_redo.append(step);
-    const int at = replay({ step.at, step.put, step.removed });
+    m_since.invalidate();
     Q_EMIT stepsChanged();
 
-    return at;
+    return asMap({ step.at, step.put, step.removed });
 }
 
-int ScriptHistory::redo()
+QVariantMap ScriptHistory::redo()
 {
-    if (!m_document || m_redo.isEmpty()) {
-        return -1;
+    if (m_redo.isEmpty()) {
+        return {};
     }
 
     const Step step = m_redo.takeLast();
     m_undo.append(step);
-    const int at = replay(step);
+    m_since.invalidate();
     Q_EMIT stepsChanged();
 
-    return at;
+    return asMap(step);
 }
 
 }

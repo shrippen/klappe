@@ -33,7 +33,7 @@ Item {
     }
 
     TextEdit { id: text }
-    ScriptDoc { id: seam; area: text }
+    ScriptDoc { id: seam; area: text; controller: ctl }
     ScriptSearch {
         id: search
         texts: texts
