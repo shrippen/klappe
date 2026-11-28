@@ -218,7 +218,7 @@ RowLayout {
         return owner ? owner.id : _modes[0].id
     }
     // Tools beyond the room go to the popover. The room is what the width leaves after the mode
-    // box, the popover's button and the tool's list.
+    // box, the popover's button, the tool's list and the inline options, at every step (D-47).
     function _fit() {
         let room = width - modeBox.width - moreButton.implicitWidth - spacing * 2
         room -= optionsLoader.item ? optionsLoader.implicitWidth + spacing : 0
