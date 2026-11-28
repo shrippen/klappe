@@ -83,10 +83,10 @@ QtObject {
 
     /// What a line of the source hides at its start that is no forcing character, and the marks
     /// of emphasis, which a copy writes by their runs.
-    readonly property var forcingOutside: /[^.!@>~]/g
-    readonly property var emphasisMarks: /[*_]/g
+    readonly property var _forcingOutside: /[^.!@>~]/g
+    readonly property var _emphasisMarks: /[*_]/g
     /// The hidden marks that end a line: a dual cue, a centered line.
-    readonly property var lineEnds: ["^", "<"]
+    readonly property var _lineEnds: ["^", "<"]
 
     /// Text this long is compared in one go.
     readonly property int _chunk: 512
@@ -251,7 +251,7 @@ QtObject {
             return ""
         }
 
-        return _source.slice(_t.src[line], _t.src[line] + shown.cols[0]).replace(forcingOutside, "")
+        return _source.slice(_t.src[line], _t.src[line] + shown.cols[0]).replace(_forcingOutside, "")
     }
 
     /// The mark that ends the line (` ^`, `<`) a selection ending at shown position `end` takes
@@ -264,8 +264,8 @@ QtObject {
         }
 
         const behind = _source.slice(_t.src[line] + shown.cols[shown.text.length], _lineEnd(line))
-            .replace(emphasisMarks, "")
-        return lineEnds.includes(behind.trim()) ? behind : ""
+            .replace(_emphasisMarks, "")
+        return _lineEnds.includes(behind.trim()) ? behind : ""
     }
 
     /// Takes the selection out of the text, as a deletion typed in the area is.
