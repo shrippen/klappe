@@ -171,7 +171,7 @@ pub(crate) fn shown_line(
 
 /// Whether `line` is one forcing character and nothing else.
 fn is_forcing_alone(line: &str) -> bool {
-    let mut chars = line.chars();
+    let mut chars = line.trim_end().chars();
 
     match (chars.next(), chars.next()) {
         (Some(ch), None) => lead_chars().contains(&ch),

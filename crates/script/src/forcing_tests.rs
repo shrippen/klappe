@@ -45,10 +45,10 @@ fn at_once(above: &str, typed: &str) -> (String, String) {
 }
 
 /// What a writer types by hand at the start of a line, with the shown text it ends in.
-const TYPED: [(&str, &str); 14] = [
+const TYPED: [(&str, &str); 18] = [
     ("...und dann", "...und dann"),
     ("!", "!"),
-    ("> ", " "),
+    ("> ", "> "),
     ("~", "~"),
     (".5 Liter", "5 Liter"),
     ("@x", "x"),
@@ -60,6 +60,10 @@ const TYPED: [(&str, &str); 14] = [
     ("~la", "la"),
     ("@mcClane", "mcClane"),
     ("BOB ^", "BOB ^"),
+    ("> ENDE <", " ENDE"),
+    ("> SCHNITT:", " SCHNITT:"),
+    ("~ la", " la"),
+    ("@ BOB", " BOB"),
 ];
 
 #[test]
