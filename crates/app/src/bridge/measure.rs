@@ -46,11 +46,16 @@ impl qobject::Controller {
             return false;
         }
 
+        // Only an open end follows the pointer; skip the snapping otherwise.
+        let step = self.rust().measure;
+        if !matches!(step, MeasureStep::Start(_) | MeasureStep::Live(..)) {
+            return false;
+        }
+
         let Some(s) = self.as_mut().session() else {
             return false;
         };
         let at = s.snap_measure(Point::new(x, y));
-        let step = self.rust().measure;
         let live = step.hover(at);
         if live == step {
             return false;
