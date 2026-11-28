@@ -64,6 +64,13 @@ TestCase {
         fake.heightOk = true
     }
 
+    // Types `text` into `field` and leaves it (D-46): a changed value applies, as on Enter.
+    function typeAndLeave(card, field, text) {
+        field.forceActiveFocus()
+        field.text = text
+        card.forceActiveFocus()
+    }
+
     function make() {
         const card = createTemporaryObject(cardComponent, tc)
         waitForRendering(card)
@@ -79,11 +86,11 @@ TestCase {
 
         fake.selectedKey = "opening:2:0"
         verify(card.visible)
-        compare(findChild(card, "openingTitle").text, "Tür")
+        compare(card.title, "Tür")
         compare(findChild(card, "openingWidthField").text, "0,9")
 
         fake.selectedKey = "opening:0:1"
-        compare(findChild(card, "openingTitle").text, "Fenster")
+        compare(card.title, "Fenster")
         compare(findChild(card, "openingWidthField").text, "1,2")
 
         fake.selectedKey = ""
@@ -117,14 +124,15 @@ TestCase {
         verify(!field.invalid)
     }
 
-    function test_the_button_gives_the_width_to_the_controller() {
+    // D-46: leaving the field applies what was typed; no button.
+    function test_leaving_the_field_gives_the_width_to_the_controller() {
         const card = make()
         fake.selectedKey = "opening:2:0"
 
-        findChild(card, "openingWidthField").text = "0.8"
-        findChild(card, "openingApply").clicked()
+        tc.typeAndLeave(card, findChild(card, "openingWidthField"), "0.8")
 
         compare(fake.widths, ["0.8"])
+        verify(!findChild(card, "openingApply"))
     }
 
     function test_a_refused_width_marks_the_field() {
@@ -133,8 +141,7 @@ TestCase {
         fake.widthOk = false
         const field = findChild(card, "openingWidthField")
 
-        field.text = "breit"
-        findChild(card, "openingApply").clicked()
+        tc.typeAndLeave(card, field, "breit")
 
         verify(field.invalid)
         field.text = "1"
@@ -157,7 +164,7 @@ TestCase {
         compare(head.text, "2,4")
     }
 
-    // Enter or the button on untouched fields keeps the kind's values as defaults.
+    // Enter or leaving untouched fields keeps the kind's values as defaults.
     function test_untouched_defaults_are_not_pinned() {
         const card = make()
         fake.selectedKey = "opening:2:0"
@@ -165,9 +172,10 @@ TestCase {
 
         sill.forceActiveFocus()
         keyClick(Qt.Key_Return)
-        findChild(card, "openingApply").clicked()
+        card.forceActiveFocus()
 
         compare(fake.heights, [])
+        compare(fake.widths, [])
     }
 
     // Every field has a label of its own, not only a placeholder.
@@ -210,19 +218,14 @@ TestCase {
         verify(!head.invalid)
     }
 
-    // The button sets the width and what was changed of sill and head; an emptied field sets
-    // the kind's value again.
-    function test_the_button_gives_a_changed_sill_and_head_too() {
+    // Leaving a field sets only that field; an emptied one sets the kind's value again.
+    function test_leaving_sill_and_head_sets_each_once() {
         const card = make()
         fake.selectedKey = "opening:0:1"
 
-        findChild(card, "openingApply").clicked()
-        compare(fake.widths.length, 1)
-        compare(fake.heights, [])
-
-        findChild(card, "openingSillField").text = "0.3"
-        findChild(card, "openingHeadField").text = ""
-        findChild(card, "openingApply").clicked()
+        tc.typeAndLeave(card, findChild(card, "openingSillField"), "0.3")
+        tc.typeAndLeave(card, findChild(card, "openingHeadField"), "")
+        compare(fake.widths, [])
 
         compare(fake.heights, [["sill", "0.3"], ["head", ""]])
     }
@@ -234,9 +237,8 @@ TestCase {
         const sill = findChild(card, "openingSillField")
         const head = findChild(card, "openingHeadField")
 
-        sill.text = "-1"
-        head.text = "hoch"
-        findChild(card, "openingApply").clicked()
+        tc.typeAndLeave(card, sill, "-1")
+        tc.typeAndLeave(card, head, "hoch")
 
         verify(sill.invalid)
         verify(head.invalid)
@@ -244,14 +246,13 @@ TestCase {
         verify(!sill.invalid)
     }
 
+    // Leaving the width field sets no sill or head.
     function test_a_refused_width_sets_no_sill_or_head() {
         const card = make()
         fake.selectedKey = "opening:2:0"
         fake.widthOk = false
 
-        findChild(card, "openingWidthField").text = "breit"
-        findChild(card, "openingSillField").text = "0.3"
-        findChild(card, "openingApply").clicked()
+        tc.typeAndLeave(card, findChild(card, "openingWidthField"), "breit")
 
         compare(fake.heights, [])
     }

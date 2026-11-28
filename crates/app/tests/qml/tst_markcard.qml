@@ -49,6 +49,15 @@ TestCase {
         property bool lensOk: true
 
         function markInfo() { return JSON.stringify(info) }
+        function describe(key) {
+            if (key.indexOf("mark:") === 0) {
+                return JSON.stringify({ kind: "mark", name: "Ilva", index: 2, time: 8 })
+            }
+            if (key.indexOf("figure:") === 0) {
+                return JSON.stringify({ kind: "figure", name: "Ilva" })
+            }
+            return "{}"
+        }
         function setMarkPose(pose) {
             poses.push(pose)
             return poseOk
@@ -127,6 +136,13 @@ TestCase {
     function cameraMark(extra) {
         fake.info = Object.assign({ kind: "camera", pose: "", arrival: "", departure: "", hold: 6, hasWay: true, pace: 0.5, height: 1.6, tilt: -12.5, rig: "crane", lens: 85 }, extra || {})
         fake.selectedKey = "camera:a"
+    }
+
+    // Types `text` into `field` and leaves it (D-46): a changed value applies, as on Enter.
+    function typeAndLeave(card, field, text) {
+        field.forceActiveFocus()
+        field.text = text
+        card.forceActiveFocus()
     }
 
     function figureMark(extra) {
@@ -232,18 +248,28 @@ TestCase {
         compare(findChild(card, "poseChoice").currentIndex, 1)
     }
 
+    // D-46: the head of a figure's mark names figure, number and time.
+    function test_the_head_names_figure_number_and_time() {
+        const card = createTemporaryObject(cardComponent, tc)
+        figureMark()
+        compare(card.title, "Ilva · Mark 2 · 8,0 s")
+
+        card.texts = en
+        compare(card.title, "Ilva · mark 2 · 8.0 s")
+    }
+
     function test_the_pause_goes_to_the_controller() {
         const card = createTemporaryObject(cardComponent, tc)
         figureMark()
         const field = findChild(card, "holdField")
 
-        field.text = "4,5"
-        findChild(card, "holdApply").clicked()
+        tc.typeAndLeave(card, field, "4,5")
         field.forceActiveFocus()
         keyClick(Qt.Key_Return)
 
         compare(fake.holds, ["4,5", "4,5"])
         verify(!field.invalid)
+        verify(!findChild(card, "holdApply"))
     }
 
     function test_a_refused_pause_marks_the_field() {
@@ -252,8 +278,7 @@ TestCase {
         fake.holdOk = false
         const field = findChild(card, "holdField")
 
-        field.text = "-1"
-        findChild(card, "holdApply").clicked()
+        tc.typeAndLeave(card, field, "-1")
 
         verify(field.invalid)
         field.text = "1"
@@ -275,13 +300,13 @@ TestCase {
         figureMark()
         const field = findChild(card, "paceField")
 
-        field.text = "2,5"
-        findChild(card, "paceApply").clicked()
+        tc.typeAndLeave(card, field, "2,5")
         field.forceActiveFocus()
         keyClick(Qt.Key_Return)
 
         compare(fake.paces, ["2,5", "2,5"])
         verify(!field.invalid)
+        verify(!findChild(card, "paceApply"))
     }
 
     // The field shows the pace rounded: applying it unchanged would move the later marks.
@@ -289,7 +314,11 @@ TestCase {
         const card = createTemporaryObject(cardComponent, tc)
         figureMark()
 
-        findChild(card, "paceApply").clicked()
+        const field = findChild(card, "paceField")
+
+        field.forceActiveFocus()
+        keyClick(Qt.Key_Return)
+        card.forceActiveFocus()
 
         compare(fake.paces, [])
     }
@@ -317,8 +346,7 @@ TestCase {
         fake.paceOk = false
         const field = findChild(card, "paceField")
 
-        field.text = "0"
-        findChild(card, "paceApply").clicked()
+        tc.typeAndLeave(card, field, "0")
 
         verify(field.invalid)
         field.text = "1"
@@ -427,18 +455,15 @@ TestCase {
         cameraMark()
         const lens = findChild(card, "lensField")
 
-        lens.text = "50"
-        findChild(card, "lensApply").clicked()
-        lens.text = ""
-        lens.forceActiveFocus()
-        keyClick(Qt.Key_Return)
+        tc.typeAndLeave(card, lens, "50")
+        tc.typeAndLeave(card, lens, "")
+        verify(!findChild(card, "lensApply"))
 
         compare(fake.lenses, ["50", ""])
         verify(!lens.invalid)
 
         fake.lensOk = false
-        lens.text = "0"
-        findChild(card, "lensApply").clicked()
+        tc.typeAndLeave(card, lens, "0")
 
         verify(lens.invalid)
     }
@@ -457,21 +482,19 @@ TestCase {
         verify(!findChild(card, "aimRow").visible)
     }
 
+    // The two fields are set together: leaving one sends both.
     function test_height_and_tilt_go_to_the_controller_together() {
         const card = createTemporaryObject(cardComponent, tc)
+        card.expanded = true
         cameraMark()
         const height = findChild(card, "heightField")
         const tilt = findChild(card, "tiltField")
 
-        height.text = "2,4"
-        tilt.text = "15"
-        findChild(card, "aimApply").clicked()
-        height.forceActiveFocus()
-        keyClick(Qt.Key_Return)
-        tilt.forceActiveFocus()
-        keyClick(Qt.Key_Return)
-
-        compare(fake.aims, [["2,4", "15"], ["2,4", "15"], ["2,4", "15"]])
+        tc.typeAndLeave(card, height, "2,4")
+        compare(fake.aims, [["2,4", "-12,5"]])
+        tc.typeAndLeave(card, tilt, "15")
+        compare(fake.aims, [["2,4", "-12,5"], ["2,4", "15"]])
+        verify(!findChild(card, "aimApply"))
         verify(!height.invalid)
         verify(!tilt.invalid)
     }
@@ -483,8 +506,7 @@ TestCase {
         const height = findChild(card, "heightField")
         const tilt = findChild(card, "tiltField")
 
-        height.text = "99"
-        findChild(card, "aimApply").clicked()
+        tc.typeAndLeave(card, height, "99")
 
         verify(height.invalid)
         verify(tilt.invalid)
@@ -505,7 +527,6 @@ TestCase {
 
         verify(!findChild(card, "paceValue").visible)
         verify(!findChild(card, "paceField").enabled)
-        verify(!findChild(card, "paceApply").enabled)
         verify(!findChild(card, "paceWalk").enabled)
         verify(!findChild(card, "paceRun").enabled)
     }

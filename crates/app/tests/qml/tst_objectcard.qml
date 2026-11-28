@@ -112,6 +112,13 @@ TestCase {
         fake.elementCalls = []
     }
 
+    // Types `text` into `field` and leaves it (D-46): a changed value applies, as on Enter.
+    function typeAndLeave(card, field, text) {
+        field.forceActiveFocus()
+        field.text = text
+        card.forceActiveFocus()
+    }
+
     function make() {
         const card = createTemporaryObject(cardComponent, tc)
         waitForRendering(card)
@@ -176,49 +183,34 @@ TestCase {
         verify(!field.invalid)
     }
 
-    // The button sets the size and, when it was changed, the height; the typed height
-    // survives the refill the size edit causes.
-    function test_the_apply_button_gives_a_changed_height_too() {
+    // D-46: leaving the height field sets the height alone; an untouched field sets nothing.
+    function test_leaving_the_height_field_gives_the_height() {
         const card = make()
+        card.expanded = true
         fake.selectedKey = "object:o1"
 
-        findChild(card, "objectApply").clicked()
+        tc.typeAndLeave(card, findChild(card, "heightField"), "")
         compare(fake.heights, [])
 
-        findChild(card, "heightField").text = "2"
-        findChild(card, "objectApply").clicked()
+        tc.typeAndLeave(card, findChild(card, "heightField"), "2")
         compare(fake.heights, ["2"])
-        compare(fake.sizes.length, 2)
+        compare(fake.sizes, [])
 
         // Emptying the field of an object that has a height takes the height off.
         fake.selectedKey = "object:o2"
-        findChild(card, "heightField").text = ""
-        findChild(card, "objectApply").clicked()
+        tc.typeAndLeave(card, findChild(card, "heightField"), "")
         compare(fake.heights, ["2", ""])
-    }
-
-    // Review of PR 37: a refused size still let Apply set the height.
-    function test_a_refused_size_sets_no_height() {
-        const card = make()
-        fake.selectedKey = "object:o1"
-        fake.sizeOk = false
-
-        findChild(card, "widthField").text = "abc"
-        findChild(card, "heightField").text = "2"
-        findChild(card, "objectApply").clicked()
-
-        compare(fake.heights, [])
-        verify(findChild(card, "widthField").invalid)
+        verify(!findChild(card, "objectApply"))
     }
 
     function test_a_refused_height_marks_the_field() {
         const card = make()
         fake.selectedKey = "object:o1"
         fake.heightOk = false
+        card.expanded = true
         const field = findChild(card, "heightField")
 
-        field.text = "-1"
-        findChild(card, "objectApply").clicked()
+        tc.typeAndLeave(card, field, "-1")
 
         verify(field.invalid)
         field.text = "1"
@@ -239,12 +231,11 @@ TestCase {
         verify(!findChild(card, "depthField").invalid)
     }
 
-    function test_the_apply_button_gives_the_size_to_the_controller() {
+    function test_leaving_a_size_field_gives_the_size_to_the_controller() {
         const card = make()
         fake.selectedKey = "object:o1"
 
-        findChild(card, "depthField").text = "0.5"
-        findChild(card, "objectApply").clicked()
+        tc.typeAndLeave(card, findChild(card, "depthField"), "0.5")
 
         compare(fake.sizes, [["1,6", "0.5"]])
     }
@@ -256,8 +247,7 @@ TestCase {
         const width = findChild(card, "widthField")
         const depth = findChild(card, "depthField")
 
-        width.text = "0"
-        findChild(card, "objectApply").clicked()
+        tc.typeAndLeave(card, width, "0")
 
         verify(width.invalid)
         verify(depth.invalid)
@@ -387,21 +377,20 @@ TestCase {
         verify(!field.invalid)
     }
 
-    // The button sets the underside when it was changed; emptied it stands on what is below.
-    function test_the_apply_button_gives_a_changed_underside_too() {
+    // Leaving the underside field sets it when it was changed; emptied it stands on what is below.
+    function test_leaving_the_underside_field_gives_the_underside() {
         const card = make()
+        card.expanded = true
         fake.selectedKey = "object:o1"
 
-        findChild(card, "objectApply").clicked()
+        tc.typeAndLeave(card, findChild(card, "baseField"), "")
         compare(fake.bases, [])
 
-        findChild(card, "baseField").text = "0.4"
-        findChild(card, "objectApply").clicked()
+        tc.typeAndLeave(card, findChild(card, "baseField"), "0.4")
         compare(fake.bases, [["base", "0.4"]])
 
         fake.selectedKey = "object:o2"
-        findChild(card, "baseField").text = ""
-        findChild(card, "objectApply").clicked()
+        tc.typeAndLeave(card, findChild(card, "baseField"), "")
         compare(fake.bases, [["base", "0.4"], ["base", ""]])
     }
 
@@ -412,8 +401,7 @@ TestCase {
         fake.baseOk = false
         const field = findChild(card, "baseField")
 
-        field.text = "-1"
-        findChild(card, "objectApply").clicked()
+        tc.typeAndLeave(card, field, "-1")
 
         verify(field.invalid)
         field.text = "1"

@@ -82,6 +82,13 @@ TestCase {
         fake.refused = ""
     }
 
+    // Types `text` into `field` and leaves it (D-46): a changed value applies, as on Enter.
+    function typeAndLeave(card, field, text) {
+        field.forceActiveFocus()
+        field.text = text
+        card.forceActiveFocus()
+    }
+
     function shown(key, texts) {
         fake.selectedKey = key
         const card = createTemporaryObject(cardComponent, tc, texts ? { texts: texts } : {})
@@ -205,39 +212,29 @@ TestCase {
         compare(fake.sets, [])
     }
 
-    function test_apply_sets_only_the_typed_fields() {
+    // D-46: leaving a field sets that field alone; no button.
+    function test_leaving_a_field_sets_only_that_field() {
         const card = shown("camera:a")
 
-        findChild(card, "cameraLensField").text = "40"
-        findChild(card, "cameraAspectField").text = "16:9"
-        findChild(card, "cameraApply").clicked()
+        tc.typeAndLeave(card, findChild(card, "cameraLensField"), "40")
+        tc.typeAndLeave(card, findChild(card, "cameraAspectField"), "16:9")
 
         compare(fake.sets, [["lens", "40"], ["aspect", "16:9"]])
+        verify(!findChild(card, "cameraApply"))
     }
 
-    // Review of PR 33: the first edit refreshed the plan and wrote the camera's old values
-    // back into the other fields before they were applied.
-    function test_apply_keeps_every_typed_field() {
+    // Review of PR 33: after an apply the field showed the rounded value but remembered the
+    // typed one, so the next apply sent the rounded value and changed the camera.
+    function test_leaving_a_field_twice_sends_nothing_new() {
         const card = shown("camera:a")
+        const sensor = findChild(card, "cameraSensorField")
 
-        findChild(card, "cameraSensorField").text = "30"
-        findChild(card, "cameraLensField").text = "40"
-        findChild(card, "cameraApply").clicked()
-
-        compare(fake.sets, [["sensor", "30"], ["lens", "40"]])
-    }
-
-    // Review of PR 33: after Apply the field showed the rounded value but remembered the
-    // typed one, so the next Apply sent the rounded value and changed the camera.
-    function test_a_second_apply_sends_nothing_new() {
-        const card = shown("camera:a")
-
-        findChild(card, "cameraSensorField").text = "30.123"
-        findChild(card, "cameraApply").clicked()
-        findChild(card, "cameraApply").clicked()
+        tc.typeAndLeave(card, sensor, "30.123")
+        sensor.forceActiveFocus()
+        card.forceActiveFocus()
 
         compare(fake.sets, [["sensor", "30.123"]])
-        compare(findChild(card, "cameraSensorField").text, "30,12")
+        compare(sensor.text, "30,12")
     }
 
     // A drag shows its preview through the plan, and the edit at its end gives the same plan:
@@ -251,21 +248,6 @@ TestCase {
         fake.pictureRevision++
 
         compare(findChild(card, "cameraSensorField").text, "36")
-    }
-
-    // Review of PR 33: a later field of the same Apply refreshed the plan and wiped the
-    // refused value and its mark.
-    function test_a_refused_value_stays_beside_an_accepted_one() {
-        const card = shown("camera:a")
-        const sensor = findChild(card, "cameraSensorField")
-        fake.refused = "sensor"
-
-        sensor.text = "abc"
-        findChild(card, "cameraLensField").text = "40"
-        findChild(card, "cameraApply").clicked()
-
-        compare(sensor.text, "abc")
-        verify(sensor.invalid)
     }
 
     // Review of PR 33: Enter in one field wrote the camera's values over the others, even
@@ -288,8 +270,7 @@ TestCase {
         const field = findChild(card, "cameraAspectField")
         fake.fieldOk = false
 
-        field.text = "0"
-        findChild(card, "cameraApply").clicked()
+        tc.typeAndLeave(card, field, "0")
 
         verify(field.invalid)
         verify(!findChild(card, "cameraLensField").invalid)

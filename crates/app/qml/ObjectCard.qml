@@ -6,10 +6,10 @@ import Kante
 import "ProjectData.js" as ProjectData
 
 // An object is selected (LH-25, LH-12, LH-17, LH-90), a section of the selection card (D-04):
-// its name or kind, its size as two fields; under "More" its height (empty is none), its
-// underside (the value in force; emptied it stands on what is below again) and filing it in the
-// library under a name. Enter in a size field sets the size, Enter in the height or underside
-// field that one; a value that is no length marks the field and changes nothing. Under "More"
+// its size as two fields (its name or kind is the card's head); under "More" its height (empty
+// is none), its underside (the value in force; emptied it stands on what is below again) and
+// filing it in the library under a name. Enter in a field, or the keyboard leaving it with a
+// changed text, sets that field's value (D-46); a value that is no length marks the field and changes nothing. Under "More"
 // too: its kind (a list of the library, LH-114), mirroring (LH-115), the size of its entry again
 // (LH-116) and a label bound to it (LH-118).
 ColumnLayout {
@@ -125,27 +125,6 @@ ColumnLayout {
         baseField.invalid = !ok
     }
 
-    // The button sets what was changed: the size always, height and underside when they
-    // differ. The size edit refills the fields, so what was typed is taken before and put back.
-    function apply() {
-        const typed = heightField.text
-        const typedBase = baseField.text
-        const changed = info !== null && typed.trim() !== card.shownHeight(info)
-        const baseChanged = info !== null && typedBase.trim() !== card.ownBase()
-        // A refused size stops the apply: the height alone would be half of what was asked.
-        if (!card.setSize()) {
-            return
-        }
-        if (changed) {
-            heightField.text = typed
-            card.setHeight()
-        }
-        if (baseChanged) {
-            baseField.text = typedBase
-            card.setBase()
-        }
-    }
-
     function setSize() {
         const ok = controller.resizeSelected(widthField.text, depthField.text)
         widthField.invalid = !ok
@@ -157,11 +136,6 @@ ColumnLayout {
         if (!controller.saveToLibrary(libraryName.text)) {
             libraryName.invalid = true
         }
-    }
-
-    KanteSectionLabel {
-        objectName: "objectTitle"
-        text: card.title
     }
 
     RowLayout {
@@ -178,12 +152,6 @@ ColumnLayout {
             fieldName: "depthField"
             label: card.texts.t("field.depth")
             onAccepted: card.setSize()
-        }
-        KanteButton {
-            objectName: "objectApply"
-            Layout.alignment: Qt.AlignBottom
-            text: card.texts.t("form.apply")
-            onClicked: card.apply()
         }
     }
 

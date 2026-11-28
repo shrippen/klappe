@@ -11,7 +11,8 @@ import Kante
 // the camera to it and the lens it states (LH-33; empty: none, between two marks with a lens
 // the focal length runs with time). The pace is shown as the plan has it (a figure's mark:
 // in its field, where it can be typed in m/s); the two buttons time the way for walking or
-// running and move the later marks along. No geometry here: the controller has the numbers
+// running and move the later marks along. Enter in a field, or the keyboard leaving it with a
+// changed text, sets the value (D-46). No geometry here: the controller has the numbers
 // from the session. Pose, pause and pace (a camera's mark: lens
 // height, rig and lens) are the common fields; arrival, departure and tilt wait behind
 // "More".
@@ -51,6 +52,19 @@ ColumnLayout {
     readonly property var carriers: card.controller.tracksJson
         ? JSON.parse(card.controller.tracksJson).filter(t => t.kind === "figure") : []
     readonly property bool shown: info !== null
+    /// The head when the mark is the card's only section: a figure's mark as "Ilva · Mark 2 · 8,0 s",
+    /// a figure at the playhead by its name, any other mark just "Mark".
+    readonly property string title: {
+        card.controller.pictureRevision
+        const key = card.controller.selectedKey
+        const d = key ? JSON.parse(card.controller.describe(key)) : ({})
+        if (d.kind === "mark") {
+            return card.texts.t("mark.head", { name: d.name, index: d.index, time: card.texts.fixed(d.time, 1) })
+        }
+        return d.kind === "figure" ? d.name : card.texts.t("mark.title")
+    }
+    /// The section's own label: wanted when another section (a camera's) heads the card.
+    property bool showLabel: true
     /// A field has the focus: letters and Delete are text, not keys for the selection.
     readonly property bool typing: holdField.typing || heightField.typing
         || tiltField.typing || lensField.typing || paceField.typing
@@ -122,7 +136,10 @@ ColumnLayout {
         paceField.invalid = !controller.setMarkPace(paceField.text)
     }
 
-    KanteSectionLabel { text: card.texts.t("mark.title") }
+    KanteSectionLabel {
+        visible: card.showLabel
+        text: card.texts.t("mark.title")
+    }
 
     KanteSegmented {
         id: poseChoice
@@ -145,12 +162,6 @@ ColumnLayout {
             label: card.texts.t("mark.hold")
             onAccepted: card.setHold()
         }
-        KanteButton {
-            objectName: "holdApply"
-            Layout.alignment: Qt.AlignBottom
-            text: card.texts.t("form.apply")
-            onClicked: card.setHold()
-        }
     }
 
     RowLayout {
@@ -171,14 +182,6 @@ ColumnLayout {
             visible: card.isFigure
             enabled: card.info !== null && card.info.hasWay
             onAccepted: card.setSpeed()
-        }
-        KanteButton {
-            objectName: "paceApply"
-            Layout.alignment: Qt.AlignBottom
-            visible: card.isFigure
-            enabled: card.info !== null && card.info.hasWay
-            text: card.texts.t("form.apply")
-            onClicked: card.setSpeed()
         }
         KanteButton {
             objectName: "paceWalk"
@@ -261,12 +264,6 @@ ColumnLayout {
             label: card.texts.t("mark.height")
             onAccepted: card.setAim()
         }
-        KanteButton {
-            objectName: "aimApply"
-            Layout.alignment: Qt.AlignBottom
-            text: card.texts.t("form.apply")
-            onClicked: card.setAim()
-        }
     }
 
     RowLayout {
@@ -306,12 +303,6 @@ ColumnLayout {
             QQC2.ToolTip.text: card.texts.t("mark.lensTip")
             QQC2.ToolTip.visible: hovered
             QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
-        }
-        KanteButton {
-            objectName: "lensApply"
-            Layout.alignment: Qt.AlignBottom
-            text: card.texts.t("form.apply")
-            onClicked: card.setLens()
         }
     }
 
@@ -369,12 +360,6 @@ ColumnLayout {
             QQC2.ToolTip.text: card.texts.t("mark.tiltTip")
             QQC2.ToolTip.visible: hovered
             QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
-        }
-        KanteButton {
-            objectName: "tiltApply"
-            Layout.alignment: Qt.AlignBottom
-            text: card.texts.t("form.apply")
-            onClicked: card.setAim()
         }
     }
 }

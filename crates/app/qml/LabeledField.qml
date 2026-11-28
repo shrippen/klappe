@@ -26,8 +26,25 @@ ColumnLayout {
     /// The field has the focus: letters and Delete are text, not keys for the selection.
     readonly property bool typing: input.activeFocus
 
-    /// Enter in the field.
+    /// What the field held when it got the keyboard or last applied: a value applies on Enter
+    /// and when the field loses the keyboard, only if it differs from this (D-46).
+    property string since: ""
+
+    /// The selection when the field got the keyboard.
+    property string focusKey: ""
+
+    /// Enter in the field, or the keyboard left it with a changed text.
     signal accepted()
+
+    // The selection now, read from the controller of the card the field is in (empty without
+    // one): not from a binding, which may not have followed a change yet.
+    function selection() {
+        let item = box.parent
+        while (item && item.controller === undefined) {
+            item = item.parent
+        }
+        return item ? item.controller.selectedKey : ""
+    }
 
     spacing: 0
 
@@ -44,6 +61,24 @@ ColumnLayout {
         Accessible.name: box.label
         inputMethodHints: Qt.ImhFormattedNumbersOnly
         onTextChanged: invalid = false
-        onAccepted: box.accepted()
+        onAccepted: {
+            box.accepted()
+            box.since = input.text
+        }
+        onActiveFocusChanged: {
+            if (activeFocus) {
+                box.since = text
+                box.focusKey = box.selection()
+                return
+            }
+            // Another element is selected: what was typed was for the one before.
+            if (text === box.since || box.selection() !== box.focusKey) {
+                return
+            }
+            // Set first: the card's apply may put the plan's value in the field.
+            box.since = text
+            box.accepted()
+            box.since = input.text
+        }
     }
 }

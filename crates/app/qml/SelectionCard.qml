@@ -2,12 +2,14 @@ import QtQuick
 import QtQuick.Controls as QQC2
 import Kante
 
-// The card of the selection (D-04): the object's, the door's or window's, the wall's, the camera's
-// and the mark's fields in one card beside the selected element, with a pointer at it. A camera shows two
-// sections (camera, mark at the playhead). It follows the element when the plan is panned, zoomed
+// The card of the selection (D-04, D-46): the fields of the object, the door or window, the wall,
+// the camera, the lamp, the drawing, the image and the mark in one card beside the selected
+// element, with a pointer at it. Its head names the element. A camera shows two sections
+// (camera, mark at the playhead). A value applies on Enter or when its field loses the keyboard;
+// Escape closes the card. It follows the element when the plan is panned, zoomed
 // or played, stays inside the plan (on the left of the element when the right has no room) and
 // keeps clear of the mouse pointer: it does not open under it. Nothing is selected, or several
-// things: no card.
+// things, or the 3D view shows: no card.
 KantePopover {
     id: card
 
@@ -18,22 +20,22 @@ KantePopover {
     /// The mouse pointer in the canvas's pixels, when it is over it.
     property point pointer: Qt.point(0, 0)
     property bool pointerOver: false
-    /// The 3D view shows: the card opens beside `freeAt` (the click, in the canvas's pixels),
-    /// not beside the element's shape, which the plan alone has.
+    /// The 3D view shows: the plan's shape is not on view, so there is no card (D-46).
     property bool free: false
-    property point freeAt: Qt.point(0, 0)
 
     readonly property string key: controller.selectedKey
     /// A change of tool closes the card, the selection stays (a typed measure uses it): a new
     /// selection, or a click on the element, opens the card again.
     property bool dismissed: false
-    readonly property bool wanted: !card.dismissed && (objectSection.shown || openingSection.shown
-        || wallSection.shown || cameraSection.shown || markSection.shown)
+    readonly property bool wanted: !card.dismissed && !card.free && !!card.head
     /// The rest of the fields of every section.
     property bool expanded: false
     /// A field has the focus: letters and Delete are text, not keys for the selection.
-    readonly property bool typing: objectSection.typing || openingSection.typing
-        || wallSection.typing || cameraSection.typing || markSection.typing
+    readonly property bool typing: card.sections.some(s => s.typing)
+    readonly property var sections: [objectSection, openingSection, wallSection, cameraSection,
+        lightSection, drawingSection, imageSection, markSection]
+    /// The head: what the first section that shows calls the element.
+    readonly property string head: (card.sections.find(s => s.shown) || { title: "" }).title
 
     // The plan keeps the keyboard (zoom keys, Escape for a drag); a field takes it on a click.
     // The card goes with the selection, not with a click or a key.
@@ -41,20 +43,32 @@ KantePopover {
     closeOnOutside: false
     closePolicy: QQC2.Popup.NoAutoClose
 
-    // Escape in a field of the card leaves the field, which gives the keyboard back to the plan;
-    // the next Escape clears the selection (PlanArea).
+    // Escape in a field of the card closes the card and gives the keyboard back to the plan; the
+    // next Escape clears the selection (PlanArea). What was typed applies as when the field is left.
     Shortcut {
         sequence: "Escape"
         enabled: card.typing
-        onActivated: card.canvas.forceActiveFocus()
+        onActivated: {
+            card.dismissed = true
+            card.canvas.forceActiveFocus()
+        }
+    }
+
+    // Another element: a field still typed in loses the keyboard, which applies nothing (the
+    // selection changed); the fields then show the new element.
+    function follow() {
+        if (card.typing) {
+            card.canvas.forceActiveFocus()
+        }
+        Qt.callLater(() => card.sections.forEach(s => s.fill && s.fill()))
     }
 
     onKeyChanged: {
+        card.follow()
         card.dismissed = false
         card.place()
     }
     onFreeChanged: place()
-    onFreeAtChanged: place()
     onWantedChanged: place()
     onImplicitWidthChanged: place()
     onImplicitHeightChanged: place()
@@ -172,12 +186,8 @@ KantePopover {
     function placeOnce() {
         // A hidden plan (another tab of the narrow step) takes the card with it: a popup would
         // stay in the overlay.
-        if (!card.wanted || card.canvas.width <= 0 || (!card.canvas.visible && !card.free)) {
+        if (!card.wanted || card.canvas.width <= 0 || !card.canvas.visible) {
             card.close()
-            return
-        }
-        if (card.free) {
-            card.openAtPoint(card.freeAt.x, card.freeAt.y, card.canvas)
             return
         }
         const shape = card.shapeOf(card.canvas.shapes)
@@ -190,6 +200,11 @@ KantePopover {
     }
 
     HoverHandler { id: over }
+
+    KanteSectionLabel {
+        objectName: "cardHead"
+        text: card.head
+    }
 
     ObjectCard {
         id: objectSection
@@ -219,8 +234,27 @@ KantePopover {
         texts: card.texts
         controller: card.controller
     }
+    LightCard {
+        id: lightSection
+        objectName: "lightCard"
+        texts: card.texts
+        controller: card.controller
+    }
+    DrawingCard {
+        id: drawingSection
+        objectName: "drawingCard"
+        texts: card.texts
+        controller: card.controller
+    }
+    ImageCard {
+        id: imageSection
+        objectName: "imageCard"
+        texts: card.texts
+        controller: card.controller
+    }
     MarkCard {
         id: markSection
+        showLabel: cameraSection.shown || objectSection.shown
         expanded: card.expanded
         showMore: false
         objectName: "markCard"
@@ -230,6 +264,7 @@ KantePopover {
 
     KanteButton {
         objectName: "cardMore"
+        visible: objectSection.shown || cameraSection.shown || markSection.shown
         emphasis: KanteButton.Emphasis.Quiet
         size: KanteButton.Size.Small
         text: card.texts.t(card.expanded ? "card.less" : "card.more")

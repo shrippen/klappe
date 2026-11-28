@@ -23,12 +23,37 @@ TestCase {
         property bool viewFree: false
         property bool asksNote: false
         property string markJson: "{}"
+        property var sizes: []
+        property var lightSets: []
+        property var heights: []
 
         function place() {}
         function clearSelection() { selectedKey = ""; selectedCount = 0 }
         function markInfo() { return markJson }
+        function resizeSelected(width, depth) {
+            sizes.push([width, depth])
+            return true
+        }
+        function setObjectHeight(text) {
+            heights.push(text)
+            return true
+        }
+        function setLightField(name, text) {
+            lightSets.push([name, text])
+            return true
+        }
         function describe(key) {
-            if (key === "object:o1") {
+            if (key === "light:l1") {
+                return JSON.stringify({ kind: "light", label: "Leuchtfeuer", type: "fresnel", facing: 0, beam: 20,
+                                        temp: 3200, power: 650, gives_light: true, tunable: false })
+            }
+            if (key === "drawing:d1") {
+                return JSON.stringify({ kind: "drawing", color: "red", dash: "solid", fill: "outline", closed: false })
+            }
+            if (key.indexOf("mark:") === 0) {
+                return JSON.stringify({ kind: "mark", name: "Ilva", index: 2, time: 8 })
+            }
+            if (key === "object:o1" || key === "object:o2") {
                 return JSON.stringify({ kind: "object", label: "", library: "table", width: 1.6, depth: 0.9, height: 0.8, base: 0, baseDefault: true })
             }
             return JSON.stringify({ kind: "camera", label: "A", lens: 35, fov: 39.6, height: 1.6, shots: "12.1" })
@@ -54,7 +79,8 @@ TestCase {
     }
 
     function planWith(x) {
-        const keys = ["object:o1", "object:o2", "object:o3", "camera:a", "camera:b", "note:n1"]
+        const keys = ["object:o1", "object:o2", "object:o3", "camera:a", "camera:b", "note:n1", "light:l1",
+                      "drawing:d1", "mark:ilva:1"]
         return JSON.stringify({ width: 20, depth: 13, shapes: keys.map((k, i) => box(k, x + i * 2)) })
     }
 
@@ -65,6 +91,9 @@ TestCase {
         fake.extendSelection = false
         fake.viewFree = false
         fake.markJson = "{}"
+        fake.sizes = []
+        fake.lightSets = []
+        fake.heights = []
     }
 
     function drawn(tool, width) {
@@ -114,7 +143,7 @@ TestCase {
 
     // The card goes to the other side of the element when the right has no room.
     function test_the_card_flips_left_at_the_plans_edge() {
-        fake.planJson = planWith(17)
+        fake.planJson = planWith(18)
         const area = drawn("select", wide)
         const card = findChild(area, "selectionCard")
 
@@ -122,7 +151,7 @@ TestCase {
         settled(card)
 
         compare(card.pointerSide, "right")
-        const element = card.canvas.mapFromModel(17, 11.5)
+        const element = card.canvas.mapFromModel(18, 11.5)
 
         verify(card.x + card.width < element.x)
     }
@@ -261,49 +290,148 @@ TestCase {
         settled(card)
     }
 
-    // LH-94: in 3D the plan's shape is not on view; the card opens beside the click instead.
-    function test_in_3d_the_card_opens_beside_the_click() {
+    // D-46: the 3D view has no card; the plan's shape is not on view.
+    function test_in_3d_there_is_no_card() {
         fake.viewFree = true
         const area = drawn("select", wide)
         const card = findChild(area, "selectionCard")
-        const view = findChild(area, "freeView")
-        view.clickAt = Qt.point(200, 150)
 
         fake.selectedKey = "object:o1"
-        settled(card)
-
-        verify(card.visible)
-        verify(card.x > 200)
-        verify(card.y <= 150 && 150 <= card.y + card.height)
-
-        view.clickAt = Qt.point(300, 250)
-        settled(card)
-
-        verify(card.x > 300)
-        verify(card.y <= 250 && 250 <= card.y + card.height)
-    }
-
-    // Review of #173: in 3D a click with another tool selects nothing and does not reopen the
-    // card; one with the select tool does.
-    function test_in_3d_only_a_select_click_reopens_the_card() {
-        fake.viewFree = true
-        const area = drawn("select", wide)
-        const card = findChild(area, "selectionCard")
-        const view = findChild(area, "freeView")
-        view.clickAt = Qt.point(200, 150)
-        fake.selectedKey = "object:o1"
-        settled(card)
-        area.tool = "measure"
-        tryVerify(() => !card.visible)
-
-        view.clickAt = Qt.point(300, 250)
         wait(100)
 
         verify(!card.visible)
 
-        area.tool = "select"
-        view.clickAt = Qt.point(250, 200)
+        fake.viewFree = false
         settled(card)
+    }
+
+    // D-46: the card is closed when the view turns to 3D and opens again beside the element
+    // when it is back.
+    function test_the_card_closes_when_3d_shows() {
+        const area = drawn("select", wide)
+        const card = findChild(area, "selectionCard")
+        fake.selectedKey = "object:o1"
+        settled(card)
+
+        fake.viewFree = true
+        tryVerify(() => !card.visible)
+
+        fake.viewFree = false
+        settled(card)
+    }
+
+    // D-46: the head names the element, whatever the kind.
+    function test_the_head_names_the_element() {
+        const area = drawn("select", wide)
+        const card = findChild(area, "selectionCard")
+        const head = findChild(area, "cardHead")
+        const heads = {
+            "object:o1": "Tisch",
+            "camera:a": "Kamera A",
+            "light:l1": "Leuchtfeuer",
+            "drawing:d1": "Zeichnung",
+            "mark:ilva:1": "Ilva \u00b7 Mark 2 \u00b7 8,0 s",
+        }
+
+        fake.markJson = JSON.stringify({ kind: "figure", pose: "standing", arrival: "walk", departure: "stay", hold: 0,
+                                         hasWay: false, pace: null })
+        for (const key in heads) {
+            fake.selectedKey = key
+            settled(card)
+            compare(head.text, heads[key], key)
+        }
+    }
+
+    // D-46: a lamp's and a drawing's card open beside the element like any other, not as a strip
+    // at the top of the plan.
+    function test_a_lamp_and_a_drawing_open_beside_the_element() {
+        const area = drawn("select", wide)
+        const card = findChild(area, "selectionCard")
+        const at = { "light:l1": 13, "drawing:d1": 15 }
+
+        for (const key in at) {
+            fake.selectedKey = key
+            settled(card)
+            const left = card.canvas.mapFromModel(at[key], 11.5)
+            const right = card.canvas.mapFromModel(at[key] + 1, 11.5)
+            // Beside the element, on either side; never over it.
+            verify(card.x >= right.x || card.x + card.width <= left.x, key)
+            verify(card.y > 0, key)
+            verify(card.y <= left.y && left.y <= card.y + card.height, key)
+        }
+    }
+
+    // D-46: no row has a button that applies; a value applies on Enter or when its field is left.
+    function test_no_row_has_an_apply_button() {
+        const area = drawn("select", wide)
+        const card = findChild(area, "selectionCard")
+        fake.selectedKey = "light:l1"
+        settled(card)
+        card.expanded = true
+
+        const applying = []
+        const walk = item => {
+            for (const child of item.children) {
+                if (child.visible && child.text === "\u00dcbernehmen") {
+                    applying.push(child.objectName)
+                }
+                walk(child)
+            }
+        }
+        walk(card.contentItem)
+
+        compare(applying, [])
+    }
+
+    function test_enter_applies_a_value() {
+        const area = drawn("select", wide)
+        const card = findChild(area, "selectionCard")
+        fake.selectedKey = "object:o1"
+        settled(card)
+        const field = findChild(card, "widthField")
+
+        field.forceActiveFocus()
+        field.text = "2,5"
+        keyClick(Qt.Key_Return)
+
+        compare(fake.sizes, [["2,5", "0,9"]])
+    }
+
+    function test_leaving_a_field_applies_a_changed_value_once() {
+        const area = drawn("select", wide)
+        const card = findChild(area, "selectionCard")
+        fake.selectedKey = "light:l1"
+        settled(card)
+        const field = findChild(card, "lightBeamField")
+
+        field.forceActiveFocus()
+        field.text = "45"
+        area.forceActiveFocus()
+
+        compare(fake.lightSets, [["beam", "45"]])
+
+        // Not changed: nothing.
+        field.forceActiveFocus()
+        area.forceActiveFocus()
+
+        compare(fake.lightSets.length, 1)
+    }
+
+    // A value typed for one element does not go to the next one that is clicked.
+    function test_a_typed_value_does_not_follow_the_selection() {
+        const area = drawn("select", wide)
+        const card = findChild(area, "selectionCard")
+        fake.selectedKey = "object:o1"
+        settled(card)
+        const field = findChild(card, "widthField")
+
+        field.forceActiveFocus()
+        field.text = "9"
+        fake.selectedKey = "object:o2"
+        wait(100)
+
+        compare(fake.sizes, [])
+        compare(field.text, "1,6")
     }
 
     // Q1-04: Escape closes the card (it clears the selection, so a click on the element opens
@@ -321,8 +449,9 @@ TestCase {
         compare(fake.selectedKey, "")
     }
 
-    // In a field of the card Escape first leaves the field; a second one closes the card.
-    function test_escape_in_a_field_leaves_it_first() {
+    // D-46: Escape in a field of the card closes the card (and applies as leaving the field does);
+    // the selection stays until a second one.
+    function test_escape_in_a_field_closes_the_card() {
         const area = drawn("select", wide)
         const card = findChild(area, "selectionCard")
         fake.selectedKey = "object:o1"
@@ -335,11 +464,12 @@ TestCase {
         keyClick(Qt.Key_Escape)
 
         verify(!card.typing)
-        verify(card.visible)
+        tryVerify(() => !card.visible)
+        compare(fake.selectedKey, "object:o1")
 
         keyClick(Qt.Key_Escape)
 
-        tryVerify(() => !card.visible)
+        compare(fake.selectedKey, "")
     }
 
     // Q1-04: a change of tool closes the card and keeps the selection; a click on the element

@@ -94,7 +94,8 @@ TestCase {
         compare(findChild(card, "imageOpacityField").text, "25")
     }
 
-    function test_enter_and_apply_set_the_typed_opacity() {
+    // D-46: Enter or leaving the field sets the opacity; no button.
+    function test_enter_and_leaving_set_the_typed_opacity() {
         const card = shown("image:i1")
         const field = findChild(card, "imageOpacityField")
 
@@ -102,17 +103,25 @@ TestCase {
         field.accepted()
         compare(fake.opacities, ["60"])
 
+        field.forceActiveFocus()
         field.text = "35"
-        mouseClick(findChild(card, "imageOpacityApply"))
+        card.forceActiveFocus()
         compare(fake.opacities, ["60", "35"])
+        verify(!findChild(card, "imageOpacityApply"))
     }
 
     function test_an_untouched_field_sends_nothing() {
         const card = shown("image:i1")
+        const field = findChild(card, "imageOpacityField")
 
-        mouseClick(findChild(card, "imageOpacityApply"))
+        field.forceActiveFocus()
+        card.forceActiveFocus()
 
         compare(fake.opacities, [])
+    }
+
+    function test_the_head_names_an_image() {
+        compare(shown("image:i1").title, "Bild")
     }
 
     function test_a_refused_opacity_marks_the_field_until_it_is_edited() {

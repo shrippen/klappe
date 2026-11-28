@@ -529,24 +529,6 @@ TestCase {
         verify(!card.visible)
     }
 
-    // LH-19: a narrow plan holds the drawing card inside its edges.
-    function test_the_drawing_card_stays_inside_a_narrow_plan() {
-        fake.choicesJson = JSON.stringify({
-            color: ["red", "orange", "yellow", "green", "cyan", "blue", "purple"],
-            dash: ["solid", "dashed", "dotted"],
-            fill: ["outline", "filled"],
-        })
-        const area = createTemporaryObject(areaComponent, tc, { texts: de, width: 240 })
-        const card = findChild(area, "drawingCard")
-
-        fake.selectedKey = "drawing:d1"
-        verify(card.visible)
-        verify(card.implicitWidth > area.width)
-        verify(card.width <= area.width)
-        verify(card.x >= 0)
-        fake.choicesJson = ""
-    }
-
     // Letters and Delete typed into a size or a name are text: no turn, no delete.
     function test_typing_a_size_leaves_the_selection_alone() {
         const area = drawn("select")

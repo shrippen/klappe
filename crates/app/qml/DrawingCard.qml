@@ -3,9 +3,9 @@ import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import Kante
 
-// A drawing is selected (LH-19): its colour, line and, for a shape with an inside, its fill.
+// A drawing is selected (LH-19), a section of the selection card (D-46): its colour, line and, for a shape with an inside, its fill.
 // Each pick sets the drawing at once. The style comes from the session; no geometry here.
-KanteCard {
+ColumnLayout {
     id: card
 
     required property var texts
@@ -27,9 +27,13 @@ KanteCard {
         return d.kind === "drawing" ? d : null
     }
 
-    visible: info !== null
-    implicitWidth: row.implicitWidth + Kirigami.Units.largeSpacing * 2
-    implicitHeight: row.implicitHeight + Kirigami.Units.largeSpacing * 2
+    readonly property bool shown: info !== null
+    readonly property string title: card.texts.t("legend.drawing")
+    /// No field takes the keyboard: the style is picked.
+    readonly property bool typing: false
+
+    visible: card.shown
+    spacing: Kirigami.Units.smallSpacing
 
     // Sets the style with one part changed: `part` is "color", "dash" or "fill".
     function pick(part, value) {
@@ -39,8 +43,6 @@ KanteCard {
     }
 
     RowLayout {
-        id: row
-        anchors.centerIn: parent
         spacing: Kirigami.Units.smallSpacing
 
         KanteSwatchPicker {

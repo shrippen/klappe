@@ -75,14 +75,14 @@ TestCase {
     function test_the_lamp_card_belongs_to_a_selected_lamp() {
         const area = createTemporaryObject(areaComponent, tc)
         const card = findChild(area, "lightCard")
-        verify(!card.visible)
+        verify(!card.shown)
 
         fake.selectedKey = "light:l1"
-        verify(card.visible)
-        verify(!findChild(area, "cameraCard").visible)
+        verify(card.shown)
+        verify(!findChild(area, "cameraCard").shown)
 
         // D-04: a camera's card opens at the element, in the selection card (its own tests).
         fake.selectedKey = "camera:a"
-        verify(!card.visible)
+        verify(!card.shown)
     }
 }

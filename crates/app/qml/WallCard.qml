@@ -5,7 +5,7 @@ import Kante
 
 // A wall is selected (LH-90), a section of the selection card (D-04): its height as a field. The
 // field shows the wall's own height; without one it is empty and shows the room's greyed.
-// Emptying it goes back to the room's. Enter or the button sets it; a value that is no length marks the
+// Emptying it goes back to the room's. Enter or the keyboard leaving the field sets it; a value that is no length marks the
 // field and changes nothing.
 ColumnLayout {
     id: card
@@ -25,6 +25,7 @@ ColumnLayout {
         return d.kind === "wall" ? d : null
     }
     readonly property bool shown: info !== null
+    readonly property string title: card.texts.t("tool.wall")
     /// A field has the focus: letters and Delete are text, not keys for the selection.
     readonly property bool typing: heightField.typing
 
@@ -64,11 +65,6 @@ ColumnLayout {
         heightField.invalid = !ok
     }
 
-    KanteSectionLabel {
-        objectName: "wallTitle"
-        text: card.texts.t("tool.wall")
-    }
-
     RowLayout {
         spacing: Kirigami.Units.smallSpacing
 
@@ -78,12 +74,6 @@ ColumnLayout {
             label: card.texts.t("field.height")
             Layout.alignment: Qt.AlignBottom
             onAccepted: card.setHeight()
-        }
-        KanteButton {
-            objectName: "wallApply"
-            Layout.alignment: Qt.AlignBottom
-            text: card.texts.t("form.apply")
-            onClicked: card.setHeight()
         }
     }
 }

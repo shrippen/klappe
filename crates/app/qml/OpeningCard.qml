@@ -4,8 +4,7 @@ import org.kde.kirigami as Kirigami
 import Kante
 
 // A door or window is selected (LH-10), a section of the selection card (D-04): its kind, its
-// width, and its sill and head (LH-90) as fields. Enter sets the field, the button the width and
-// what was changed of sill and head. Sill and head show the opening's own value; without one the
+// width, and its sill and head (LH-90) as fields. Enter, or the keyboard leaving a field, sets that field. Sill and head show the opening's own value; without one the
 // field is empty and shows its kind's greyed; an emptied one goes back to its kind's. A value that is no length marks the field and changes nothing.
 // A door also shows two choices: the side it opens to and the end its hinge is at.
 ColumnLayout {
@@ -26,6 +25,7 @@ ColumnLayout {
         return d.kind === "opening" ? d : null
     }
     readonly property bool shown: info !== null
+    readonly property string title: info ? card.texts.t("openingKind." + info.type) : ""
     /// A field has the focus: letters and Delete are text, not keys for the selection.
     readonly property bool typing: widthField.typing || sillField.typing || headField.typing
 
@@ -103,31 +103,6 @@ ColumnLayout {
         return card.setHeight(headField, "head")
     }
 
-    // The button sets the width always, sill and head when they differ from what is shown. A
-    // refused width stops it. The edits refill the fields, so what was typed is taken first.
-    function apply() {
-        const sill = sillField.text
-        const head = headField.text
-        const sillChanged = info !== null && sill.trim() !== card.own("sill")
-        const headChanged = info !== null && head.trim() !== card.own("head")
-        if (!card.setWidth()) {
-            return
-        }
-        if (sillChanged) {
-            sillField.text = sill
-            card.setSill()
-        }
-        if (headChanged) {
-            headField.text = head
-            card.setHead()
-        }
-    }
-
-    KanteSectionLabel {
-        objectName: "openingTitle"
-        text: card.info ? card.texts.t("openingKind." + card.info.type) : ""
-    }
-
     RowLayout {
         spacing: Kirigami.Units.smallSpacing
 
@@ -136,12 +111,6 @@ ColumnLayout {
             fieldName: "openingWidthField"
             label: card.texts.t("field.width")
             onAccepted: card.setWidth()
-        }
-        KanteButton {
-            objectName: "openingApply"
-            Layout.alignment: Qt.AlignBottom
-            text: card.texts.t("form.apply")
-            onClicked: card.apply()
         }
     }
 

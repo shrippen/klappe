@@ -396,42 +396,9 @@ Item {
         }
     }
 
-    // A drawing is selected (LH-19): colour, line and fill.
-    DrawingCard {
-        objectName: "drawingCard"
-        anchors.horizontalCenter: parent.horizontalCenter
-        anchors.top: parent.top
-        anchors.topMargin: Kirigami.Units.largeSpacing
-        texts: area.texts
-        controller: area.controller
-        width: Math.min(area.width - Kirigami.Units.largeSpacing * 2, implicitWidth)
-    }
-
-    // An image is selected (LH-18): its opacity, and a new file for it.
-    ImageCard {
-        id: imageCard
-        objectName: "imageCard"
-        anchors.horizontalCenter: parent.horizontalCenter
-        anchors.top: parent.top
-        anchors.topMargin: Kirigami.Units.largeSpacing
-        texts: area.texts
-        controller: area.controller
-        width: Math.min(area.width - Kirigami.Units.largeSpacing * 2, implicitWidth)
-    }
-
-    // A lamp is selected (LH-50, LH-51): kind, library lamp, direction, beam, power and colour.
-    LightCard {
-        objectName: "lightCard"
-        texts: area.texts
-        controller: area.controller
-        anchors.horizontalCenter: parent.horizontalCenter
-        anchors.top: parent.top
-        anchors.topMargin: Kirigami.Units.largeSpacing
-        width: Math.min(area.width - Kirigami.Units.largeSpacing * 2, implicitWidth)
-    }
-
-    // The card of the selection, beside the element (D-04): an object's size, a camera's lens,
-    // a mark's pose and pause; "More" opens the rest.
+    // The card of the selection, beside the element (D-04, D-46): an object's size, a camera's lens,
+    // a mark's pose and pause, a lamp's, a drawing's and an image's fields; "More" opens the rest.
+    // Not in 3D.
     SelectionCard {
         id: selection
         objectName: "selectionCard"
@@ -439,23 +406,12 @@ Item {
         controller: area.controller
         canvas: canvas
         free: freeView.visible
-        freeAt: freeView.clickAt
         pointer: pointerSpy.point.position
         pointerOver: pointerSpy.hovered
     }
 
     // The card goes with the tool (Q1-04).
     onToolChanged: selection.dismissed = true
-
-    // In 3D only a click with the select tool opens it again (as a click on the plan).
-    Connections {
-        target: freeView
-        function onClickAtChanged() {
-            if (area.tool === "select") {
-                selection.dismissed = false
-            }
-        }
-    }
 
     Connections {
         target: area.controller
@@ -469,10 +425,8 @@ Item {
         }
     }
 
-    /// The selected object's card takes the height (LH-93). In 3D the view turned to the object:
-    /// the card opens beside the middle.
+    /// The selected object's card takes the height (LH-93). In 3D there is no card.
     function focusHeight() {
-        freeView.clickAt = Qt.point(freeView.width / 2, freeView.height / 2)
         selection.focusHeight()
     }
 
@@ -671,7 +625,7 @@ Item {
     readonly property real turnStepDeg: 15
     // Not while a length is typed: Delete there edits the text.
     readonly property bool hasSelection: (!!controller.selectedKey || controller.selectedCount > 0) && !lengthField.activeFocus && !noteField.activeFocus && !measureField.activeFocus
-        && !selection.typing && !imageCard.typing
+        && !selection.typing
     Shortcut {
         sequence: "Delete"
         enabled: area.hasSelection

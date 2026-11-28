@@ -4,12 +4,12 @@ import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 import Kante
 
-// A lamp is selected (LH-50, LH-51): its kind, a lamp of the library, direction, beam angle,
-// power and colour temperature. Enter in a field sets that field; "Apply" sets the fields that
-// were typed in. A value that is not a number marks its field and changes nothing. Only an LED
+// A lamp is selected (LH-50, LH-51), a section of the selection card (D-46): its kind, a lamp of
+// the library, direction, beam angle, power and colour temperature. Enter in a field, or the
+// keyboard leaving it with a changed text, sets that field. A value that is not a number marks its field and changes nothing. Only an LED
 // takes another colour temperature. No optics here (agent.md): the controller sets, the
 // session checks, Stellprobe draws the cone.
-KanteCard {
+ColumnLayout {
     id: card
 
     required property var texts
@@ -35,9 +35,15 @@ KanteCard {
         return choices.light || []
     }
 
-    visible: card.info !== null
-    implicitWidth: cardRows.implicitWidth + Kirigami.Units.largeSpacing * 2
-    implicitHeight: cardRows.implicitHeight + Kirigami.Units.largeSpacing * 2
+    readonly property bool shown: info !== null
+    /// The head of the card: the lamp's label, else its kind.
+    readonly property string title: !info ? "" : (info.label !== "" ? info.label : card.texts.t("lightKind." + info.type))
+    /// A field has the focus: letters and Delete are text, not keys for the selection.
+    readonly property bool typing: facingField.typing || beamField.typing || powerField.typing
+        || tempField.typing
+
+    visible: card.shown
+    spacing: Kirigami.Units.smallSpacing
 
     onInfoChanged: card.fill()
     Component.onCompleted: card.fill()
@@ -106,96 +112,80 @@ KanteCard {
         }
     }
 
-    function applyAll() {
-        card.apply(card.numberFields.map(([name, field]) => [name, field]))
-    }
-
-    ColumnLayout {
-        id: cardRows
-        anchors.centerIn: parent
+    RowLayout {
         spacing: Kirigami.Units.smallSpacing
 
-        RowLayout {
-            spacing: Kirigami.Units.smallSpacing
-
-            KanteSectionLabel {
-                text: card.info ? card.texts.t("light.card", { label: card.info.label }) : ""
-            }
-            KanteComboBox {
-                id: kindBox
-                objectName: "lightKindBox"
-                Layout.preferredWidth: Kirigami.Units.gridUnit * 8
-                Accessible.name: card.texts.t("light.kind")
-                textRole: "text"
-                valueRole: "value"
-                model: card.kinds.map(k => ({ value: k, text: card.texts.t("lightKind." + k) }))
-                onActivated: {
-                    card.controller.setLightField("kind", String(currentValue))
-                    card.fill()
-                }
-            }
-            KanteComboBox {
-                id: presetBox
-                objectName: "lightPresetBox"
-                Layout.preferredWidth: Kirigami.Units.gridUnit * 10
-                Accessible.name: card.texts.t("light.preset")
-                textRole: "text"
-                valueRole: "value"
-                model: [{ value: "", text: card.texts.t("light.presetPick") }].concat(
-                    card.presets.map(p => ({ value: p, text: card.texts.t("lightPreset." + p) })))
-                onActivated: {
-                    if (currentValue !== "") {
-                        card.controller.setLightField("preset", String(currentValue))
-                    }
-                    card.fill()
-                }
+        KanteComboBox {
+            id: kindBox
+            objectName: "lightKindBox"
+            Layout.preferredWidth: Kirigami.Units.gridUnit * 8
+            Accessible.name: card.texts.t("light.kind")
+            textRole: "text"
+            valueRole: "value"
+            model: card.kinds.map(k => ({ value: k, text: card.texts.t("lightKind." + k) }))
+            onActivated: {
+                card.controller.setLightField("kind", String(currentValue))
+                card.fill()
             }
         }
+        KanteComboBox {
+            id: presetBox
+            objectName: "lightPresetBox"
+            Layout.preferredWidth: Kirigami.Units.gridUnit * 10
+            Accessible.name: card.texts.t("light.preset")
+            textRole: "text"
+            valueRole: "value"
+            model: [{ value: "", text: card.texts.t("light.presetPick") }].concat(
+                card.presets.map(p => ({ value: p, text: card.texts.t("lightPreset." + p) })))
+            onActivated: {
+                if (currentValue !== "") {
+                    card.controller.setLightField("preset", String(currentValue))
+                }
+                card.fill()
+            }
+        }
+    }
 
-        RowLayout {
-            spacing: Kirigami.Units.smallSpacing
+    // Two by two: a card beside the element stays narrow.
+    GridLayout {
+        columns: 2
+        columnSpacing: Kirigami.Units.smallSpacing
+        rowSpacing: Kirigami.Units.smallSpacing
 
-            LabeledField {
-                id: facingField
-                fieldName: "lightFacingField"
-                label: card.texts.t("light.facing")
-                fieldWidth: Kirigami.Units.gridUnit * 6
-                onAccepted: card.apply([["facing", facingField]])
-            }
-            LabeledField {
-                id: beamField
-                fieldName: "lightBeamField"
-                label: card.texts.t("light.beam")
-                fieldWidth: Kirigami.Units.gridUnit * 8
-                onAccepted: card.apply([["beam", beamField]])
-            }
-            LabeledField {
-                id: powerField
-                fieldName: "lightPowerField"
-                label: card.texts.t("light.power")
-                fieldWidth: Kirigami.Units.gridUnit * 6
-                // Bounce and flag make no light: no power.
-                enabled: card.info !== null && card.info.gives_light
-                onAccepted: card.apply([["power", powerField]])
-            }
-            LabeledField {
-                id: tempField
-                fieldName: "lightTempField"
-                label: card.texts.t("light.temp")
-                fieldWidth: Kirigami.Units.gridUnit * 8
-                // Tungsten keeps its colour; only an LED is set to another.
-                enabled: card.info !== null && card.info.tunable
-                QQC2.ToolTip.text: card.texts.t("light.tempTip")
-                QQC2.ToolTip.visible: hovered && !enabled
-                QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
-                onAccepted: card.apply([["temp", tempField]])
-            }
-            KanteButton {
-                objectName: "lightApply"
-                Layout.alignment: Qt.AlignBottom
-                text: card.texts.t("form.apply")
-                onClicked: card.applyAll()
-            }
+        LabeledField {
+            id: facingField
+            fieldName: "lightFacingField"
+            label: card.texts.t("light.facing")
+            fieldWidth: Kirigami.Units.gridUnit * 6
+            onAccepted: card.apply([["facing", facingField]])
+        }
+        LabeledField {
+            id: beamField
+            fieldName: "lightBeamField"
+            label: card.texts.t("light.beam")
+            fieldWidth: Kirigami.Units.gridUnit * 8
+            onAccepted: card.apply([["beam", beamField]])
+        }
+        LabeledField {
+            id: powerField
+            fieldName: "lightPowerField"
+            label: card.texts.t("light.power")
+            fieldWidth: Kirigami.Units.gridUnit * 6
+            // Bounce and flag make no light: no power.
+            enabled: card.info !== null && card.info.gives_light
+            onAccepted: card.apply([["power", powerField]])
+        }
+        LabeledField {
+            id: tempField
+            fieldName: "lightTempField"
+            label: card.texts.t("light.temp")
+            fieldWidth: Kirigami.Units.gridUnit * 8
+            // Tungsten keeps its colour; only an LED is set to another.
+            enabled: card.info !== null && card.info.tunable
+            QQC2.ToolTip.text: card.texts.t("light.tempTip")
+            QQC2.ToolTip.visible: hovered && !enabled
+            QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
+            onAccepted: card.apply([["temp", tempField]])
         }
     }
 }

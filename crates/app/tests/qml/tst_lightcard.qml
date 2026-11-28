@@ -72,6 +72,13 @@ TestCase {
         fake.fieldOk = true
     }
 
+    // Types `text` into `field` and leaves it (D-46): a changed value applies, as on Enter.
+    function typeAndLeave(card, field, text) {
+        field.forceActiveFocus()
+        field.text = text
+        card.forceActiveFocus()
+    }
+
     function shown(key, texts) {
         fake.selectedKey = key
         const card = createTemporaryObject(cardComponent, tc, texts ? { texts: texts } : {})
@@ -168,22 +175,24 @@ TestCase {
         verify(!field.invalid)
     }
 
-    function test_apply_sets_only_the_typed_fields() {
+    // D-46: leaving a field sets that field alone; no button.
+    function test_leaving_a_field_sets_only_that_field() {
         const card = shown("light:l1")
 
-        findChild(card, "lightFacingField").text = "90"
-        findChild(card, "lightPowerField").text = "1000"
-        findChild(card, "lightApply").clicked()
+        tc.typeAndLeave(card, findChild(card, "lightFacingField"), "90")
+        tc.typeAndLeave(card, findChild(card, "lightPowerField"), "1000")
 
         compare(fake.sets, [["facing", "90"], ["power", "1000"]])
+        verify(!findChild(card, "lightApply"))
     }
 
-    function test_a_second_apply_sends_nothing_new() {
+    function test_leaving_a_field_twice_sends_nothing_new() {
         const card = shown("light:l1")
+        const field = findChild(card, "lightBeamField")
 
-        findChild(card, "lightBeamField").text = "45"
-        findChild(card, "lightApply").clicked()
-        findChild(card, "lightApply").clicked()
+        tc.typeAndLeave(card, field, "45")
+        field.forceActiveFocus()
+        card.forceActiveFocus()
 
         compare(fake.sets, [["beam", "45"]])
     }
@@ -193,13 +202,19 @@ TestCase {
         const field = findChild(card, "lightPowerField")
         fake.fieldOk = false
 
-        field.text = "-1"
-        findChild(card, "lightApply").clicked()
+        tc.typeAndLeave(card, field, "-1")
 
         verify(field.invalid)
         verify(!findChild(card, "lightBeamField").invalid)
         field.text = "1"
         verify(!field.invalid)
+    }
+
+    // D-46: the head of the card names the lamp by its label.
+    function test_the_head_is_the_lamps_label() {
+        const card = shown("light:led")
+
+        compare(card.title, "LED")
     }
 
     function test_the_fields_follow_the_lamp() {
@@ -217,8 +232,7 @@ TestCase {
         const card = shown("light:led")
         const field = findChild(card, "lightTempField")
 
-        field.text = "4000"
-        findChild(card, "lightApply").clicked()
+        tc.typeAndLeave(card, field, "4000")
 
         compare(fake.sets, [["temp", "4000"]])
         compare(field.text, "4000")
@@ -228,8 +242,7 @@ TestCase {
         const card = shown("light:led")
         const field = findChild(card, "lightPowerField")
 
-        field.text = "300"
-        findChild(card, "lightApply").clicked()
+        tc.typeAndLeave(card, field, "300")
 
         compare(fake.sets, [["power", "300"]])
         compare(field.text, "300")

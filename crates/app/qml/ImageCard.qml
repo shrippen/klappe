@@ -4,10 +4,11 @@ import QtQuick.Dialogs
 import org.kde.kirigami as Kirigami
 import Kante
 
-// An image is selected (LH-18): its opacity in percent, and a button that swaps its file. Enter
-// in the field or "Apply" sets the opacity; a value out of range marks the field and changes
+// An image is selected (LH-18), a section of the selection card (D-46): its opacity in percent,
+// and a button that swaps its file. Enter in the field, or the keyboard leaving it with a
+// changed text, sets the opacity; a value out of range marks the field and changes
 // nothing. The place, width and turn stay when the file is swapped.
-KanteCard {
+ColumnLayout {
     id: card
 
     required property var texts
@@ -29,9 +30,11 @@ KanteCard {
 
     readonly property real percent: 100
 
-    visible: info !== null
-    implicitWidth: row.implicitWidth + Kirigami.Units.largeSpacing * 2
-    implicitHeight: row.implicitHeight + Kirigami.Units.largeSpacing * 2
+    readonly property bool shown: info !== null
+    readonly property string title: card.texts.t("image.card")
+
+    visible: card.shown
+    spacing: Kirigami.Units.smallSpacing
 
     onInfoChanged: card.fill()
     Component.onCompleted: card.fill()
@@ -79,22 +82,13 @@ KanteCard {
     }
 
     RowLayout {
-        id: row
-        anchors.centerIn: parent
         spacing: Kirigami.Units.smallSpacing
 
-        KanteSectionLabel { text: card.texts.t("image.card") }
         LabeledField {
             id: opacityField
             fieldName: "imageOpacityField"
             label: card.texts.t("field.opacity")
             onAccepted: card.setOpacity()
-        }
-        KanteButton {
-            objectName: "imageOpacityApply"
-            Layout.alignment: Qt.AlignBottom
-            text: card.texts.t("form.apply")
-            onClicked: card.setOpacity()
         }
         KanteButton {
             objectName: "imageReplace"

@@ -54,6 +54,13 @@ TestCase {
         fake.heightOk = true
     }
 
+    // Types `text` into `field` and leaves it (D-46): a changed value applies, as on Enter.
+    function typeAndLeave(card, field, text) {
+        field.forceActiveFocus()
+        field.text = text
+        card.forceActiveFocus()
+    }
+
     function make() {
         const card = createTemporaryObject(cardComponent, tc)
         waitForRendering(card)
@@ -71,7 +78,7 @@ TestCase {
 
         fake.selectedKey = "wall:0"
         verify(card.visible)
-        compare(findChild(card, "wallTitle").text, "Wand")
+        compare(card.title, "Wand")
         compare(findChild(card, "wallHeightField").text, "")
         compare(findChild(card, "wallHeightField").placeholderText, "2,6")
 
@@ -127,14 +134,15 @@ TestCase {
         verify(!field.invalid)
     }
 
-    function test_the_button_gives_the_height_to_the_controller() {
+    // D-46: leaving the field applies what was typed; no button.
+    function test_leaving_the_field_gives_the_height_to_the_controller() {
         const card = make()
         fake.selectedKey = "wall:0"
 
-        findChild(card, "wallHeightField").text = "2.2"
-        findChild(card, "wallApply").clicked()
+        tc.typeAndLeave(card, findChild(card, "wallHeightField"), "2.2")
 
         compare(fake.heights, [["wall", "2.2"]])
+        verify(!findChild(card, "wallApply"))
     }
 
     // Applying an untouched field changes nothing: the room's height stays the wall's default
@@ -144,7 +152,9 @@ TestCase {
         fake.selectedKey = "wall:0"
         const field = findChild(card, "wallHeightField")
 
-        findChild(card, "wallApply").clicked()
+        field.forceActiveFocus()
+        card.forceActiveFocus()
+        compare(fake.heights, [])
         field.forceActiveFocus()
         keyClick(Qt.Key_Return)
 
@@ -156,8 +166,7 @@ TestCase {
         const card = make()
         fake.selectedKey = "wall:1"
 
-        findChild(card, "wallHeightField").text = ""
-        findChild(card, "wallApply").clicked()
+        tc.typeAndLeave(card, findChild(card, "wallHeightField"), "")
 
         compare(fake.heights, [["wall", ""]])
     }
@@ -168,8 +177,7 @@ TestCase {
         fake.heightOk = false
         const field = findChild(card, "wallHeightField")
 
-        field.text = "hoch"
-        findChild(card, "wallApply").clicked()
+        tc.typeAndLeave(card, field, "hoch")
 
         verify(field.invalid)
         field.text = "1"

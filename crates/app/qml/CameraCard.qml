@@ -6,8 +6,8 @@ import Kante
 
 // A camera is selected (LH-32, LH-38), a section of the selection card (D-04): its lens from
 // the chosen set or typed; under "More" its body, sensor width and frame. A body sets sensor
-// and frame together. Enter in a field sets that field; "Apply" sets the fields that were typed
-// in. A value that is not a number marks its field and changes nothing. No optics here
+// and frame together. Enter in a field, or the keyboard leaving it with a changed text, sets that
+// field (D-46). A value that is not a number marks its field and changes nothing. No optics here
 // (agent.md): the controller sets, the session checks, Stellprobe works out the angle of view.
 ColumnLayout {
     id: card
@@ -47,6 +47,7 @@ ColumnLayout {
     }
 
     readonly property bool shown: info !== null
+    readonly property string title: info ? card.texts.t("tip.camera", { label: info.label }) : ""
     /// A field has the focus: letters and Delete are text, not keys for the selection.
     readonly property bool typing: sensorField.typing || aspectField.typing || lensField.typing
 
@@ -125,17 +126,9 @@ ColumnLayout {
         }
     }
 
-    function applyAll() {
-        card.apply([["sensor", sensorField], ["lens", lensField], ["aspect", aspectField]])
-    }
-
     function choose(name, value) {
         card.controller.setCameraField(name, String(value))
         card.syncBoxes()
-    }
-
-    KanteSectionLabel {
-        text: card.info ? card.texts.t("tip.camera", { label: card.info.label }) : ""
     }
 
     RowLayout {
@@ -173,12 +166,6 @@ ColumnLayout {
             label: card.texts.t("camera.lens")
             fieldWidth: Kirigami.Units.gridUnit * 6
             onAccepted: card.apply([["lens", lensField]])
-        }
-        KanteButton {
-            objectName: "cameraApply"
-            Layout.alignment: Qt.AlignBottom
-            text: card.texts.t("form.apply")
-            onClicked: card.applyAll()
         }
     }
 
