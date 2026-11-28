@@ -112,6 +112,7 @@ TestCase {
                 Layout.minimumWidth: 0
                 Layout.leftMargin: lead
                 compact: work.tier !== Workspace.Tier.Wide || work.width < work.wideMin
+                words: work.tier === Workspace.Tier.Wide
                 texts: de
                 controller: fake
             }
@@ -280,6 +281,38 @@ TestCase {
         verify(part(popover.contentItem, "snapButton").visible)
         shoot(win.workspace, "medium-options")
         popover.close()
+    }
+
+    // D-47: wide, a tool shows symbol and word; below the wide step the symbol alone.
+    function test_tools_show_words_only_wide() {
+        for (const [w, display] of [[1700, QQC2.AbstractButton.TextBesideIcon], [1400, QQC2.AbstractButton.TextBesideIcon],
+                                    [1399, QQC2.AbstractButton.IconOnly], [800, QQC2.AbstractButton.IconOnly]]) {
+            make(w)
+            for (const mode of ["build", "stage", "resolve", "draw"]) {
+                win.bar.mode = mode
+                win.bar.tool = "select"
+                waitForRendering(win)
+                wait(50)
+                const button = part(win.bar, "tool.select")
+                compare(win.bar.toolDisplay, display, w + " " + mode)
+                // Kante shows the word of a tool whose icon the theme lacks, so only wide can be told apart.
+                verify((button.display !== QQC2.AbstractButton.IconOnly) === (display !== QQC2.AbstractButton.IconOnly) || button.iconMissing, w + " " + mode)
+                barFits(w + " " + mode)
+            }
+        }
+    }
+
+    // D-47 and D-09: wide, tools whose words do not fit go into the popover, none is cut.
+    function test_wide_tools_without_room_are_in_the_popover() {
+        make(1400)
+        win.bar.mode = "draw"
+        win.bar.tool = "rect"
+        waitForRendering(win)
+        wait(50)
+        const overflow = win.bar.fitCount < win.bar.shown.length
+        compare(part(win.bar, "optionsButton").visible, true, "popover button, fitCount " + win.bar.fitCount)
+        verify(overflow, "all tools fit with words at 1400 in draw mode")
+        barFits("1400 draw rect")
     }
 
     // Tools the bar has no room for are in the popover, where a click picks them.

@@ -17,7 +17,8 @@ import Kante
 // D-01: four working modes (keys 1-4) decide which tools the bar shows. The mode is a view only
 // (what can be picked and edited does not depend on it), so it lives here, in `_modes`, the one
 // table that says which tool belongs to which mode; the settings keep it over a restart. Tools are
-// icon buttons; one without an icon in the theme shows its name instead.
+// buttons with symbol and word (D-47), the symbol alone below the wide step; one without an icon
+// in the theme shows its name instead.
 RowLayout {
     id: tools
 
@@ -26,10 +27,15 @@ RowLayout {
 
     property string tool: "select"
     /// D-09: below the wide step the options (colour, line, fill, snapping, library) sit in a
-    /// popover, and so do the tools that do not fit the bar.
+    /// popover, and so do the tools that do not fit the bar. D-47: wide, the tools show symbol and
+    /// word; below, the symbol alone (`words`).
     property bool compact: false
     /// How many of the `shown` tools the bar has room for; the rest are in the popover.
     property int fitCount: shown.length
+    /// D-47: the tools show their word beside the symbol. The window's step decides, not `compact`:
+    /// a module bar makes the bar narrower than the window.
+    property bool words: !compact
+    readonly property int toolDisplay: words ? QQC2.AbstractButton.TextBesideIcon : QQC2.AbstractButton.IconOnly
     /// The working mode: the id of an entry of `_modes`.
     property string mode: "build"
     /// The value picked in the current tool's list: library kind, character id, camera id (empty: a new camera) or lamp kind.
@@ -212,13 +218,10 @@ RowLayout {
         return owner ? owner.id : _modes[0].id
     }
     // Tools beyond the room go to the popover. The room is what the width leaves after the mode
-    // box, the popover's button and the tool's list.
+    // box, the popover's button, the tool's list and the inline options, at every step (D-47).
     function _fit() {
-        if (!compact) {
-            fitCount = shown.length
-            return
-        }
         let room = width - modeBox.width - moreButton.implicitWidth - spacing * 2
+        room -= optionsLoader.item ? optionsLoader.implicitWidth + spacing : 0
         room -= objectBox.visible ? objectBox.Layout.minimumWidth + spacing : 0
         room -= figureBox.visible ? figureBox.implicitWidth + spacing : 0
         room -= lightBox.visible ? lightBox.implicitWidth + spacing : 0
@@ -294,7 +297,7 @@ RowLayout {
                 text: tools.texts.t("tool." + slot.name)
                 icon.name: slot.modelData.tool.icon
                 // Kante shows the name when the theme lacks the icon.
-                display: QQC2.AbstractButton.IconOnly
+                display: tools.toolDisplay
                 checkable: true
                 checked: tools.tool === slot.name
                 QQC2.ButtonGroup.group: group
@@ -555,14 +558,18 @@ RowLayout {
     }
 
     Loader {
+        id: optionsLoader
         active: !tools.compact
         visible: active
         sourceComponent: optionsItems
+        onImplicitWidthChanged: tools._fit()
+        onItemChanged: tools._fit()
     }
     KanteToolButton {
         id: moreButton
         objectName: "optionsButton"
-        visible: tools.compact
+        // Tools that did not fit are in the popover at every step.
+        visible: tools.compact || tools.fitCount < tools.shown.length
         Layout.minimumWidth: implicitWidth
         display: QQC2.AbstractButton.IconOnly
         icon.name: "overflow-menu"
@@ -589,7 +596,7 @@ RowLayout {
                     objectName: "overflow." + modelData.tool.name
                     text: tools.texts.t("tool." + modelData.tool.name)
                     icon.name: modelData.tool.icon
-                    display: QQC2.AbstractButton.IconOnly
+                    display: tools.toolDisplay
                     checkable: true
                     checked: tools.tool === modelData.tool.name
                     Accessible.name: text

@@ -75,6 +75,8 @@ TestCase {
     Component {
         id: toolsComponent
         PlanTools {
+            // D-47: the tools show words, so the bar needs the room of the wide step.
+            width: 1700
             controller: fake
             texts: de
         }
