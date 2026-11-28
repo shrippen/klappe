@@ -199,6 +199,14 @@ tr '\0' '\n' < "/proc/$pid_b/cmdline" | grep -qx "$b/sandbox/projects/beispiel-e
 "$a/qa" find --role button --contains "Neues Projekt" | grep -q "Neues Projekt" || fail "find A: no button Neues Projekt"
 echo "ok: tree and find"
 
+# D-50: without a desktop's settings the window still finds its icons. A timeline toggle with
+# its eye is about one row high; without the icon it showed "Hide: Keeper" (93 to 155 px).
+toggles="$("$b/qa" find --role button --contains "Hide: ")"
+[ -n "$toggles" ] || fail "B: no timeline toggles"
+wide="$(echo "$toggles" | awk -F'[[ ×]' '{ if ($(NF-1) + 0 > 40) print }')"
+[ -z "$wide" ] || fail "B: timeline toggles show text, not an icon: $wide"
+echo "ok: icons"
+
 # A file dialog in session A: a new window there, none on the desktop, none in session B.
 before_a="$(windows "$disp_a")"
 before_b="$(windows "$disp_b")"
