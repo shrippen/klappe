@@ -94,7 +94,13 @@ mod tests {
                 "large-format"
             ]
         );
-        assert!(presets.lens_sets.iter().any(|s| s.primes_mm.len() == 7));
+        assert!(presets.lens_sets.iter().any(|s| s.primes_mm.len() == 8));
+        let primes = presets.lens_sets.iter().find(|s| s.id == "primes").unwrap();
+        assert!(
+            primes.primes_mm.contains(&85.0),
+            "85 mm missing: {:?}",
+            primes.primes_mm
+        );
         assert!(presets.lens_sets.iter().any(|s| s.zoom_mm.is_some()));
         assert_eq!(parse(BUILTIN).as_ref(), Ok(presets));
     }
