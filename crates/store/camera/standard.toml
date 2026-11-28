@@ -41,7 +41,7 @@ aspect = 2.39
 
 [[objektiv]]
 id = "primes"
-primes_mm = [18.0, 25.0, 32.0, 50.0, 75.0, 100.0, 135.0]
+primes_mm = [18.0, 25.0, 32.0, 50.0, 75.0, 85.0, 100.0, 135.0]
 
 [[objektiv]]
 id = "zoom-standard"

@@ -5,6 +5,7 @@ use crate::image::base64;
 
 const FONT_FAMILY: &str = "Helvetica, Arial, sans-serif";
 const CLIP_ID: &str = "plan";
+const ROOM_CLIP_ID: &str = "room";
 
 pub(crate) fn write(doc: &Doc) -> String {
     let (w, h) = (num(doc.width_pt), num(doc.height_pt));
@@ -20,20 +21,29 @@ pub(crate) fn write(doc: &Doc) -> String {
         "<rect class=\"paper\" width=\"{w}\" height=\"{h}\" fill=\"{}\"/>",
         doc.paper.hex()
     );
-    let _ = writeln!(
-        out,
-        "<clipPath id=\"{CLIP_ID}\"><rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\"/></clipPath>",
-        num(doc.clip.x),
-        num(doc.clip.y),
-        num(doc.clip.w),
-        num(doc.clip.h)
-    );
-
-    let _ = writeln!(out, "<g clip-path=\"url(#{CLIP_ID})\">");
-    for prim in &doc.plan {
-        out.push_str(&element(prim));
+    for (id, rect) in [(CLIP_ID, doc.clip), (ROOM_CLIP_ID, doc.room)] {
+        let _ = writeln!(
+            out,
+            "<clipPath id=\"{id}\"><rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\"/></clipPath>",
+            num(rect.x),
+            num(rect.y),
+            num(rect.w),
+            num(rect.h)
+        );
     }
-    out.push_str("</g>\n");
+
+    for (rect, prims) in doc.plan_runs() {
+        let id = if rect == doc.room && doc.room != doc.clip {
+            ROOM_CLIP_ID
+        } else {
+            CLIP_ID
+        };
+        let _ = writeln!(out, "<g clip-path=\"url(#{id})\">");
+        for prim in prims {
+            out.push_str(&element(prim));
+        }
+        out.push_str("</g>\n");
+    }
 
     for prim in &doc.chrome {
         out.push_str(&element(prim));

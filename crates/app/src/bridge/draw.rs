@@ -338,7 +338,12 @@ impl qobject::Controller {
             return found;
         }
 
-        let at = tools::lands_at(&tool, Point::new(x, y), |p| s.snap(p));
+        // The tape measure also snaps to corners and sides.
+        let snap = |p| match tool {
+            Tool::Measure => s.snap_measure(p),
+            _ => s.snap(p),
+        };
+        let at = tools::lands_at(&tool, Point::new(x, y), snap);
         if tool == Tool::Scale {
             return self.pick_scale_point(at);
         }

@@ -55,10 +55,10 @@ pub(crate) fn render(doc: &Doc) -> Result<Surface, ExportError> {
         },
     };
 
-    // The plan is clipped to the set; the axis runs past it.
+    // The plan is clipped to its area; the axis and the view cones to the room.
     let page = painter.clip;
-    painter.clip = page.intersect(scaled(doc.clip, scale));
-    for prim in &doc.plan {
+    for (clip, prim) in doc.plan_clipped() {
+        painter.clip = page.intersect(scaled(clip, scale));
         painter.draw(prim)?;
     }
 
@@ -369,9 +369,7 @@ mod tests {
                 h: 48.0,
             },
             plan,
-            chrome: Vec::new(),
-            pages: Vec::new(),
-            sheets: Vec::new(),
+            ..Default::default()
         }
     }
 

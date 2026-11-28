@@ -8,7 +8,7 @@ use crate::palette::Rgb;
 
 pub(crate) type Pt = (f64, f64);
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub(crate) struct Rect {
     pub x: f64,
     pub y: f64,
@@ -90,20 +90,59 @@ pub(crate) enum Prim {
     },
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub(crate) struct Doc {
     pub width_pt: f64,
     pub height_pt: f64,
     pub paper: Rgb,
-    /// The plan area; `plan` is clipped to it (the axis runs past the set).
+    /// The plan area: the room and what lies beyond it; `plan` is clipped to it.
     pub clip: Rect,
+    /// The room; the prims of `plan` flagged in `at_room` are clipped to it instead (the axis
+    /// and the view cones run past the set).
+    pub room: Rect,
     pub plan: Vec<Prim>,
+    /// Per prim of `plan`: clipped to the room, not to the plan area. Missing entries are false.
+    pub at_room: Vec<bool>,
     /// Title, scale bar, legend.
     pub chrome: Vec<Prim>,
     /// Further plan pages, each a document of its own (LH-87); only the PDF has them.
     pub pages: Vec<Doc>,
     /// Further pages after the plan (the shot list); SVG has none.
     pub sheets: Vec<Sheet>,
+}
+
+impl Doc {
+    /// The prims of `plan` in drawing order, each with the clip it is drawn in.
+    pub fn plan_clipped(&self) -> impl Iterator<Item = (Rect, &Prim)> {
+        self.plan
+            .iter()
+            .enumerate()
+            .map(|(i, prim)| match self.at_room.get(i) {
+                Some(true) => (self.room, prim),
+                _ => (self.clip, prim),
+            })
+    }
+
+    /// `plan_clipped` in runs of prims that share a clip.
+    pub fn plan_runs(&self) -> Vec<(Rect, &[Prim])> {
+        let mut runs: Vec<(Rect, &[Prim])> = Vec::new();
+        let mut start = 0;
+
+        for (i, (clip, _)) in self.plan_clipped().enumerate() {
+            let held = runs.last().map(|r| r.0);
+            if held.is_some_and(|h| h == clip) {
+                continue;
+            }
+            if let Some(last) = runs.last_mut() {
+                last.1 = &self.plan[start..i];
+            }
+
+            start = i;
+            runs.push((clip, &self.plan[i..]));
+        }
+
+        runs
+    }
 }
 
 /// A page of its own size, drawn as is.
