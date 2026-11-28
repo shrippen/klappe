@@ -99,6 +99,8 @@ Item {
     /// The shot list's view and order, remembered (D-05).
     property alias shotView: store.shotView
     property alias shotOrder: store.shotOrder
+    /// The timeline shows all tracks, not only the cut order and the selection's (D-45), remembered.
+    property alias allTracks: store.allTracks
 
     /// The selected object's card takes the height (LH-93).
     function focusHeight() {
@@ -418,13 +420,16 @@ Item {
             enabled: !work.locked
             opacity: enabled ? 1 : KanteStyle.dimOpacity
             Layout.fillWidth: true
-            Layout.preferredHeight: Kirigami.Units.gridUnit * 16
+            Layout.preferredHeight: implicitHeight
+            Layout.maximumHeight: work.height / 2
             visible: work.showTimeline
             texts: work.texts
             controller: work.controller
             voice: work.voice
             speak: work.speak
+            allTracks: work.allTracks
             onSpeakToggled: on => work.speakToggled(on)
+            onAllTracksToggled: on => work.allTracks = on
         }
     }
 
@@ -440,5 +445,6 @@ Item {
         // The shot list's view ("tiles", "table") and order ("cut", "shooting"), D-05.
         property string shotView: "tiles"
         property string shotOrder: "cut"
+        property bool allTracks: false
     }
 }
