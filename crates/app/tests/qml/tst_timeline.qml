@@ -45,6 +45,7 @@ TestCase {
         property var selected: []
         function selectShot(key) { selected.push(key) }
         property string locksJson: "{}"
+        property string selectedKey: ""
 
         property var drags: []
         property var drops: []
@@ -89,6 +90,62 @@ TestCase {
         fake.drops = []
         fake.selected = []
         fake.locksJson = "{}"
+        // The figure is selected, so its row is on view (D-45).
+        fake.selectedKey = "figure:anna"
+    }
+
+    readonly property string tracksOfFour: JSON.stringify([
+        { kind: "cut", id: "cut", name: "", label: "yellow", shown: true, segments: [], markers: [] },
+        { kind: "figure", id: "anna", name: "Anna", label: "red", shown: true, segments: [], markers: [] },
+        { kind: "figure", id: "ben", name: "Ben", label: "blue", shown: true, segments: [], markers: [] },
+        { kind: "camera", id: "a", name: "A", label: "green", shown: true, segments: [], markers: [] },
+        { kind: "light", id: "l1", name: "L1", label: "orange", shown: true, segments: [], markers: [] }
+    ])
+
+    function rows(line) {
+        return findChild(line, "tracks").tracks.map(t => t.name)
+    }
+
+    // D-45: the cut order alone, with the selected element's row; all of them on request.
+    function test_folded_shows_the_cut_and_the_selected_row() {
+        fake.tracksJson = tracksOfFour
+        fake.selectedKey = ""
+        const line = make(de)
+        compare(rows(line), ["Schnittfolge"])
+        fake.selectedKey = "camera:a"
+        compare(rows(line), ["Schnittfolge", "A"])
+        fake.selectedKey = "mark:ben:2"
+        compare(rows(line), ["Schnittfolge", "Ben"])
+        fake.selectedKey = "light:l1"
+        compare(rows(line), ["Schnittfolge", "L1"])
+    }
+
+    function test_unfolded_shows_all_rows_and_folds_again() {
+        fake.tracksJson = tracksOfFour
+        fake.selectedKey = ""
+        const line = make(de)
+        const lanes = findChild(line, "tracks")
+        // The layout passes lazily: the height follows the rows, one track and then five.
+        wait(300)
+        const folded = line.implicitHeight
+        line.allTracks = true
+        compare(rows(line), ["Schnittfolge", "Anna", "Ben", "A", "L1"])
+        tryCompare(line, "implicitHeight", folded + 4 * lanes.trackHeight)
+        line.allTracks = false
+        compare(rows(line), ["Schnittfolge"])
+        tryCompare(line, "implicitHeight", folded)
+    }
+
+    function test_the_all_tracks_switch_asks_the_window() {
+        const line = make(de)
+        const sw = findChild(line, "allTracksSwitch")
+        compare(sw.text, "Alle Spuren")
+        const asked = []
+        line.allTracksToggled.connect(on => asked.push(on))
+        sw.toggle()
+        sw.toggled()
+        compare(asked, [true])
+        verify(!sw.checked)
     }
 
     // Play stops when the timeline is locked (backup question) and when another scene or project

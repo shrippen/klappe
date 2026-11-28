@@ -479,6 +479,7 @@
  "shot.lensFromMarks": "From the camera marks",
  "shot.movementHint": "From the camera marks: {movement}",
  "timeline.cut": "Cut order",
+ "timeline.allTracks": "All tracks",
  "timeline.hide": "Hide",
  "timeline.show": "Show",
  "timeline.start": "To start",
