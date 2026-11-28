@@ -30,6 +30,7 @@ use crate::style::{role_style, RoleStyle};
 use klappe_model::FigureColor;
 
 mod arrow;
+mod extent;
 mod note;
 mod swatch;
 
@@ -119,20 +120,34 @@ pub(crate) fn compose(list: &DisplayList, page: &Page, theme: Theme) -> Result<D
         return Err(ExportError::PageTooSmall);
     }
 
-    // One scale for both axes keeps the aspect ratio; the plan is centred.
-    let scale = (area.w / list.width_m).min(area.h / list.depth_m);
+    // One scale for both axes keeps the aspect ratio; the plan is centred. It shows the room
+    // and what lies beyond it (Q1-07).
+    let (min, max) = extent::of(list);
+    let (span_w, span_h) = (max.x_m - min.x_m, max.y_m - min.y_m);
+    let scale = (area.w / span_w).min(area.h / span_h);
     let frame = Rect {
-        x: area.x + (area.w - list.width_m * scale) / 2.0,
-        y: area.y + (area.h - list.depth_m * scale) / 2.0,
+        x: area.x + (area.w - span_w * scale) / 2.0,
+        y: area.y + (area.h - span_h * scale) / 2.0,
+        w: span_w * scale,
+        h: span_h * scale,
+    };
+    let map = Map {
+        frame,
+        origin: min,
+        scale,
+    };
+    let (room_x, room_y) = map.pt(Point::new(0.0, 0.0));
+    let room = Rect {
+        x: room_x,
+        y: room_y,
         w: list.width_m * scale,
         h: list.depth_m * scale,
     };
-    let map = Map { frame, scale };
 
     let plan = plan_prims(list, &map, page, pal)?;
 
     let footer_y = area.y + area.h + GAP_PT;
-    let mut chrome = vec![frame_prim(frame, pal)];
+    let mut chrome = vec![frame_prim(room, pal)];
     chrome.extend(title);
     scale_bar(&map, margin, footer_y, &page.texts, pal, &mut chrome);
     let lamp_y = legend(
@@ -207,15 +222,18 @@ fn fade_prims(prims: &mut [Prim], strength: f64, paper: Rgb) {
 
 /// Metres to page points.
 struct Map {
+    /// Where the plan is drawn on the page.
     frame: Rect,
+    /// The point of the plan at the top left of `frame`.
+    origin: Point,
     scale: f64,
 }
 
 impl Map {
     fn pt(&self, p: Point) -> Pt {
         (
-            self.frame.x + p.x_m * self.scale,
-            self.frame.y + p.y_m * self.scale,
+            self.frame.x + (p.x_m - self.origin.x_m) * self.scale,
+            self.frame.y + (p.y_m - self.origin.y_m) * self.scale,
         )
     }
 }
