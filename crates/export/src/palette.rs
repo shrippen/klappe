@@ -17,7 +17,7 @@ pub enum Theme {
     Dark,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub(crate) struct Rgb {
     pub r: u8,
     pub g: u8,

@@ -242,6 +242,8 @@ fn sheets<'a>(
 
 #[cfg(test)]
 mod png_tests;
+#[cfg(test)]
+mod raster_room_tests;
 
 #[cfg(test)]
 mod title_tests;

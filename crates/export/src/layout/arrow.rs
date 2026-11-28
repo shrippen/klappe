@@ -21,7 +21,7 @@ fn label(label: &str, bounds: &[Pt], map: &Map, pal: &Palette, out: &mut Vec<Pri
         .fold((f64::MAX, f64::MIN), |(t, b), p| (t.min(p.1), b.max(p.1)));
     let centre = ((left + right) / 2.0, (top + bottom) / 2.0);
     let width = |t: &str| text_width_pt(t, LABEL_PT, Weight::Regular);
-    let lines: Vec<String> = match width(label) > map.frame.w {
+    let lines: Vec<String> = match width(label) > map.room.w {
         true => label.split(" / ").map(str::to_owned).collect(),
         false => vec![label.to_owned()],
     };
@@ -29,10 +29,10 @@ fn label(label: &str, bounds: &[Pt], map: &Map, pal: &Palette, out: &mut Vec<Pri
 
     for (row, text) in lines.into_iter().enumerate() {
         let half = width(&text) / 2.0;
-        let (low, high) = (map.frame.x + half, map.frame.x + map.frame.w - half);
+        let (low, high) = (map.room.x + half, map.room.x + map.room.w - half);
         let x = match low <= high {
             true => centre.0.clamp(low, high),
-            false => map.frame.x + map.frame.w / 2.0,
+            false => map.room.x + map.room.w / 2.0,
         };
 
         out.push(Prim::Text {

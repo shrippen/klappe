@@ -45,7 +45,12 @@ pub(super) fn of(list: &DisplayList) -> (Point, Point) {
 /// Whether an item widens the printout. Lines that run on past the set (the axis, the view
 /// cone, a beam, the sun) are cut at the room, as are the background and the grips.
 fn shown(role: Role) -> bool {
-    !matches!(
+    !cut_at_room(role)
+}
+
+/// Whether an item is clipped to the room, not to the whole plan area.
+pub(super) fn cut_at_room(role: Role) -> bool {
+    matches!(
         role,
         Role::Background
             | Role::Axis

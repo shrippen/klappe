@@ -131,20 +131,10 @@ pub(crate) fn compose(list: &DisplayList, page: &Page, theme: Theme) -> Result<D
         w: span_w * scale,
         h: span_h * scale,
     };
-    let map = Map {
-        frame,
-        origin: min,
-        scale,
-    };
-    let (room_x, room_y) = map.pt(Point::new(0.0, 0.0));
-    let room = Rect {
-        x: room_x,
-        y: room_y,
-        w: list.width_m * scale,
-        h: list.depth_m * scale,
-    };
+    let map = Map::new(frame, min, scale, (list.width_m, list.depth_m));
+    let room = map.room;
 
-    let plan = plan_prims(list, &map, page, pal)?;
+    let (plan, at_room) = plan_prims(list, &map, page, pal)?;
 
     let footer_y = area.y + area.h + GAP_PT;
     let mut chrome = vec![frame_prim(room, pal)];
@@ -165,7 +155,9 @@ pub(crate) fn compose(list: &DisplayList, page: &Page, theme: Theme) -> Result<D
         height_pt,
         paper: pal.paper,
         clip: frame,
+        room,
         plan,
+        at_room,
         chrome,
         pages: Vec::new(),
         sheets: Vec::new(),
@@ -178,8 +170,9 @@ fn plan_prims(
     map: &Map,
     page: &Page,
     pal: &Palette,
-) -> Result<Vec<Prim>, ExportError> {
+) -> Result<(Vec<Prim>, Vec<bool>), ExportError> {
     let mut plan = Vec::new();
+    let mut at_room = Vec::new();
     for (index, item) in list.items.iter().enumerate() {
         let body_m = body_radius_m(list, item);
         let first = plan.len();
@@ -192,9 +185,10 @@ fn plan_prims(
 
         let strength = page.fade.get(index).copied().unwrap_or(FULL_STRENGTH);
         fade_prims(&mut plan[first..], strength, pal.paper);
+        at_room.resize(plan.len(), extent::cut_at_room(item.role));
     }
 
-    Ok(plan)
+    Ok((plan, at_room))
 }
 
 /// Draws `prims` at `strength` of their colour over the paper (LH-15): lines and text take
@@ -224,12 +218,33 @@ fn fade_prims(prims: &mut [Prim], strength: f64, paper: Rgb) {
 struct Map {
     /// Where the plan is drawn on the page.
     frame: Rect,
+    /// Where the room is, inside `frame`.
+    room: Rect,
     /// The point of the plan at the top left of `frame`.
     origin: Point,
     scale: f64,
 }
 
 impl Map {
+    /// `frame` shows the plan from `origin` on; the room is `room_m` (width, depth) at 0, 0.
+    fn new(frame: Rect, origin: Point, scale: f64, room_m: (f64, f64)) -> Map {
+        let mut map = Map {
+            frame,
+            room: frame,
+            origin,
+            scale,
+        };
+        let (x, y) = map.pt(Point::new(0.0, 0.0));
+        map.room = Rect {
+            x,
+            y,
+            w: room_m.0 * scale,
+            h: room_m.1 * scale,
+        };
+
+        map
+    }
+
     fn pt(&self, p: Point) -> Pt {
         (
             self.frame.x + (p.x_m - self.origin.x_m) * self.scale,

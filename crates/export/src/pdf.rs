@@ -268,20 +268,21 @@ fn content(doc: &Doc, states: &[u32], pictures: &[Arc<Picture>]) -> Vec<u8> {
     let h = doc.height_pt;
     let mut s = paper(doc.paper, doc.width_pt, h);
 
-    // The plan is clipped to the set; the axis runs past it.
-    let c = doc.clip;
-    let _ = writeln!(
-        s,
-        "q {} {} {} {} re W n",
-        num(c.x),
-        num(h - c.y - c.h),
-        num(c.w),
-        num(c.h)
-    );
-    for prim in &doc.plan {
-        s.push_str(&operators(prim, h, states, pictures));
+    // The plan is clipped to its area; the axis and the view cones to the room.
+    for (c, prims) in doc.plan_runs() {
+        let _ = writeln!(
+            s,
+            "q {} {} {} {} re W n",
+            num(c.x),
+            num(h - c.y - c.h),
+            num(c.w),
+            num(c.h)
+        );
+        for prim in prims {
+            s.push_str(&operators(prim, h, states, pictures));
+        }
+        s.push_str("Q\n");
     }
-    s.push_str("Q\n");
 
     for prim in &doc.chrome {
         s.push_str(&operators(prim, h, states, pictures));
