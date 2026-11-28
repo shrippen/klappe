@@ -214,6 +214,8 @@ enum Limit {
     DotHeading,
     /// A transition cannot end with `<`: `>Text<` is centered.
     TransitionEnd,
+    /// A cue cannot end with a typed `^`: it is the dual mark (` ^`), as when pasted.
+    DualMark,
     /// A note in front of a `#` or `=`, or around `(leise)`, keeps the line from being a
     /// section, a synopsis or a parenthetical: the mark must open the line (and `)` end it).
     NoteBreaksLine,
@@ -237,9 +239,10 @@ enum Limit {
     TouchingStars,
 }
 
-const LIMITS: [Limit; 8] = [
+const LIMITS: [Limit; 9] = [
     Limit::DotHeading,
     Limit::TransitionEnd,
+    Limit::DualMark,
     Limit::NoteBreaksLine,
     Limit::HeadingEndsWithNumber,
     Limit::BlankWithNote,
@@ -328,6 +331,7 @@ impl Case {
                 trimmed.ends_with('<'),
                 Limit::TransitionEnd,
             ),
+            (TextKind::Character, trimmed.ends_with('^'), Limit::DualMark),
             (
                 TextKind::Parenthetical,
                 note_in_front || note_behind,

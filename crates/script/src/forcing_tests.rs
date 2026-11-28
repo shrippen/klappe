@@ -95,3 +95,67 @@ fn a_forcing_character_alone_shows() {
         assert_eq!(shown.text, mark);
     }
 }
+
+/// `typed` put one character at a time at `col` of line `line` of `source`.
+fn typed_in(source: &str, (line, col): (usize, usize), typed: &str) -> String {
+    let mut source = source.to_owned();
+    let mut col = col;
+
+    for ch in typed.chars() {
+        source = edit_shown(&source, &EDITOR, &change_at(line, col, &ch.to_string())).source;
+        col += 1;
+    }
+
+    source
+}
+
+#[test]
+fn a_dual_mark_typed_behind_a_cue_is_pasted() {
+    let above = "ANNA\nHallo.\n\n";
+    let cases = [
+        (
+            format!("{above}BOB\nJa."),
+            (3, 3),
+            " ^",
+            format!("{above}BOB ^\nJa."),
+        ),
+        (
+            format!("{above}BOB\nJa."),
+            (3, 3),
+            "^",
+            format!("{above}BOB^\nJa."),
+        ),
+        (
+            format!("{above}BOB\nJa."),
+            (3, 3),
+            "  ^",
+            format!("{above}BOB  ^\nJa."),
+        ),
+        (
+            format!("{above}\nJa."),
+            (3, 0),
+            "@BOB ^",
+            format!("{above}@BOB ^\nJa."),
+        ),
+        (
+            format!("{above}@BOB\nJa."),
+            (3, 3),
+            " ^",
+            format!("{above}@BOB ^\nJa."),
+        ),
+        (
+            format!("{above}> ENDE\nx"),
+            (3, 5),
+            " <",
+            format!("{above}> ENDE <\nx"),
+        ),
+    ];
+
+    for (source, at, typed, want) in cases {
+        assert_eq!(
+            typed_in(&source, at, typed),
+            want,
+            "{typed:?} in {source:?}"
+        );
+    }
+}
