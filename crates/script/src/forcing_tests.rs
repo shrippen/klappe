@@ -99,11 +99,9 @@ fn a_forcing_character_alone_shows() {
 /// `typed` put one character at a time at `col` of line `line` of `source`.
 fn typed_in(source: &str, (line, col): (usize, usize), typed: &str) -> String {
     let mut source = source.to_owned();
-    let mut col = col;
 
-    for ch in typed.chars() {
-        source = edit_shown(&source, &EDITOR, &change_at(line, col, &ch.to_string())).source;
-        col += 1;
+    for (at, ch) in (col..).zip(typed.chars()) {
+        source = edit_shown(&source, &EDITOR, &change_at(line, at, &ch.to_string())).source;
     }
 
     source
