@@ -27,8 +27,26 @@ Item {
     /// Dialogue is read while playing; the window keeps the choice.
     property bool speak: false
     signal speakToggled(bool on)
+    /// All tracks are shown (D-45); off: the cut order and the track of the selected element. The
+    /// window keeps the choice.
+    property bool allTracks: false
+    signal allTracksToggled(bool on)
 
-    readonly property var source: controller.tracksJson ? JSON.parse(controller.tracksJson) : []
+    readonly property var everySource: controller.tracksJson ? JSON.parse(controller.tracksJson) : []
+    // The plan's selection as a track: `figure:a`, `camera:b` and `light:c` name theirs, a mark
+    // `mark:a:2` and a bend of the way `figurevia:a:2:at0` the figure's, `cameravia:b:…` the
+    // camera's, a grip `lightgrip:c:…` the light's.
+    readonly property var selectedTrack: {
+        const parts = (controller.selectedKey || "").split(":")
+        const kinds = {
+            figure: "figure", mark: "figure", figurevia: "figure",
+            camera: "camera", cameravia: "camera", light: "light", lightgrip: "light"
+        }
+        return kinds[parts[0]] ? { kind: kinds[parts[0]], id: parts[1] } : null
+    }
+    // The rows on view; the lanes' indexes point into this.
+    readonly property var source: allTracks ? everySource : everySource.filter(
+        tr => tr.kind === "cut" || (selectedTrack !== null && tr.kind === selectedTrack.kind && tr.id === selectedTrack.id))
 
     readonly property var speedSteps: [0.25, 0.5, 1]
     readonly property int tickMs: 40
@@ -134,7 +152,11 @@ Item {
         markers: tr.markers.map(m => ({ at: m.at_s, text: m.text }))
     }))
 
+    // The rows decide the height (D-45): folded, the plan gets the rest.
+    implicitHeight: column.implicitHeight + 2 * Kirigami.Units.smallSpacing
+
     ColumnLayout {
+        id: column
         anchors.fill: parent
         anchors.margins: Kirigami.Units.smallSpacing
         spacing: Kirigami.Units.smallSpacing
@@ -173,6 +195,17 @@ Item {
                 onLoopToggled: line.looping = !line.looping
                 onSpeedChangeRequested: s => line.speed = s
                 onMarkerStepRequested: direction => line.controller.stepMark(direction)
+            }
+
+            KanteSwitch {
+                objectName: "allTracksSwitch"
+                text: line.texts.t("timeline.allTracks")
+                checked: line.allTracks
+                onToggled: {
+                    line.allTracksToggled(checked)
+                    // The window's answer, not this click, says what is on.
+                    checked = Qt.binding(() => line.allTracks)
+                }
             }
 
             KanteSwitch {
