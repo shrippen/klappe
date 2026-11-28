@@ -34,10 +34,14 @@ Item {
 
     readonly property var everySource: controller.tracksJson ? JSON.parse(controller.tracksJson) : []
     // The plan's selection as a track: `figure:a`, `camera:b` and `light:c` name theirs, a mark
-    // `mark:a:2` the figure's.
+    // `mark:a:2` and a bend of the way `figurevia:a:2:at0` the figure's, `cameravia:b:…` the
+    // camera's, a grip `lightgrip:c:…` the light's.
     readonly property var selectedTrack: {
         const parts = (controller.selectedKey || "").split(":")
-        const kinds = { figure: "figure", mark: "figure", camera: "camera", light: "light" }
+        const kinds = {
+            figure: "figure", mark: "figure", figurevia: "figure",
+            camera: "camera", cameravia: "camera", light: "light", lightgrip: "light"
+        }
         return kinds[parts[0]] ? { kind: kinds[parts[0]], id: parts[1] } : null
     }
     // The rows on view; the lanes' indexes point into this.

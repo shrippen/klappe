@@ -41,7 +41,8 @@ TestCase {
             }
             return running
         }
-        function setTrack() {}
+        property var trackSets: []
+        function setTrack(id, state) { trackSets.push([id, state]) }
         property var selected: []
         function selectShot(key) { selected.push(key) }
         property string locksJson: "{}"
@@ -118,6 +119,28 @@ TestCase {
         compare(rows(line), ["Schnittfolge", "Ben"])
         fake.selectedKey = "light:l1"
         compare(rows(line), ["Schnittfolge", "L1"])
+    }
+
+    // A bend of a way and a grip of a light belong to their element: its row stays.
+    function test_a_bend_or_grip_keeps_its_row() {
+        fake.tracksJson = tracksOfFour
+        const line = make(de)
+        fake.selectedKey = "figurevia:ben:1:at0"
+        compare(rows(line), ["Schnittfolge", "Ben"])
+        fake.selectedKey = "cameravia:a:1:at0"
+        compare(rows(line), ["Schnittfolge", "A"])
+        fake.selectedKey = "lightgrip:l1:beam"
+        compare(rows(line), ["Schnittfolge", "L1"])
+    }
+
+    // Folded, the camera is the second row, not the fourth: its eye still hides the camera.
+    function test_a_folded_row_hides_its_own_track() {
+        fake.tracksJson = tracksOfFour
+        fake.selectedKey = "camera:a"
+        fake.trackSets = []
+        const line = make(de)
+        mouseClick(findChild(line, "toggle1"))
+        compare(fake.trackSets, [["a", "hidden"]])
     }
 
     function test_unfolded_shows_all_rows_and_folds_again() {
