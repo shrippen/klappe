@@ -134,7 +134,7 @@ nachzuspielen.
 - **Nachgeprüft:** nein; abgeglichen: die Notiz steht im Projekt und in der Darstellungsliste (SVG über
   `klappe-cli`), liegt aber außerhalb des ausgegebenen Ausschnitts. Hängt mit der offenen
   Frage zum Notiztext zusammen.
-- **Status:** offen
+- **Status:** gewählt (D-51), Behebung vorbereitet: #390
 
 ### Q1-08 Die 180°-Prüfung ist nicht auffindbar
 - **Art:** vorhanden, aber nicht auffindbar · **Stufe:** mittel
@@ -219,7 +219,7 @@ nachzuspielen.
   wie im CAD (LH-14).
 - **Beleg:** P5 `shot-022` bis `shot-025`
 - **Nachgeprüft:** nein; abgeglichen an STAND (zwei Klicks, Einrasten wie die anderen Werkzeuge): so gebaut.
-- **Status:** offen
+- **Status:** gewählt (D-51), Behebung vorbereitet: #390
 
 ### Q1-16 Bild-Ausgabe fragt nach Papierformat; Plan dicht überlagert
 - **Art:** Reibung · **Stufe:** niedrig
@@ -248,7 +248,7 @@ nachzuspielen.
   eingetippt. Erwartet: 85 mm im Satz.
 - **Beleg:** P2 `shot-028`
 - **Nachgeprüft:** nein; abgeglichen an `crates/store/camera/standard.toml`
-- **Status:** offen
+- **Status:** gewählt (D-51), Behebung vorbereitet: #390
 
 ### Q1-19 Nach dem Speichern-Dialog wirken Tastenkürzel nicht
 - **Art:** Fehler · **Stufe:** mittel
