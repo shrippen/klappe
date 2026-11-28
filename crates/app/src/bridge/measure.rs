@@ -49,7 +49,7 @@ impl qobject::Controller {
         let Some(s) = self.as_mut().session() else {
             return false;
         };
-        let at = s.snap(Point::new(x, y));
+        let at = s.snap_measure(Point::new(x, y));
         let step = self.rust().measure;
         let live = step.hover(at);
         if live == step {

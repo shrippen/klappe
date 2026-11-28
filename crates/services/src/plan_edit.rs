@@ -17,6 +17,7 @@ mod background;
 mod bound;
 mod check;
 mod drawings;
+mod edge_snap;
 mod grid;
 mod group;
 mod heights;
@@ -38,6 +39,7 @@ use add::{
 use background::{calibrate, move_background, remove_background, set_background};
 use check::check;
 use drawings::set_drawing_style;
+pub(crate) use edge_snap::snap_to_edges;
 pub(crate) use grid::snap;
 pub use grid::Grid;
 use heights::edit_height;

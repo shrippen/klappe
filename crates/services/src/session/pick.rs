@@ -172,4 +172,14 @@ impl Session {
     pub fn snap(&self, at: Point) -> Point {
         plan_edit::snap(at, self.snapping, self.grid)
     }
+
+    /// `at` on the nearest corner or side of a wall or object when snapping is on and one is
+    /// close (LH-14), else `snap`.
+    pub fn snap_measure(&self, at: Point) -> Point {
+        if self.snapping == Snapping::Off {
+            return at;
+        }
+
+        plan_edit::snap_to_edges(at, &self.display_list().items).unwrap_or_else(|| self.snap(at))
+    }
 }
